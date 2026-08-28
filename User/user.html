@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSS UniServe &mdash; Visitor Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="user.css">
+</head>
+
+<body>
+    <div id="visitorApp" class="app-shell">
+        <aside class="sidebar" id="visitorSidebar">
+            <div class="sidebar-brand">
+                <span class="crest" id="crestSlotF"></span>
+                <span class="name">OSS UniServe<small>Visitor Services</small></span>
+            </div>
+            <ul class="nav-list" id="visitorNavList"></ul>
+            <div class="sidebar-foot">
+                <a href="../Landing/landing.html" class="btn btn-ghost btn-sm btn-block">&larr; Back to Home</a>
+            </div>
+        </aside>
+
+        <div class="main-col">
+            <div class="topbar">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <button class="menu-btn"
+                        onclick="document.getElementById('visitorSidebar').classList.toggle('open')">&#9776;</button>
+                    <div>
+                        <h1 id="visitorPageTitle">Start Your Visit</h1>
+                        <div class="sub" id="visitorPageSub">Choose a service and decide whether to walk in or schedule
+                            ahead.</div>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="theme-toggle">
+                        <button class="theme-btn" data-theme-btn="light" onclick="setTheme('light')">&#9728;
+                            Light</button>
+                        <button class="theme-btn" data-theme-btn="dark" onclick="setTheme('dark')">&#9789; Dark</button>
+                    </div>
+                </div>
+            </div>
+            <div class="content" id="visitorContent"></div>
+        </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="user.js"></script>
+</body>
+
+</html>

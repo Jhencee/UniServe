@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSS UniServe &mdash; Office of Student Services</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="landing.css">
+</head>
+
+<body>
+
+    <!-- ======================= LANDING ======================= -->
+    <div id="landing">
+        <nav class="landing-nav">
+            <div class="brandline">
+                <span class="crest" id="crestSlotA"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
+                <span class="name">OSS UniServe<small>Office of Student Services</small></span>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <a href="../User/user.html?flow=visit" class="btn btn-ghost btn-sm">Start a Visit</a>
+                <a href="../User/user.html?flow=checkvisit" class="btn btn-ghost btn-sm">Check My Visit</a>
+                <button class="btn btn-primary btn-sm" onclick="showLogin()">Staff Login</button>
+            </div>
+        </nav>
+
+        <header class="hero">
+            <div class="hero-inner">
+                <span class="eyebrow">Student &amp; Guest Services</span>
+                <h1>One office. <em>Every</em> service,<br>from queue to completion.</h1>
+                <p>Every visit starts here. Tap below to start your visit &mdash; walk in now or
+                    schedule ahead, your choice.</p>
+                <div class="hero-actions">
+                    <a href="../User/user.html?flow=visit" class="btn btn-gold">Start a Visit</a>
+                    <a href="../User/user.html?flow=checkvisit" class="btn btn-outline">Check My Visit</a>
+                    <button class="btn btn-outline" onclick="showLogin()">Staff Login</button>
+                </div>
+            </div>
+        </header>
+
+        <section class="section-pad">
+            <div class="section-head">
+                <div class="kicker">What the portal handles</div>
+                <h2>Built around the office's actual workload</h2>
+            </div>
+            <div class="feat-grid">
+                <div class="feat-card">
+                    <div class="num">01</div>
+                    <h3>Check-In &amp; Identification</h3>
+                    <p>Students and guests are identified and logged the moment they arrive, walk-in or by appointment.
+                    </p>
+                </div>
+                <div class="feat-card">
+                    <div class="num">02</div>
+                    <h3>Appointments &amp; Visitor Pass</h3>
+                    <p>Guests book online and receive a pass with a code for a faster front-desk check-in.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="num">03</div>
+                    <h3>Student Services</h3>
+                    <p>Good Moral, IDs, excuse letters, lost documents, off-campus and org activity requests &mdash; one
+                        workflow.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="num">04</div>
+                    <h3>Incident Reports</h3>
+                    <p>Sensitive cases are documented and handled by the OSS admin team.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="num">05</div>
+                    <h3>Scholarship Records</h3>
+                    <p>OSS admin-managed scholarship documentation and status.</p>
+                </div>
+                <div class="feat-card">
+                    <div class="num">06</div>
+                    <h3>Reports &amp; Audit Trail</h3>
+                    <p>Printable daily, weekly, monthly and quarterly reports, plus a full activity log.</p>
+                </div>
+            </div>
+        </section>
+
+        <footer class="landing-footer">
+            <span>&copy; <span id="yearNow"></span> Office of Student Services</span>
+            <button class="btn btn-ghost btn-sm" onclick="openPublicDisplay()">Open Queue Display (waiting
+                area)</button>
+        </footer>
+    </div>
+
+    <!-- ======================= STAFF LOGIN ======================= -->
+    <div id="loginScreen" hidden>
+        <div class="auth-wrap">
+            <div class="auth-card">
+                <div class="auth-head">
+                    <span class="crest" id="crestSlotB"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
+                    <h2>Staff Login</h2>
+                    <p>Sign in to access OSS UniServe</p>
+                </div>
+                <div class="auth-body">
+                    <a class="back-link" onclick="showLanding()">&larr; Back to home</a>
+                    <div id="loginErr" class="err-box" hidden></div>
+                    <div class="field"><label>Username</label><input id="loginUser" type="text" placeholder="e.g. admin"
+                            autocomplete="username"></div>
+                    <div class="field"><label>Password</label><input id="loginPass" type="password"
+                            placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password"></div>
+                    <button class="btn btn-primary btn-block" onclick="doLogin()">Sign In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================= PUBLIC QUEUE DISPLAY (kiosk) ======================= -->
+    <div id="publicDisplay" hidden>
+        <div class="pd-shell">
+            <div class="pd-top">
+                <div class="brandline">
+                    <span class="crest" id="crestSlotPD"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
+                    <span class="name" style="color:#fff;">OSS UniServe<small style="color:var(--gold-400);">Queue
+                            Display</small></span>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="showLanding()">&larr; Exit Display</button>
+            </div>
+            <div id="publicDisplayContent" class="pd-content"></div>
+        </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="landing.js"></script>
+</body>
+
+</html>
