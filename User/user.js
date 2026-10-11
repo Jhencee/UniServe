@@ -113,6 +113,8 @@ const PH_CONTACT_RE = /^(09\d{2}[-\s]?\d{3}[-\s]?\d{4}|\+639\d{2}[-\s]?\d{3}[-\s
 const STUDENT_NO_RE = /^\d{4}-\d{5}-SM-\d$/;
 function isValidContact(v) { return PH_CONTACT_RE.test(String(v || '').trim()); }
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || '').trim()); }
+function normEmail(v) { return String(v || '').trim().toLowerCase(); }
+function isValidGmail(v) { return /^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@gmail\.com$/.test(normEmail(v)); }
 function isValidPersonName(v) { return String(v || '').trim().length >= 2; }
 function isValidIdNumber(v) { return String(v || '').trim().length >= 3; }
 function isValidStudentNo(v) { return STUDENT_NO_RE.test(String(v || '').trim().toUpperCase()); }
@@ -345,7 +347,7 @@ function addToQueue(db, o) {
     visitorType: o.visitorType, serviceKey: o.serviceKey || null,
     serviceLabel: o.serviceLabel || (o.serviceKey ? serviceLabel(db, o.serviceKey) : 'General Concern'),
     source: o.source || 'Walk-in', name: o.name || '', idNumber: o.idNumber || '', idType: o.idType || '',
-    guestClass: o.guestClass || '', contact: o.contact || '',
+    guestClass: o.guestClass || '', contact: o.contact || '', email: normEmail(o.email),
     appointmentId: o.appointmentId || null, scheduledAt: o.scheduledAt || null,
     isSenior: !!o.isSenior, checkedInAt: o.checkedInAt || new Date(), possibleDuplicate: !!o.possibleDuplicate,
   });
@@ -377,12 +379,14 @@ function readinessPillHtml(r) {
   const cls = r.status === 'READY' ? 'ready' : (r.status === 'FOR_REVIEW' ? 'review' : 'incomplete');
   return `<span class="readiness-pill ${cls}">${icon(r.status === 'READY' ? 'check' : 'alert', 12)} ${escapeHtml(r.label)}</span>`;
 }
-function findActiveDuplicate(db, idNumber, svcKeyOrLabel) {
+function findActiveDuplicate(db, idNumber, svcKeyOrLabel, email) {
   const id = String(idNumber || '').trim().toLowerCase();
-  if (!id) return null;
-  const q = db.queues.find(x => (x.idNumber || '').trim().toLowerCase() === id && ['Waiting', 'Called', 'Serving'].includes(x.status) && (x.serviceKey === svcKeyOrLabel || x.serviceLabel === svcKeyOrLabel));
+  const em = normEmail(email);
+  if (!id && !em) return null;
+  const same = x => (id && (x.idNumber || '').trim().toLowerCase() === id) || (em && normEmail(x.email) === em);
+  const q = db.queues.find(x => same(x) && ['Waiting', 'Called', 'Serving'].includes(x.status) && (x.serviceKey === svcKeyOrLabel || x.serviceLabel === svcKeyOrLabel));
   if (q) return { type: 'queue', entry: q };
-  const a = db.appointments.find(x => (x.idNumber || '').trim().toLowerCase() === id && !x.queueId && ['Requested', 'Booked'].includes(x.status) && x.service === svcKeyOrLabel);
+  const a = db.appointments.find(x => same(x) && !x.queueId && ['Requested', 'Booked'].includes(x.status) && x.service === svcKeyOrLabel);
   return a ? { type: 'appointment', entry: a } : null;
 }
 function duplicateWarningHtml(dup) {
@@ -392,11 +396,13 @@ function duplicateWarningHtml(dup) {
     : `You already have a pending scheduled request (${escapeHtml(dup.entry.code)}) for this same service.`;
   return `<div class="dup-warn">${icon('alert', 13)} Possible duplicate visit: ${desc} You can still continue, and OSS staff will review both if needed.</div>`;
 }
-function visitorHistoryFor(db, idNumber) {
-  const id = String(idNumber || '').trim().toLowerCase();
-  if (!id) return [];
+function visitorHistoryFor(db, email) {
+  const em = normEmail(email);
+  if (!em) return [];
   const known = new Set(), rows = [];
-  const mine = x => (x.idNumber || '').trim().toLowerCase() === id;
+  const emailVisitIds = new Set();
+  db.queues.concat(db.appointments).forEach(x => { if (normEmail(x.email) === em && x.visitId) emailVisitIds.add(x.visitId); });
+  const mine = x => normEmail(x.email) === em || (x.visitId && emailVisitIds.has(x.visitId));
   db.transactions.filter(mine).forEach(t => { if (t.visitId) known.add(t.visitId); rows.push({ when: t.createdAt, label: serviceLabel(db, t.service), status: t.status, ref: t.visitId || t.code }); });
   db.appointments.filter(mine).forEach(a => { if (!known.has(a.visitId)) { known.add(a.visitId); rows.push({ when: a.createdAt, label: a.service, status: a.status, ref: a.visitId || a.code }); } });
   db.queues.filter(mine).forEach(q => { if (!known.has(q.visitId)) rows.push({ when: q.createdAt, label: serviceQueueLabel(db, q), status: q.status, ref: q.visitId || q.number }); });
@@ -553,7 +559,7 @@ const VISITOR_NAV = [
 const VISITOR_TITLES = {
   visit: ['Start Your Visit', 'Choose a service and how you want to visit'],
   checkvisit: ['Check My Visit', 'See your live status or check in for an appointment'],
-  history: ['Visit History', 'Look up your past visits'],
+  history: ['Visit History', 'Verify your Gmail to see your past visits'],
   chat: ['Chat with OSS', 'Send a message to the office'],
 };
 
@@ -765,28 +771,22 @@ function visitorFieldsHtml(p, isStudent) {
     </div>
     ${isStudent
       ? `<div class="field" id="fw${P}IdNum"><label for="${p}IdNum">Student number ${uxReq}</label><input id="${p}IdNum" inputmode="numeric" maxlength="15" placeholder="0000-00000-SM-0" autocomplete="off" oninput="maskStudentNoInput(this)"><div class="field-error"></div></div>`
-      : `<div class="form-row">
-          <div class="field" id="fw${P}IdType"><label for="${p}IdType">Valid ID type ${uxReq}</label>${idTypeSelectHtml(p + 'IdType')}<div class="field-error"></div></div>
-          <div class="field" id="fw${P}IdNum"><label for="${p}IdNum">Valid ID number ${uxReq}</label><input id="${p}IdNum" placeholder="ID number" autocomplete="off"><div class="field-error"></div></div>
-        </div>`}`;
+      : `<div class="field" id="fw${P}IdType"><label for="${p}IdType">Valid ID type ${uxReq}</label>${idTypeSelectHtml(p + 'IdType')}<div class="field-error"></div></div>`}`;
 }
 function validateVisitorFields(p, isStudent) {
   const P = p.charAt(0).toUpperCase() + p.slice(1);
   const v = id => document.getElementById(p + id).value.trim();
   const first = v('First'), last = v('Last'), contact = v('Contact');
   const idType = isStudent ? '' : document.getElementById(p + 'IdType').value;
-  const idNumber = v('IdNum').toUpperCase();
-  const email = v('Email');
+  const idNumber = isStudent ? v('IdNum').toUpperCase() : '';
+  const email = normEmail(v('Email'));
   let ok = true;
   ok = markField(`fw${P}First`, isValidPersonName(first), 'Enter your first name.') && ok;
   ok = markField(`fw${P}Last`, isValidPersonName(last), 'Enter your last name.') && ok;
   if (isStudent) ok = markField(`fw${P}IdNum`, isValidStudentNo(idNumber), 'Use the format 0000-00000-SM-0.') && ok;
-  else {
-    ok = markField(`fw${P}IdType`, !!idType, 'Select the type of ID you will present.') && ok;
-    ok = markField(`fw${P}IdNum`, isValidIdNumber(idNumber), 'Enter your ID number (at least 3 characters).') && ok;
-  }
+  else ok = markField(`fw${P}IdType`, !!idType, 'Select the type of ID you will present.') && ok;
   ok = markField(`fw${P}Contact`, isValidContact(contact), 'Enter a valid PH mobile number (e.g. 0917-123-4567).') && ok;
-  ok = markField(`fw${P}Email`, isValidEmail(email), 'Enter a valid email address.') && ok;
+  ok = markField(`fw${P}Email`, isValidGmail(email), 'Enter a valid Gmail address (e.g. juan.delacruz@gmail.com).') && ok;
   if (!ok) { toast('Please fix the highlighted fields.', 'err'); focusFirstError(); return null; }
   return { first, last, idType, idNumber, contact, email };
 }
@@ -801,7 +801,7 @@ function renderVisitWalkinForm() {
       ${waitEstimateHtml(db, svc.key)}
       ${visitorFieldsHtml('q', isStudent)}
       <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="09XX-XXX-XXXX" oninput="formatContactInput(this)"><div class="field-error"></div></div>
-      <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="juan.delacruz@example.com" required><div class="field-error"></div></div>
+      <div class="field" id="fwQEmail"><label for="qEmail">Gmail address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com" required><div class="field-error"></div></div>
       <p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch the &ldquo;Now Serving&rdquo; board and go to OSS when called.</p>
       <button class="btn btn-gold btn-block" onclick="confirmWalkInPrompt()">${icon('ticket', 16)} Get My Queue Number</button>
     </div>`;
@@ -814,12 +814,12 @@ function confirmWalkInPrompt() {
   if (!vals) return;
   const isSenior = isSeniorFromClassification(visitVisitorType, visitGuestClass);
   const name = joinName(vals.first, vals.last);
-  const dup = findActiveDuplicate(loadDB(), vals.idNumber, svc.key);
+  const dup = findActiveDuplicate(loadDB(), vals.idNumber, svc.key, vals.email);
   const body = duplicateWarningHtml(dup) + confirmSummaryHtml({
     intro: 'Please check your details before you get your queue number.',
     sections: [
       { title: 'Your visit', rows: [['Service', svc.label, true], ['Entry method', 'Walk-in'], ['Priority', isSenior ? 'Senior citizen (priority lane)' : '']] },
-      { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber], ['Contact number', vals.contact]] },
+      { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber], ['Contact number', vals.contact], ['Gmail', vals.email, true]] },
     ],
     notice: 'Your queue number is issued right after you confirm.',
   });
@@ -830,7 +830,7 @@ function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
   const svc = visitSelectedService, db = loadDB();
   const entry = addToQueue(db, {
     visitorType: visitVisitorType, serviceKey: svc.key, serviceLabel: svc.label, source: 'Walk-in',
-    name, idNumber: vals.idNumber, idType: vals.idType, guestClass: visitGuestClass, contact: vals.contact,
+    name, idNumber: vals.idNumber, idType: vals.idType, guestClass: visitGuestClass, contact: vals.contact, email: vals.email,
     isSenior, visitId: nextVisitId(db), possibleDuplicate,
   });
   logActivity(db, VISITOR_ACTOR, `Joined queue ${entry.number} (${entry.visitId}) &mdash; walk-in, ${entry.serviceLabel}`, { category: 'Queue', target: entry.visitId });
@@ -851,7 +851,7 @@ function renderVisitScheduleForm() {
       ${visitorFieldsHtml('bk', isStudent)}
       <div class="form-row">
         <div class="field" id="fwBkContact"><label for="bkContact">Contact number ${uxReq}</label><input id="bkContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="09XX-XXX-XXXX" oninput="formatContactInput(this)"><div class="field-error"></div></div>
-        <div class="field" id="fwBkEmail"><label for="bkEmail">Email address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="juan.delacruz@email.com"><div class="field-error"></div></div>
+        <div class="field" id="fwBkEmail"><label for="bkEmail">Gmail address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com"><div class="field-error"></div></div>
       </div>
       <div class="field">
         <label for="bkFiles">Upload requirements <span class="opt">(PDF or image)</span></label>
@@ -901,7 +901,7 @@ function confirmSchedulePrompt() {
   if (!vals) return;
   const isSenior = isSeniorFromClassification(visitVisitorType, visitGuestClass);
   const name = joinName(vals.first, vals.last);
-  const dup = findActiveDuplicate(loadDB(), vals.idNumber, svc.label);
+  const dup = findActiveDuplicate(loadDB(), vals.idNumber, svc.label, vals.email);
   const readiness = computeReadiness(svc, scheduleAttachments);
   const files = scheduleAttachments.length ? scheduleAttachments.map(f => f.name).join(', ') : 'No files uploaded';
   const body = duplicateWarningHtml(dup) + confirmSummaryHtml({
@@ -909,7 +909,7 @@ function confirmSchedulePrompt() {
     sections: [
       { title: 'Your visit', rows: [['Service', svc.label, true], ['Entry method', 'Scheduled appointment'], ['Priority', isSenior ? 'Senior citizen (priority lane)' : '']] },
       { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber]] },
-      { title: 'How we reach you', rows: [['Contact number', vals.contact], ['Email', vals.email, true]] },
+      { title: 'How we reach you', rows: [['Contact number', vals.contact], ['Gmail', vals.email, true]] },
       { title: 'Requirements', rows: [['Files', files], ['Status', readiness.label]] },
     ],
     notice: 'OSS will assign your date and time and email your pass. You will not get a queue number &mdash; you are called when your scheduled time arrives.',
@@ -1197,7 +1197,7 @@ function showPassModalReadonly(apptIn) {
 function confirmCheckInPrompt(appt) {
   if (!isOfficeHours()) { toast(`Check-in is only available ${officeHoursLabel()}.`, 'err'); renderClosedScreen(); return; }
   const db = loadDB(), arrival = evaluateArrival(db, appt);
-  const dup = appt.idNumber ? findActiveDuplicate(db, appt.idNumber, appt.service) : null;
+  const dup = (appt.idNumber || appt.email) ? findActiveDuplicate(db, appt.idNumber, appt.service, appt.email) : null;
   const arrivalTxt = arrival.status === 'OnTime' ? 'On time / within grace period' : `${arrival.status === 'Late' ? 'Late' : 'Past appointment window'} by ${arrival.lateMinutes} minute(s)`;
   const body = duplicateWarningHtml(dup) + confirmSummaryHtml({
     intro: 'Confirm that you have arrived for this appointment.',
@@ -1221,7 +1221,7 @@ function checkInAppointment(apptId, arrival, possibleDuplicate) {
   const arr = arrival || evaluateArrival(db, appt), now = new Date(), svc = findService(db, appt.service);
   const entry = addToQueue(db, {
     visitorType: appt.type, serviceKey: svc ? svc.key : null, serviceLabel: appt.service, source: 'Appointment',
-    name: appt.name, idNumber: appt.idNumber, idType: appt.idType || '', guestClass: appt.guestClass, contact: appt.contact,
+    name: appt.name, idNumber: appt.idNumber, idType: appt.idType || '', guestClass: appt.guestClass, contact: appt.contact, email: appt.email,
     appointmentId: appt.id, scheduledAt: apptScheduledDate(appt), isSenior: appt.isSenior,
     visitId: appt.visitId, checkedInAt: now, possibleDuplicate,
   });
@@ -1233,42 +1233,112 @@ function checkInAppointment(apptId, arrival, possibleDuplicate) {
   renderQueueTicket();
 }
 
+const HISTORY_CODE_TTL_MS = 5 * 60 * 1000;
+const HISTORY_MAX_ATTEMPTS = 5;
+const HISTORY_RESEND_COOLDOWN_MS = 30 * 1000;
+let historyFlow = null;
+
+function newHistoryCode() {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String(buf[0] % 1000000).padStart(6, '0');
+}
+function historyStepsHtml() {
+  return `<ol class="cvl-steps">
+        <li><span class="cvl-step-num">1</span><h3>Enter your Gmail</h3><p>Use the same Gmail address you gave when you started or scheduled a visit.</p></li>
+        <li><span class="cvl-step-num">2</span><h3>Enter the code</h3><p>We send a 6-digit code to that Gmail. It expires in 5 minutes.</p></li>
+        <li><span class="cvl-step-num">3</span><h3>See your past visits</h3><p>View every visit made with that Gmail, with its service, date and current status.</p></li>
+      </ol>`;
+}
 function renderHistoryScreen() {
-  document.getElementById('visitorContent').innerHTML = `
+  historyFlow = { step: 'email', email: '', code: '', expiresAt: 0, sentAt: 0, attempts: 0 };
+  renderHistoryStep();
+}
+function renderHistoryStep() {
+  const f = historyFlow, wrap = document.getElementById('visitorContent');
+  if (f.step === 'email') {
+    wrap.innerHTML = `
     <div class="cvl">
       <div class="cvl-search">
         <span class="cvl-ic">${icon('log', 20)}</span>
-        <input id="hsInput" class="upper" placeholder="Enter any of your Visit IDs (e.g. VIS-K7M2-9QXA)" autocomplete="off" onkeydown="if(event.key==='Enter') lookupMyHistory()">
-        <button class="btn btn-primary" onclick="lookupMyHistory()">Find My Visits</button>
+        <input id="hsEmail" type="email" inputmode="email" placeholder="Enter your Gmail (e.g. juan.delacruz@gmail.com)" autocomplete="email" aria-label="Gmail address" value="${escapeHtml(f.email)}" onkeydown="if(event.key==='Enter') sendHistoryCode()">
+        <button class="btn btn-primary" onclick="sendHistoryCode()">Send Code</button>
       </div>
-      <div id="hsResults"></div>
-      <ol class="cvl-steps">
-        <li><span class="cvl-step-num">1</span><h3>Find your Visit ID</h3><p>It is on your Visit Pass and in your confirmation email, for example VIS-K7M2-9QXA. Any Visit ID from a past visit works.</p></li>
-        <li><span class="cvl-step-num">2</span><h3>Enter it above</h3><p>Enter your Visit ID and click Find My Visits. We match it to the ID number you used.</p></li>
-        <li><span class="cvl-step-num">3</span><h3>See your past visits</h3><p>View every visit made with the same ID, with its service, date and current status.</p></li>
-      </ol>
+      <p class="field-hint hs-hint">Only @gmail.com addresses are supported.</p>
+      ${historyStepsHtml()}
+    </div>`;
+    document.getElementById('hsEmail').focus();
+    return;
+  }
+  if (f.step === 'code') {
+    wrap.innerHTML = `
+    <div class="cvl">
+      <div class="info-banner">${icon('clock', 14)}<span>We sent a 6-digit code to <b>${escapeHtml(f.email)}</b>. It expires in 5 minutes.<br>
+        <b>Demo mode:</b> no real email is sent yet &mdash; your code is <b class="mono">${escapeHtml(f.code)}</b>.</span></div>
+      <div class="cvl-search">
+        <span class="cvl-ic">${icon('lock', 20)}</span>
+        <input id="hsCode" inputmode="numeric" maxlength="6" placeholder="Enter the 6-digit code" autocomplete="one-time-code" aria-label="Verification code" oninput="this.value=this.value.replace(/\\D/g,'')" onkeydown="if(event.key==='Enter') verifyHistoryCode()">
+        <button class="btn btn-primary" onclick="verifyHistoryCode()">Verify</button>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="resendHistoryCode()">Resend code</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different Gmail</button>
+      </div>
+    </div>`;
+    document.getElementById('hsCode').focus();
+    return;
+  }
+  const rows = visitorHistoryFor(loadDB(), f.email);
+  wrap.innerHTML = `
+    <div class="cvl">
+      <div class="info-banner">${icon('check', 14)}<span>Verified: <b>${escapeHtml(f.email)}</b></span></div>
+      ${rows.length ? `<section class="cvx-results">
+        <div class="cvx-results-head"><h3>Your visits</h3><span>${rows.length} ${rows.length === 1 ? 'visit' : 'visits'} found</span></div>
+        ${rows.map(r => `<div class="cvx-row"><div class="cvx-row-main"><b>${escapeHtml(r.label)}</b><div class="cvx-row-sub mono">${escapeHtml(r.ref)} &middot; ${fmtDateTime(r.when)}</div></div>${statusPill(r.status)}</div>`).join('')}</section>`
+        : `<div class="cvx-empty">No visits found for this Gmail yet.</div>`}
+      <div style="margin-top:14px;"><button type="button" class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different Gmail</button></div>
     </div>`;
 }
-function historyForVisitId(db, ref) {
-  const src = findVisitByRef(db, ref) || db.transactions.find(t => (t.visitId || '').toUpperCase() === ref);
-  if (!src) return [];
-  if (src.idNumber) return visitorHistoryFor(db, src.idNumber);
-  const mine = x => (x.visitId || '').toUpperCase() === ref, rows = [], known = new Set();
-  db.transactions.filter(mine).forEach(t => { known.add(t.visitId); rows.push({ when: t.createdAt, label: serviceLabel(db, t.service), status: t.status, ref: t.visitId }); });
-  db.appointments.filter(mine).forEach(a => { if (!known.has(a.visitId)) { known.add(a.visitId); rows.push({ when: a.createdAt, label: a.service, status: a.status, ref: a.visitId }); } });
-  db.queues.filter(mine).forEach(q => { if (!known.has(q.visitId)) rows.push({ when: q.createdAt, label: serviceQueueLabel(db, q), status: q.status, ref: q.visitId }); });
-  return rows.sort((a, b) => new Date(b.when) - new Date(a.when));
+function issueHistoryCode() {
+  const f = historyFlow, now = Date.now();
+  f.code = newHistoryCode(); f.expiresAt = now + HISTORY_CODE_TTL_MS; f.sentAt = now; f.attempts = 0;
 }
-function lookupMyHistory() {
+function sendHistoryCode() {
   if (!isOfficeHours()) { renderClosedScreen(); return; }
-  const id = normVisitRef(document.getElementById('hsInput').value);
-  const wrap = document.getElementById('hsResults');
-  if (!id) { toast('Enter your Visit ID.', 'err'); return; }
-  const rows = historyForVisitId(loadDB(), id);
-  if (!rows.length) { wrap.innerHTML = `<div class="cvx-empty">No visit found with that Visit ID.</div>`; return; }
-  wrap.innerHTML = `<section class="cvx-results">
-    <div class="cvx-results-head"><h3>Your visits</h3><span>${rows.length} ${rows.length === 1 ? 'visit' : 'visits'} found</span></div>
-    ${rows.map(r => `<div class="cvx-row"><div class="cvx-row-main"><b>${escapeHtml(r.label)}</b><div class="cvx-row-sub mono">${escapeHtml(r.ref)} &middot; ${fmtDateTime(r.when)}</div></div>${statusPill(r.status)}</div>`).join('')}</section>`;
+  const email = normEmail(document.getElementById('hsEmail').value);
+  if (!email) { toast('Enter your Gmail address.', 'err'); return; }
+  if (!isValidGmail(email)) { toast('Enter a valid Gmail address (e.g. juan.delacruz@gmail.com).', 'err'); return; }
+  historyFlow.email = email;
+  issueHistoryCode();
+  historyFlow.step = 'code';
+  toast(`Code sent to ${escapeHtml(email)}.`, 'ok');
+  renderHistoryStep();
+}
+function resendHistoryCode() {
+  const f = historyFlow, wait = f.sentAt + HISTORY_RESEND_COOLDOWN_MS - Date.now();
+  if (wait > 0) { toast(`Please wait ${Math.ceil(wait / 1000)} seconds before requesting a new code.`, 'err'); return; }
+  issueHistoryCode();
+  toast(`New code sent to ${escapeHtml(f.email)}.`, 'ok');
+  renderHistoryStep();
+}
+function changeHistoryEmail() {
+  historyFlow = { step: 'email', email: '', code: '', expiresAt: 0, sentAt: 0, attempts: 0 };
+  renderHistoryStep();
+}
+function verifyHistoryCode() {
+  if (!isOfficeHours()) { renderClosedScreen(); return; }
+  const f = historyFlow, entered = (document.getElementById('hsCode').value || '').trim();
+  if (!/^\d{6}$/.test(entered)) { toast('Enter the 6-digit code.', 'err'); return; }
+  if (Date.now() > f.expiresAt) { toast('That code has expired. Request a new one.', 'err'); return; }
+  if (f.attempts >= HISTORY_MAX_ATTEMPTS) { toast('Too many wrong attempts. Request a new code.', 'err'); return; }
+  if (entered !== f.code) {
+    f.attempts++;
+    const left = HISTORY_MAX_ATTEMPTS - f.attempts;
+    toast(left > 0 ? `Incorrect code. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.` : 'Too many wrong attempts. Request a new code.', 'err');
+    return;
+  }
+  f.step = 'verified'; f.code = '';
+  renderHistoryStep();
 }
 
 const CHAT_PROMPTS = {

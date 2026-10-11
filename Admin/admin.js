@@ -221,7 +221,7 @@ function addToQueue(db, o) {
     visitorType: o.visitorType, serviceKey: o.serviceKey || null,
     serviceLabel: o.serviceLabel || (o.serviceKey ? serviceLabel(db, o.serviceKey) : 'General Concern'),
     source: o.source || 'Walk-in', name: o.name || '', idNumber: o.idNumber || '', idType: o.idType || '',
-    guestClass: o.guestClass || '', contact: o.contact || '',
+    guestClass: o.guestClass || '', contact: o.contact || '', email: String(o.email || '').trim().toLowerCase(),
     appointmentId: o.appointmentId || null, scheduledAt: o.scheduledAt || null,
     isSenior: !!o.isSenior, checkedInAt: o.checkedInAt || new Date(), possibleDuplicate: !!o.possibleDuplicate,
   });
@@ -373,7 +373,7 @@ function beginServingQueue(db, id, admin) {
   if (admin && !q.assignedAdminId) { q.assignedAdminId = admin.id; q.assignedAdminName = admin.fullName; }
   const has = (q.visitorLogId && db.visitorLog.some(v => v.id === q.visitorLogId)) || db.visitorLog.some(v => v.visitId && v.visitId === q.visitId);
   if (!has) {
-    const e = mkVisitorEntry({ name: q.name, type: q.visitorType || 'Guest', idNumber: q.idNumber || '', contact: q.contact || '', purpose: serviceQueueLabel(db, q), source: q.source || 'Walk-in', visitId: q.visitId });
+    const e = mkVisitorEntry({ name: q.name, type: q.visitorType || 'Guest', idNumber: q.idNumber || '', contact: q.contact || '', email: q.email || '', purpose: serviceQueueLabel(db, q), source: q.source || 'Walk-in', visitId: q.visitId });
     db.visitorLog.push(e);
     q.visitorLogId = e.id;
   }
@@ -388,7 +388,7 @@ function completeQueue(db, id, admin) {
   const linkedAppt = q.appointmentId ? db.appointments.find(a => a.id === q.appointmentId) : null;
   const svc = findService(db, q.serviceKey || q.serviceLabel);
   const txn = mkTxn({
-    name: q.name || (q.visitorType + ' Visitor'), type: q.visitorType, idNumber: q.idNumber || '',
+    name: q.name || (q.visitorType + ' Visitor'), type: q.visitorType, idNumber: q.idNumber || '', email: q.email || '',
     service: svc ? svc.key : (q.serviceLabel || 'other'),
     details: q.source === 'Appointment' ? `Served via appointment${linkedAppt ? ' ' + linkedAppt.code : ''} — ${q.visitId}` : `Served via walk-in — queue ${q.number}`,
     status: 'Completed', queueId: q.id, queueNumber: q.number || null, visitId: q.visitId, entryMethod: entryMethodLabel(q),
@@ -450,7 +450,7 @@ function adminCheckInAppointment(apptId) {
   const arr = evaluateArrival(db, appt), now = new Date(), svc = findService(db, appt.service);
   const entry = addToQueue(db, {
     visitorType: appt.type, serviceKey: svc ? svc.key : null, serviceLabel: appt.service, source: 'Appointment',
-    name: appt.name, idNumber: appt.idNumber, idType: appt.idType || '', guestClass: appt.guestClass, contact: appt.contact,
+    name: appt.name, idNumber: appt.idNumber, idType: appt.idType || '', guestClass: appt.guestClass, contact: appt.contact, email: appt.email,
     appointmentId: appt.id, scheduledAt: apptScheduledDate(appt), isSenior: appt.isSenior,
     visitId: appt.visitId, checkedInAt: now, possibleDuplicate: !!appt.possibleDuplicate,
   });
@@ -905,13 +905,14 @@ function openQueueVisitDetail(id) {
   else if (q.status === 'Serving' && mine) buttons.push({ label: 'Complete Transaction', cls: 'btn-primary', action: () => { closeModal(); handleCompleteQueue(q.id); } });
 
   openModal(`Visit &mdash; ${escapeHtml(q.visitId || q.number)}`, `
-    ${q.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged by the visitor portal as a possible duplicate active visit for this ID number and service. Review before proceeding if unsure.</div>` : ''}
+    ${q.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged by the visitor portal as a possible duplicate active visit for this ID number or Gmail and service. Review before proceeding if unsure.</div>` : ''}
     ${isServiceDelayed(db, q) ? `<div class="alert-banner danger"><b>${icon('alert', 13)} Service Delay Alert</b>This visit has been in service noticeably longer than usual for this service. Informational only.</div>` : ''}
     ${q.number ? `<div class="kv"><span>Queue Number</span><span><span class="pill pill-gold">${escapeHtml(q.number)}</span></span></div>` : ''}
     <div class="kv"><span>Name</span><span>${escapeHtml(q.name || '—')}</span></div>
     <div class="kv"><span>Type</span><span>${escapeHtml(q.guestClass ? `${q.visitorType} (${q.guestClass})` : q.visitorType)}</span></div>
-    ${q.idNumber ? `<div class="kv"><span>${q.idType ? escapeHtml(q.idType) : 'ID Number'}</span><span>${escapeHtml(q.idNumber)}</span></div>` : ''}
+    ${q.idNumber ? `<div class="kv"><span>${q.idType ? escapeHtml(q.idType) : 'ID Number'}</span><span>${escapeHtml(q.idNumber)}</span></div>` : (q.idType ? `<div class="kv"><span>ID Type</span><span>${escapeHtml(q.idType)}</span></div>` : '')}
     ${q.contact ? `<div class="kv"><span>Contact</span><span>${escapeHtml(q.contact)}</span></div>` : ''}
+    ${q.email ? `<div class="kv"><span>Gmail</span><span>${escapeHtml(q.email)}</span></div>` : ''}
     <div class="kv"><span>Service</span><span>${escapeHtml(serviceQueueLabel(db, q))}</span></div>
     <div class="kv"><span>Entry Method</span><span>${q.source === 'Appointment' ? 'Scheduled Appointment' : 'Walk-In'}</span></div>
     ${q.scheduledAt ? `<div class="kv"><span>Scheduled For</span><span>${fmtDateTime(q.scheduledAt)} ${dueTagHtml(q)}</span></div>` : ''}
@@ -1004,12 +1005,12 @@ function openApptDetail(id) {
   const inQueue = !!r.queueId, canSetSchedule = !inQueue && !['Cancelled', 'No-show'].includes(r.status), canCheckIn = !inQueue && (r.status === 'Booked' || r.status === 'Requested');
   const readiness = computeReadiness(findService(db, r.service), r.attachments), arrival = canCheckIn ? evaluateArrival(db, r) : null;
   openModal(escapeHtml(r.visitId || r.code), `
-    ${r.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged as a possible duplicate active visit for this ID number and service.</div>` : ''}
+    ${r.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged as a possible duplicate active visit for this ID number or Gmail and service.</div>` : ''}
     ${arrival && arrival.status !== 'OnTime' ? `<div class="alert-banner ${arrival.status === 'PastWindow' ? 'danger' : 'warn'}"><b>${icon('alert', 13)} ${arrival.status === 'PastWindow' ? 'Past Appointment Window' : 'Late Arrival'}</b>Scheduled time has passed by ${fmtMinutes(arrival.lateMinutes)}${arrival.status === 'PastWindow' ? ' — beyond the configured no-show threshold.' : ', still within the no-show threshold.'}</div>` : ''}
     <div class="kv"><span>Visit ID</span><span class="mono">${escapeHtml(r.visitId || '—')}</span></div>
     <div class="kv"><span>Reference Code</span><span class="mono">${escapeHtml(r.code)}</span></div>
     <div class="kv"><span>Requestor</span><span>${escapeHtml(r.name)} (${escapeHtml(r.guestClass ? `${r.type}, ${r.guestClass}` : r.type)})</span></div>
-    <div class="kv"><span>${r.idType ? escapeHtml(r.idType) : 'ID Number'}</span><span>${escapeHtml(r.idNumber || '—')}</span></div>
+    ${r.idNumber ? `<div class="kv"><span>${r.idType ? escapeHtml(r.idType) : 'ID Number'}</span><span>${escapeHtml(r.idNumber)}</span></div>` : `<div class="kv"><span>ID Type</span><span>${escapeHtml(r.idType || '—')}</span></div>`}
     <div class="kv"><span>Contact</span><span>${escapeHtml(r.contact || '—')}</span></div>
     <div class="kv"><span>Email</span><span>${escapeHtml(r.email || '—')}</span></div>
     <div class="kv"><span>Service</span><span>${escapeHtml(r.service)}</span></div>
@@ -1063,6 +1064,11 @@ function queueNumberForVisit(db, visitId) {
   const q = visitId ? db.queues.find(x => x.visitId === visitId && x.number) : null;
   return q ? q.number : '';
 }
+function logEmail(db, r) {
+  if (r.email) return r.email;
+  const q = db.queues.find(x => x.visitId && x.visitId === r.visitId);
+  return (q && q.email) || '';
+}
 function logContact(db, r) {
   if (r.contact) return r.contact;
   const q = db.queues.find(x => x.visitId && x.visitId === r.visitId);
@@ -1080,8 +1086,8 @@ function renderVisitorLogbook(keep) {
     <div class="card"><div class="card-head"><div><h3>Visitor Log</h3><div class="desc">${escapeHtml(rangeLabel(RANGES.log))}</div></div>
       <div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printVisitorLog()">${icon('print', 14)} Print Report</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadLogbook()">${icon('download', 14)} Download CSV</button></div></div>
-      <div class="filter-bar">${dateRangeHtml('log')}<div class="search-box">${icon('search', 15)}<input id="logSearch" placeholder="Name or ID" value="${escapeHtml(prev)}" oninput="renderLogbookTable()"></div></div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Entry Method</th><th>ID Number</th><th>Contact</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Queue Status</th></tr></thead><tbody id="logBody"></tbody></table></div></div>`;
+      <div class="filter-bar">${dateRangeHtml('log')}<div class="search-box">${icon('search', 15)}<input id="logSearch" placeholder="Name, ID or Gmail" value="${escapeHtml(prev)}" oninput="renderLogbookTable()"></div></div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Entry Method</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Queue Status</th></tr></thead><tbody id="logBody"></tbody></table></div></div>`;
   renderLogbookTable();
 }
 function logbookRows(db, ascending) {
@@ -1090,19 +1096,19 @@ function logbookRows(db, ascending) {
 function renderLogbookTable() {
   const db = loadDB(), q = (document.getElementById('logSearch')?.value || '').toLowerCase();
   let rows = logbookRows(db, false);
-  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || (r.idNumber || '').toLowerCase().includes(q));
+  if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || (r.idNumber || '').toLowerCase().includes(q) || logEmail(db, r).toLowerCase().includes(q));
   document.getElementById('logBody').innerHTML = rows.length ? rows.map((r, i) => `<tr><td class="row-num">${i + 1}</td>
     <td>${escapeHtml(r.name)}${r.visitId ? `<div class="muted mono" style="font-size:.68rem;">${escapeHtml(r.visitId)}</div>` : ''}</td><td>${escapeHtml(r.type)}</td>
     <td>${r.source === 'Appointment' ? '<span class="pill pill-info">Scheduled</span>' : '<span class="pill pill-gold">Walk-in</span>'}</td>
-    <td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td>
+    <td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td>
     <td class="mono">${fmtDateTime(r.timeIn)}</td><td class="mono">${r.timeOut ? fmtDateTime(r.timeOut) : '&mdash;'}</td>
-    <td>${queueStatusPillForLog(activeQueueForVisit(db, r.visitId))}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="10">No visitor entries logged.</td></tr>`;
+    <td>${queueStatusPillForLog(activeQueueForVisit(db, r.visitId))}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="11">No visitor entries logged.</td></tr>`;
 }
 function downloadLogbook() {
   const db = loadDB(), rows = logbookRows(db, true);
   downloadCSV(`Visitor_Logbook_${RANGES.log.from || 'start'}_${RANGES.log.to || 'all'}.csv`, [
-    ['Visit ID', 'Name', 'Type', 'ID Number', 'Contact', 'Queue No.', 'Entry Method', 'Purpose', 'Date', 'Time In', 'Time Out', 'Status'],
-    ...rows.map(r => [r.visitId || '', r.name, r.type, r.idNumber || '', logContact(db, r), queueNumberForVisit(db, r.visitId), r.source || 'Walk-in', r.purpose || '', fmtDate(r.timeIn), fmtTime(r.timeIn), r.timeOut ? fmtTime(r.timeOut) : '', r.timeOut ? 'Checked Out' : 'Checked In']),
+    ['Visit ID', 'Name', 'Type', 'ID Number', 'Contact', 'Gmail', 'Queue No.', 'Entry Method', 'Purpose', 'Date', 'Time In', 'Time Out', 'Status'],
+    ...rows.map(r => [r.visitId || '', r.name, r.type, r.idNumber || '', logContact(db, r), logEmail(db, r), queueNumberForVisit(db, r.visitId), r.source || 'Walk-in', r.purpose || '', fmtDate(r.timeIn), fmtTime(r.timeIn), r.timeOut ? fmtTime(r.timeOut) : '', r.timeOut ? 'Checked Out' : 'Checked In']),
   ]);
   logActivity(db, currentUser, 'Downloaded visitor log'); saveDB(db);
   toast('Logbook downloaded.', 'ok');
@@ -1120,9 +1126,9 @@ function printVisitorLog() {
       <div class="rpt-stat"><div class="rpt-stat-lbl">Walk-in / Sched.</div><div class="rpt-stat-val" style="font-size:1.15rem;">${total - appts} / ${appts}</div></div></div></div>
     <div class="rpt-section"><h3 class="rpt-h">Visitor Entries</h3><div class="rpt-desc">${total} record${total === 1 ? '' : 's'} &mdash; ${period}, sorted by Time In</div>
       <div class="rpt-table-wrap"><table class="rpt-table">
-        <colgroup><col style="width:3%"><col style="width:11%"><col style="width:12%"><col style="width:7%"><col style="width:9%"><col style="width:9%"><col style="width:6%"><col style="width:7%"><col style="width:11%"><col style="width:9%"><col style="width:7%"><col style="width:9%"></colgroup>
-        <thead><tr><th>#</th><th>Visit ID</th><th>Name</th><th>Type</th><th>ID Number</th><th>Contact</th><th>Queue No.</th><th>Entry</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Status</th></tr></thead>
-        <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(r.visitId || '—')}</td><td>${escapeHtml(r.name)}</td><td class="nw">${escapeHtml(r.type || '—')}</td><td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono nw">${escapeHtml(queueNumberForVisit(db, r.visitId) || '—')}</td><td class="nw">${r.source === 'Appointment' ? 'Scheduled' : 'Walk-in'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td><td class="mono nw">${fmtDate(r.timeIn)}<br>${fmtTime(r.timeIn)}</td><td class="mono nw">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td><td>${r.timeOut ? 'Checked Out' : 'Checked In'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="12">No visitor entries recorded for this period.</td></tr>`}</tbody></table></div></div>
+        <colgroup><col style="width:3%"><col style="width:9%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:12%"><col style="width:5%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:8%"></colgroup>
+        <thead><tr><th>#</th><th>Visit ID</th><th>Name</th><th>Type</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Queue No.</th><th>Entry</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Status</th></tr></thead>
+        <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(r.visitId || '—')}</td><td>${escapeHtml(r.name)}</td><td class="nw">${escapeHtml(r.type || '—')}</td><td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td class="mono nw">${escapeHtml(queueNumberForVisit(db, r.visitId) || '—')}</td><td class="nw">${r.source === 'Appointment' ? 'Scheduled' : 'Walk-in'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td><td class="mono nw">${fmtDate(r.timeIn)}<br>${fmtTime(r.timeIn)}</td><td class="mono nw">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td><td>${r.timeOut ? 'Checked Out' : 'Checked In'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="13">No visitor entries recorded for this period.</td></tr>`}</tbody></table></div></div>
     ${reportSignatureBlock()}`);
 }
 
