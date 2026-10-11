@@ -4,25 +4,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSS UniServe &mdash; Super Admin</title>
+    <title>UniServe &mdash; Super Admin</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="superadmin.css">
 </head>
 
 <body>
+    <a class="skip-link" href="#content">Skip to main content</a>
+
     <div id="app" class="app-shell">
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar" id="sidebar" aria-label="Super Admin">
             <div class="sidebar-brand">
-                <span class="crest" id="crestSlotD"></span>
-                <span class="name">OSS UniServe<small>System Maintenance</small></span>
+                <span class="crest"><img src="pup.jpg" alt="PUP logo"></span>
+                <span class="name" style="margin-right:auto;">UniServe<small>System Maintenance</small></span>
+                <button type="button" class="sidebar-toggle" aria-label="Toggle menu" title="Toggle menu" onclick="toggleSidebar()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+                        <path d="M4 6h16M4 12h10M4 18h16" />
+                    </svg>
+                </button>
             </div>
-            <ul class="nav-list" id="navList"></ul>
+            <nav aria-label="Main" style="flex:1; display:flex; min-height:0;">
+                <ul class="nav-list" id="navList" style="flex:1;"></ul>
+            </nav>
             <div class="sidebar-foot">
-                <button class="user-chip user-chip-btn" id="userChipBtn" onclick="navigate('profile')"
-                    title="My Profile">
+                <button class="user-chip user-chip-btn" onclick="navigate('profile')" title="My Profile">
                     <div class="avatar" id="avatarInit">--</div>
                     <div class="who">
                         <div class="n" id="userNameLbl">--</div>
@@ -34,10 +44,14 @@
         </aside>
 
         <div class="main-col">
-            <div class="topbar">
+            <header class="topbar">
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <button class="menu-btn" id="menuBtn"
-                        onclick="document.getElementById('sidebar').classList.toggle('open')">&#9776;</button>
+                    <button class="menu-btn" aria-label="Open menu" onclick="toggleSidebar()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+                            <path d="M4 6h16M4 12h10M4 18h16" />
+                        </svg>
+                    </button>
                     <div>
                         <h1 id="pageTitle">Dashboard</h1>
                         <div class="sub" id="pageSub">Overview of today's activity</div>
@@ -45,18 +59,29 @@
                 </div>
                 <div class="topbar-right">
                     <span class="clock" id="clockLbl">--</span>
-                    <div class="theme-toggle">
-                        <button class="theme-btn" data-theme-btn="light" onclick="setTheme('light')">&#9728;
-                            Light</button>
-                        <button class="theme-btn" data-theme-btn="dark" onclick="setTheme('dark')">&#9789; Dark</button>
+                    <div class="theme-toggle" role="group" aria-label="Color theme">
+                        <button data-theme-btn="light" onclick="setTheme('light')" aria-label="Light mode" title="Light mode">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="12" cy="12" r="4" />
+                                <path
+                                    d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                            </svg>
+                        </button>
+                        <button data-theme-btn="dark" onclick="setTheme('dark')" aria-label="Dark mode" title="Dark mode">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
-            </div>
-            <div class="content" id="content"></div>
+            </header>
+            <main class="content" id="content"></main>
         </div>
     </div>
 
-    <div class="toast-wrap" id="toastWrap"></div>
+    <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
     <script src="superadmin.js"></script>
 </body>

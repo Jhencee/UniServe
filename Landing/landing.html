@@ -4,124 +4,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OSS UniServe &mdash; Office of Student Services</title>
+    <title>UniServe &mdash; Office of Student Services | PUP Santa Maria Campus</title>
+    <meta name="description"
+        content="UniServe is the visitor and service portal of the Office of Student Services, PUP Santa Maria Campus. Walk in or schedule ahead, get a queue number, and track your visit online.">
+    <meta name="theme-color" content="#800000">
+    <meta property="og:title" content="UniServe — Office of Student Services">
+    <meta property="og:description"
+        content="Walk in or schedule ahead, get a queue number, and track your visit — PUP Santa Maria Campus.">
+    <meta property="og:type" content="website">
+    <link rel="icon" href="pup.jpg">
+    <link rel="apple-touch-icon" href="pup.jpg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="landing.css">
 </head>
 
 <body>
 
-    <!-- ======================= LANDING ======================= -->
     <div id="landing">
+
         <nav class="landing-nav">
             <div class="brandline">
                 <span class="crest" id="crestSlotA"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
-                <span class="name">OSS UniServe<small>Office of Student Services</small></span>
+                <span class="name">
+                    <span class="brand-title">UniServe</span>
+                    <small>Office of Student Services &middot; PUP Santa Maria Campus</small>
+                </span>
             </div>
-            <div style="display:flex; gap:10px;">
-                <a href="../User/user.html?flow=visit" class="btn btn-ghost btn-sm">Start a Visit</a>
-                <a href="../User/user.html?flow=checkvisit" class="btn btn-ghost btn-sm">Check My Visit</a>
-                <button class="btn btn-primary btn-sm" onclick="showLogin()">Staff Login</button>
+            <button class="nav-menu-btn" id="navToggle" type="button" onclick="toggleNav()" aria-label="Open menu"
+                aria-expanded="false" aria-controls="navActions">&#9776;</button>
+            <div class="nav-actions" id="navActions">
+                <a href="#services" class="nav-link">Services</a>
+                <a href="#feedback" class="nav-link">Feedback</a>
+                <a href="#faq" class="nav-link">FAQ</a>
+                <a href="#contact" class="nav-link">Contact</a>
+                <button class="nav-link nav-link-btn nav-link-live" type="button" onclick="openPublicDisplay()">
+                    <span class="live-dot" aria-hidden="true"></span>Queue
+                </button>
+                <button class="nav-link nav-link-btn" type="button" onclick="showLogin()">Login</button>
+                <span class="nav-sep" aria-hidden="true"></span>
+                <a href="../User/user.html?flow=checkvisit" class="nav-link">Check My Visit</a>
+                <a href="../User/user.html?flow=visit" class="nav-link nav-link-primary">Start a Visit</a>
+                <div class="theme-toggle" role="group" aria-label="Color theme">
+                    <button class="theme-btn" data-theme-btn="light" onclick="setTheme('light')" aria-label="Light mode"
+                        title="Light mode">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" />
+                            <path
+                                d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                        </svg>
+                    </button>
+                    <button class="theme-btn" data-theme-btn="dark" onclick="setTheme('dark')" aria-label="Dark mode"
+                        title="Dark mode">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </nav>
 
+        <div id="maintBanner" class="maint-banner" hidden role="status">
+            <b>The Visitor Portal is temporarily closed for maintenance.</b>
+            <span>New visits can't be started right now. You can still check an existing visit, and staff can still sign
+                in.</span>
+        </div>
+
+        <div id="hoursBanner" class="maint-banner" hidden role="status">
+            <b>The Visitor Portal is closed.</b>
+            <span>It is open daily from 8:00 AM to 5:00 PM and automatically reopens each day.</span>
+        </div>
+
         <header class="hero">
             <div class="hero-inner">
-                <span class="eyebrow">Student &amp; Guest Services</span>
-                <h1>One office. <em>Every</em> service,<br>from queue to completion.</h1>
-                <p>Every visit starts here. Tap below to start your visit &mdash; walk in now or
-                    schedule ahead, your choice.</p>
-                <div class="hero-actions">
-                    <a href="../User/user.html?flow=visit" class="btn btn-gold">Start a Visit</a>
-                    <a href="../User/user.html?flow=checkvisit" class="btn btn-outline">Check My Visit</a>
-                    <button class="btn btn-outline" onclick="showLogin()">Staff Login</button>
-                </div>
+                <span class="eyebrow">Student &amp; Guest</span>
+                <h1>One Place to Begin. <br> <em>Every</em> Step Made Within.</h1>
+                <p>Provide the required information, select your desired service, and choose whether to schedule an appointment or join the service queue.</p>
             </div>
         </header>
 
-        <section class="section-pad">
+        <section class="status-wrap" aria-label="Office status">
+            <div class="status-bar" id="officeStatus" aria-live="polite"></div>
+        </section>
+
+        <section class="section-pad" id="how">
+            <div class="section-head">
+                <div class="kicker">How it works</div>
+                <h2>Three simple steps</h2>
+            </div>
+            <ol class="steps">
+                <li class="step">
+                    <span class="step-num">1</span>
+                    <h3>Choose your service</h3>
+                    <p>Tell us if you're a student or a guest, then pick the service you need. You'll see exactly what
+                        to bring before you go.</p>
+                </li>
+                <li class="step">
+                    <span class="step-num">2</span>
+                    <h3>Walk in or schedule ahead</h3>
+                    <p>Walk in to get your queue number right away, or schedule ahead and upload your requirements. The
+                        office assigns your date and time.</p>
+                </li>
+                <li class="step">
+                    <span class="step-num">3</span>
+                    <h3>Follow your visit</h3>
+                    <p>Your Visit ID stays with you from start to finish. Watch your place in line, and look your visit
+                        up anytime under Check My Visit.</p>
+                </li>
+            </ol>
+        </section>
+
+        <section class="section-pad section-dark">
             <div class="section-head">
                 <div class="kicker">What the portal handles</div>
-                <h2>Built around the office's actual workload</h2>
+                <h2>Access the services you need</h2>
             </div>
             <div class="feat-grid">
                 <div class="feat-card">
                     <div class="num">01</div>
-                    <h3>Check-In &amp; Identification</h3>
-                    <p>Students and guests are identified and logged the moment they arrive, walk-in or by appointment.
-                    </p>
+                    <h3>Visitor Registration</h3>
+                    <p>Facilitates the systematic registration, identification, and queue assignment of students and
+                        guests upon arrival.</p>
                 </div>
                 <div class="feat-card">
                     <div class="num">02</div>
-                    <h3>Appointments &amp; Visitor Pass</h3>
-                    <p>Guests book online and receive a pass with a code for a faster front-desk check-in.</p>
+                    <h3>Appointment Scheduling</h3>
+                    <p>Supports advance appointment scheduling and monitors visitor attendance, including late arrivals
+                        and appointment no-shows.</p>
                 </div>
                 <div class="feat-card">
                     <div class="num">03</div>
-                    <h3>Student Services</h3>
-                    <p>Good Moral, IDs, excuse letters, lost documents, off-campus and org activity requests &mdash; one
-                        workflow.</p>
+                    <h3>Visitor Service Requests</h3>
+                    <p>Manages service requests and corresponding documentary requirements for academic and
+                        administrative services provided by the Office of Student Services.</p>
                 </div>
                 <div class="feat-card">
                     <div class="num">04</div>
-                    <h3>Incident Reports</h3>
-                    <p>Sensitive cases are documented and handled by the OSS admin team.</p>
+                    <h3>Student Case Management</h3>
+                    <p>Documents, monitors, and facilitates the appropriate handling of incident reports and student
+                        concerns through authorized administrative processes.</p>
                 </div>
                 <div class="feat-card">
                     <div class="num">05</div>
-                    <h3>Scholarship Records</h3>
-                    <p>OSS admin-managed scholarship documentation and status.</p>
+                    <h3>Service Monitoring</h3>
+                    <p>Maintains visitor and transaction records while providing operational information on service
+                        activity, queue performance, and service utilization.</p>
                 </div>
-                <div class="feat-card">
-                    <div class="num">06</div>
-                    <h3>Reports &amp; Audit Trail</h3>
-                    <p>Printable daily, weekly, monthly and quarterly reports, plus a full activity log.</p>
+            </div>
+        </section>
+
+        <section class="section-pad" id="services">
+            <div class="section-head">
+                <div class="kicker">Services &amp; requirements</div>
+                <h2>Know what to bring</h2>
+            </div>
+            <div class="svc-filter">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35" />
+                </svg>
+                <input id="svcFilter" type="search" placeholder="Search services or requirements"
+                    aria-label="Search services" oninput="renderServicesPreview()">
+            </div>
+            <div class="svc-preview-grid" id="svcPreviewGrid"></div>
+        </section>
+
+        <section class="section-pad" id="feedback">
+            <div class="section-head">
+                <div class="kicker">Visitor feedback</div>
+                <h2>What visitors say about OSS</h2>
+            </div>
+            <div id="feedbackBody"></div>
+        </section>
+
+        <section class="section-pad" id="faq">
+            <div class="section-head">
+                <div class="kicker">Questions</div>
+                <h2>Frequently asked questions</h2>
+            </div>
+            <div class="faq-list">
+                <details class="faq-item">
+                    <summary>What should I bring?</summary>
+                    <div class="faq-body">Each service lists its own requirements in the section above. If you schedule
+                        ahead, you can upload the documents when you submit your request. If you walk in, bring the
+                        physical documents to the counter.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>What happens if I'm late for my appointment?</summary>
+                    <div class="faq-body">You have a grace period of <b id="faqGrace">15</b> minutes after your
+                        scheduled time. After that you're marked as late, but you can still check in and OSS staff will
+                        review your arrival. If you arrive more than <b id="faqNoShow">60</b> minutes late, the
+                        appointment is marked as a no-show. Staff can still review and correct it, so speak to the front
+                        desk.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>Who gets served first?</summary>
+                    <div class="faq-body">Senior citizens are served first (priority lane under RA 9994). After that,
+                        visitors who checked in for a scheduled appointment are served before walk-ins, once their
+                        scheduled time arrives. Within each group, it's first come, first served.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>How do I check my visit, or find my Visit ID?</summary>
+                    <div class="faq-body">Open <b>Check My Visit</b> and enter your Visit ID to see your live status. Your
+                        Visit ID is printed on your Visit Pass and in your confirmation email. If you've lost it, ask
+                        the front desk.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>Can I use the portal outside office hours?</summary>
+                    <div class="faq-body">No. The visitor portal, including appointment requests, check-in, visit
+                        tracking and chat, is open only during office hours (8:00 AM &ndash; 5:00 PM). It closes
+                        automatically after hours and reopens as soon as the office opens.</div>
+                </details>
+            </div>
+        </section>
+
+        <section class="section-pad" id="contact">
+            <div class="section-head">
+                <div class="kicker">Contact &amp; location</div>
+                <h2>Visit or reach the office</h2>
+            </div>
+            <div class="contact-grid">
+                <div class="contact-card">
+                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
+                        </svg></div>
+                    <div class="c-lbl">Office</div>
+                    <div class="c-val" id="contactOrg">Office of Student Services</div>
+                    <div class="c-sub">Polytechnic University of the Philippines, Santa Maria Campus</div>
+                </div>
+                <div class="contact-card">
+                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7" />
+                        </svg></div>
+                    <div class="c-lbl">Email</div>
+                    <div class="c-val"><a id="contactEmail" href="#">&mdash;</a></div>
+                </div>
+                <div class="contact-card">
+                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path
+                                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
+                        </svg></div>
+                    <div class="c-lbl">Phone</div>
+                    <div class="c-val"><a id="contactPhone" href="#">&mdash;</a></div>
+                </div>
+                <div class="contact-card">
+                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
+                        </svg></div>
+                    <div class="c-lbl">Office hours</div>
+                    <div class="c-val">8:00 AM &ndash; 5:00 PM</div>
+                </div>
+                <div class="contact-card">
+                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg></div>
+                    <div class="c-lbl">Location</div>
+                    <div class="c-val">Santa Maria, Bulacan</div>
+                    <div class="c-sub"><a target="_blank" rel="noopener"
+                            href="https://www.google.com/maps/search/?api=1&query=PUP+Santa+Maria+Campus+Bulacan">Open
+                            in Google Maps</a></div>
                 </div>
             </div>
         </section>
 
         <footer class="landing-footer">
-            <span>&copy; <span id="yearNow"></span> Office of Student Services</span>
-            <button class="btn btn-ghost btn-sm" onclick="openPublicDisplay()">Open Queue Display (waiting
-                area)</button>
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <div class="fb-row">
+                        <img src="pup.jpg" alt="PUP Sta. Maria">
+                        <div>
+                            <div class="fb-name">UniServe</div>
+                            <div class="fb-sub">Office of Student Services</div>
+                        </div>
+                    </div>
+                    <p>The visitor and service portal of the Office of Student Services, Polytechnic University of the
+                        Philippines, Santa Maria Campus &mdash; simplifying every visit from start to service.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Explore</h4>
+                    <a href="../User/user.html?flow=checkvisit">Check My Visit</a>
+                    <a href="#services">Services &amp; requirements</a>
+                    <a href="#feedback">Visitor feedback</a>
+                    <a href="#faq">FAQ</a>
+                    <a href="#contact">Contact the office</a>
+                </div>
+                <div class="footer-col">
+                    <h4>For staff</h4>
+                    <a href="#" onclick="showLogin(); return false;">Login</a>
+                    <a href="#" onclick="openPublicDisplay(); return false;">Queue Display</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="footer-main">
+                    <span>&copy; <span id="yearNow"></span> Office of Student Services, PUP Santa Maria Campus</span>
+                </div>
+                <p class="privacy-note" id="privacy">
+                    <b>Data privacy notice.</b> UniServe collects your name, ID number, contact details and any
+                    documents you upload only to process your visit and service requests at the Office of Student
+                    Services. Your records are accessible only to authorized OSS staff and are handled in accordance
+                    with the Data Privacy Act of 2012 (Republic Act No. 10173).
+                </p>
+            </div>
         </footer>
     </div>
 
-    <!-- ======================= STAFF LOGIN ======================= -->
     <div id="loginScreen" hidden>
         <div class="auth-wrap">
             <div class="auth-card">
+                <a class="back-link" onclick="showLanding()">&larr; Back to home</a>
+
                 <div class="auth-head">
                     <span class="crest" id="crestSlotB"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
-                    <h2>Staff Login</h2>
-                    <p>Sign in to access OSS UniServe</p>
+                    <h2>Welcome back</h2>
+                    <p>Sign in to access UniServe</p>
                 </div>
+
                 <div class="auth-body">
-                    <a class="back-link" onclick="showLanding()">&larr; Back to home</a>
                     <div id="loginErr" class="err-box" hidden></div>
-                    <div class="field"><label>Username</label><input id="loginUser" type="text" placeholder="e.g. admin"
-                            autocomplete="username"></div>
-                    <div class="field"><label>Password</label><input id="loginPass" type="password"
-                            placeholder="&bull;&bull;&bull;&bull;&bull;&bull;" autocomplete="current-password"></div>
+
+                    <div class="field">
+                        <label for="loginUser">Username or Email</label>
+                        <div class="input-ic">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M12 12a5 5 0 100-10 5 5 0 000 10zM3 21a9 9 0 0118 0" />
+                            </svg>
+                            <input id="loginUser" type="text" placeholder="e.g. admin or you@gmail.com"
+                                autocomplete="username">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="loginPass">Password</label>
+                        <div class="input-ic">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M5 11h14v9H5v-9zM8 11V7a4 4 0 118 0v4" />
+                            </svg>
+                            <input id="loginPass" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"
+                                autocomplete="current-password">
+                            <button type="button" class="pass-toggle" id="loginPassToggle"
+                                onclick="togglePasswordVisibility('loginPass', this)"
+                                aria-label="Show password"></button>
+                        </div>
+                    </div>
+
+                    <div class="auth-row">
+                        <label class="remember-row">
+                            <input type="checkbox" id="loginRemember">
+                            <span>Remember me</span>
+                        </label>
+                        <a class="forgot-link" onclick="showForgotPassword()">Forgot password?</a>
+                    </div>
+
                     <button class="btn btn-primary btn-block" onclick="doLogin()">Sign In</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ======================= PUBLIC QUEUE DISPLAY (kiosk) ======================= -->
     <div id="publicDisplay" hidden>
         <div class="pd-shell">
             <div class="pd-top">
                 <div class="brandline">
                     <span class="crest" id="crestSlotPD"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
-                    <span class="name" style="color:#fff;">OSS UniServe<small style="color:var(--gold-400);">Queue
-                            Display</small></span>
+                    <span class="name">UniServe<small>Queue Display</small></span>
                 </div>
-                <button class="btn btn-outline btn-sm" onclick="showLanding()">&larr; Exit Display</button>
+                <button class="btn btn-ghost btn-sm" onclick="showLanding()">&larr; Exit Display</button>
             </div>
             <div id="publicDisplayContent" class="pd-content"></div>
         </div>

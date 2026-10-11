@@ -1,0 +1,85 @@
+/* Collapsible sidebar (icon rail on desktop, drawer on mobile). Load AFTER user.css and a11y.css. */
+
+/* toggle button inside the sidebar header */
+.sb-toggle {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 10px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.sb-toggle:hover {
+    background: rgba(255, 255, 255, .12);
+    border-color: rgba(255, 255, 255, .5);
+}
+
+/* pushes the toggle to the right edge when expanded */
+.sidebar-brand .name {
+    margin-right: auto;
+}
+
+@media (min-width: 881px) {
+    .app-shell {
+        transition: grid-template-columns .2s ease;
+    }
+
+    .app-shell.collapsed {
+        grid-template-columns: 72px 1fr;
+    }
+
+    .app-shell.collapsed .sidebar-brand {
+        padding: 0;
+        justify-content: center;
+    }
+
+    .app-shell.collapsed .sidebar-brand .crest,
+    .app-shell.collapsed .sidebar-brand .name,
+    .app-shell.collapsed .nav-item span:not(.nav-badge) {
+        display: none;
+    }
+
+    .app-shell.collapsed .nav-list {
+        padding: 20px 10px;
+    }
+
+    .app-shell.collapsed .nav-item {
+        justify-content: center;
+        padding: 12px 0;
+    }
+
+    .app-shell.collapsed .nav-item.active::before {
+        left: -10px;
+    }
+
+    .app-shell.collapsed .nav-badge {
+        position: absolute;
+        top: 3px;
+        right: 6px;
+        padding: 0 6px;
+        font-size: .62rem;
+    }
+
+    .app-shell.collapsed .sidebar-foot {
+        padding: 14px 10px;
+    }
+
+    /* "Back to Home" shrinks to just its arrow */
+    .app-shell.collapsed .sidebar-foot .btn {
+        font-size: 0;
+        padding: 0;
+    }
+
+    .app-shell.collapsed .sidebar-foot .btn::before {
+        content: "\2190";
+        font-size: 1.1rem;
+    }
+}
