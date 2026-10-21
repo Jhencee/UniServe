@@ -59,3 +59,13 @@ For the local Windows PHP installation:
     php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest
 
 Frontend tests are tests/ui/*.test.cjs; run each with Node. Browser checks in tests/browser require a static server on port 8765 and isolated Chrome CDP on port 9224; the system smoke also uses the API on port 8000 and live Reverb. Browser mutation checks use API fixtures. scripts/smoke-flow.php is a separate rollback-only MySQL diagnostic that verifies InnoDB before exercising flows.
+
+## Railway deployment
+
+The repository-root Dockerfile serves the portals and API from one HTTPS domain. Supervisor runs Apache, the mail worker, scheduler and Reverb. Use one app replica and a separate MySQL service. railway.json defines the Docker build and /up health check.
+
+Set APP_KEY, APP_URL, DB_CONNECTION=mysql, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, CACHE_STORE=database, SESSION_DRIVER=database, QUEUE_CONNECTION=database, BROADCAST_CONNECTION=reverb, REVERB_APP_ID, REVERB_APP_KEY and REVERB_APP_SECRET. Reference the MySQL service variables for connection details. Set REVERB_ALLOWED_ORIGINS and FRONTEND_ORIGINS to the public deployment host/origin. Reverb runs internally behind Apache; clients use HTTPS/WSS port 443.
+
+INITIAL_ADMIN_PASSWORD must be a unique strong password of at least 16 characters; INITIAL_ADMIN_EMAIL sets the initial administrator email. Startup replaces the fresh database default password before opening the server. Changed existing passwords are preserved. Preserve APP_KEY and the initial-password variable across redeployments. Configure SMTP and Turnstile through environment variables. Local .env files and database backups are excluded from the image. Fresh deployment does not copy local visitor records.
+
+Docker image validation requires Docker or a Railway build. Persistent application backups require a mounted volume or external storage; container-local files are ephemeral.

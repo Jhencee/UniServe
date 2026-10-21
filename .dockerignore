@@ -1,0 +1,14 @@
+**/.env
+**/.env.*
+**/node_modules
+**/vendor
+.git
+.vscode
+.aws
+mysql-repair-backup-*
+backend/storage/**
+backend/bootstrap/cache/*.php
+backend/tests
+backend/scripts
+Admin/sam*
+QUERY.SQL

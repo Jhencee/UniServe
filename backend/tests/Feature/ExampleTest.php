@@ -1,7 +1,2 @@
 <?php
-
-test('the application returns a successful response', function () {
-    $response = $this->get('/');
-
-    $response->assertStatus(200);
-});
+test('the application opens the visitor landing page',function(){ $this->get('/')->assertRedirect('/Landing/landing.html'); });
