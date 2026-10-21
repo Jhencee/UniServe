@@ -1,58 +1,61 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# UniServe
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel API and static portals for visitors, Admin and Super Admin. Portal entry points are Landing/landing.html, User/user.html, Admin/admin.html and Super Admin/superadmin.html in the parent directory.
 
-## About Laravel
+## Setup and services
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Keep runtime settings in .env; use .env.example as the configuration reference. Preserve the original APP_KEY: encrypted records, backups, tokens and email indexes depend on it. Never commit credentials or regenerate an existing key.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Install PHP dependencies with composer install. Apply migrations using the authorized schema account; installations with separate migration credentials use php artisan migrate --env=migrations. Keep database recovery files and migration history.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Serve the frontend over HTTP/HTTPS. shared/api-config.js selects the API address; window.UNISERVE_API_BASE can override it before that script loads. Configure FRONTEND_ORIGINS and REVERB_ALLOWED_ORIGINS for the deployment. Use HTTPS and supervised services in production.
 
-## Learning Laravel
+For local development, run these commands from backend in separate terminals:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+    php artisan serve --host=127.0.0.1 --port=8000
+    php artisan queue:work --queue=mail-verification,realtime,default --sleep=1 --tries=3 --timeout=60
+    php artisan reverb:start --host=127.0.0.1 --port=8080
+    php artisan schedule:work
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+The worker delivers queued mail and broadcasts. The scheduler handles reminders, no-shows, permission expiry, cutoff notices and previous-day queue closure. Configure SMTP and Turnstile in .env. Browser alerts require an open portal and notification permission.
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+On Windows, scripts/install-startup.ps1 installs a current-user logon task for scripts/run-services.ps1. That supervisor starts the worker, Reverb and scheduler; start the database and API separately. Its default PHP path is C:/tools/php85/php.exe.
 
-## Agentic Development
+After configuration changes, clear/rebuild the deployment config cache as appropriate. After template changes, run php artisan view:clear. Restart workers using php artisan queue:restart and confirm the supervisor starts replacements. Existing delivered emails do not change.
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Data and access
 
-```bash
-composer require laravel/boost --dev
+The backend is the source of truth for shared records. Visitor access requires verified Gmail or an applicable visit-scoped token; a Visit ID alone does not grant access. Staff permissions and confidential access are enforced server-side. Head Admin is an Admin with confidential-approver permission; Super Admin manages system/accounts and receives restricted operational data.
 
-php artisan boost:install
-```
+Private payloads and uploads are encrypted. Browser caches retain sanitized metadata; private records stay in tab memory. Keep shared privacy/cache/realtime scripts and their HTML loading order. API/UI helpers load before page scripts, and synchronization wrappers load after them. Asset changes require a query-string version update.
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Appointment requests await staff scheduling. Staff check visitors in at the counter, then call, start and complete service. Document reviews, optional earlier-slot waitlists and dated follow-up tasks use the same encrypted appointment record. Waitlist changes require staff confirmation. Old active visits become Unfinished, not Completed.
 
-## Contributing
+## Backups and recovery
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Use Super Admin's encrypted backup tools and keep the matching APP_KEY separately. UI restore requires a preview and typing RESTORE, replaces listed table records transactionally, merges audit history, and creates a recovery copy under storage/app/private/activity-backups. Restored pending notifications are paused to prevent duplicate delivery.
 
-## Code of Conduct
+To verify a backup without replacement:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+    php artisan backup:restore PATH --verify
 
-## Security Vulnerabilities
+Command-line restoration without --verify does not create the UI recovery copy, pause restored notifications, or clear browser caches. Stop traffic/workers and save a current backup before an intentional restore. Rehearse only against a separate migrated database with the matching key. Schema snapshots under storage/app/private/schema-backups require DBA-assisted recovery; they are not ordinary restore files.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## Checks and tests
 
-## License
+Read-only diagnostics:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+    php scripts/check-runtime.php
+    php scripts/check-connection.php
+
+Inspect storage/logs and php artisan queue:failed when delivery stops. Do not clear jobs as a repair shortcut. Actual SMTP inbox delivery needs a separately authorized delivery check.
+
+Backend tests use an isolated in-memory SQLite database and array mail. Never redirect them to live data. Enable PDO SQLite and SQLite3, then run:
+
+    php vendor/bin/pest
+
+For the local Windows PHP installation:
+
+    php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest
+
+Frontend tests are tests/ui/*.test.cjs; run each with Node. Browser checks in tests/browser require a static server on port 8765 and isolated Chrome CDP on port 9224; the system smoke also uses the API on port 8000 and live Reverb. Browser mutation checks use API fixtures. scripts/smoke-flow.php is a separate rollback-only MySQL diagnostic that verifies InnoDB before exercising flows.

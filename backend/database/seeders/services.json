@@ -1,0 +1,119 @@
+[
+  {
+    "key": "good_moral",
+    "label": "Good Moral Character",
+    "icon": "cap",
+    "desc": "Certification of good standing for scholarships, transfers or employment.",
+    "requirements": [
+      "Valid School ID",
+      "Duly accomplished request form"
+    ]
+  },
+  {
+    "key": "student_id",
+    "label": "Student ID-Related Requests",
+    "icon": "idcard",
+    "desc": "Replacement or first-time issuance of a student identification card.",
+    "requirements": [
+      "Affidavit of Loss (if lost)",
+      "1x1 recent ID picture"
+    ]
+  },
+  {
+    "key": "incident_report",
+    "label": "Incident Reports",
+    "icon": "alert",
+    "desc": "Report and document an incident for OSS review and action.",
+    "requirements": [
+      "Written incident statement",
+      "Valid ID"
+    ]
+  },
+  {
+    "key": "excuse_letter",
+    "label": "Excuse Letters",
+    "icon": "checkin",
+    "desc": "Official excuse documentation for class or activity absences.",
+    "requirements": [
+      "Medical certificate or proof of absence"
+    ]
+  },
+  {
+    "key": "scholarship_txn",
+    "label": "Scholarship Transactions",
+    "icon": "cap",
+    "desc": "Scholarship application, renewal or documentation requests.",
+    "requirements": [
+      "Certificate of Grades",
+      "Financial assistance application form"
+    ]
+  },
+  {
+    "key": "concern",
+    "label": "Student Concerns/Complaints",
+    "icon": "alert",
+    "desc": "Raise a concern or complaint for OSS review and action.",
+    "requirements": [
+      "Written statement of the concern"
+    ]
+  },
+  {
+    "key": "offcampus",
+    "label": "Off-Campus Activity Requests",
+    "icon": "calendar",
+    "desc": "Permission and documentation for off-campus student activities.",
+    "requirements": [
+      "Parent/Guardian consent form",
+      "Activity proposal"
+    ]
+  },
+  {
+    "key": "activity_approval",
+    "label": "Activity Approval",
+    "icon": "checkin",
+    "desc": "Approval request for a planned school or student activity.",
+    "requirements": [
+      "Activity proposal",
+      "Adviser/Head endorsement"
+    ]
+  },
+  {
+    "key": "orgevent",
+    "label": "Organization Activities/Events",
+    "icon": "users",
+    "desc": "Approval workflow for student organization events on or off campus.",
+    "requirements": [
+      "Activity proposal",
+      "Adviser endorsement letter"
+    ]
+  },
+  {
+    "key": "sportsevent",
+    "label": "Sports Events",
+    "icon": "chart",
+    "desc": "Coordination and approval for sports competitions and away games.",
+    "requirements": [
+      "Coach endorsement",
+      "Player/participant list"
+    ]
+  },
+  {
+    "key": "lost_document",
+    "label": "Lost Certificate/Document Requests",
+    "icon": "folder",
+    "desc": "Re-issuance or certification for lost school records.",
+    "requirements": [
+      "Affidavit of Loss",
+      "Valid ID"
+    ]
+  },
+  {
+    "key": "other",
+    "label": "Other Student Services Documentation",
+    "icon": "home",
+    "desc": "Any other OSS request not covered by the categories above.",
+    "requirements": [
+      "Supporting document, if applicable"
+    ]
+  }
+]

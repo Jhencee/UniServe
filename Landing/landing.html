@@ -1,16 +1,17 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en" data-theme="light">
 
 <head>
+    <script src="../shared/api-config.js?v=1.1.0"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UniServe &mdash; Office of Student Services | PUP Santa Maria Campus</title>
     <meta name="description"
-        content="UniServe is the visitor and service portal of the Office of Student Services, PUP Santa Maria Campus. Walk in or schedule ahead, get a queue number, and track your visit online.">
+        content="Choose an OSS service, join the walk-in queue during office hours or request an appointment anytime. OSS confirms your schedule. Track updates with your Visit ID.">
     <meta name="theme-color" content="#800000">
     <meta property="og:title" content="UniServe — Office of Student Services">
     <meta property="og:description"
-        content="Walk in or schedule ahead, get a queue number, and track your visit — PUP Santa Maria Campus.">
+        content="Choose a service, walk in or request an appointment, and track updates with your Visit ID — PUP Santa Maria Campus.">
     <meta property="og:type" content="website">
     <link rel="icon" href="pup.jpg">
     <link rel="apple-touch-icon" href="pup.jpg">
@@ -19,7 +20,11 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css">
+    <link rel="stylesheet" href="landing.css?v=20261020.15">
+    <link rel="stylesheet" href="../shared/ui-components.css?v=20261020.10">
+    <link rel="stylesheet" href="../shared/form-controls.css?v=20261020.13">
+    <link rel="stylesheet" href="../shared/responsive.css?v=1.1.0">
+    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261020.8">
 </head>
 
 <body>
@@ -47,7 +52,7 @@
                 <button class="nav-link nav-link-btn" type="button" onclick="showLogin()">Login</button>
                 <span class="nav-sep" aria-hidden="true"></span>
                 <a href="../User/user.html?flow=checkvisit" class="nav-link">Check My Visit</a>
-                <a href="../User/user.html?flow=visit" class="nav-link nav-link-primary">Start a Visit</a>
+                <a href="../User/user.html" class="nav-link nav-link-primary">Start a Visit</a>
                 <div class="theme-toggle" role="group" aria-label="Color theme">
                     <button class="theme-btn" data-theme-btn="light" onclick="setTheme('light')" aria-label="Light mode"
                         title="Light mode">
@@ -77,14 +82,20 @@
 
         <div id="hoursBanner" class="maint-banner" hidden role="status">
             <b>The Visitor Portal is closed.</b>
-            <span>It is open daily from 8:00 AM to 5:00 PM and automatically reopens each day.</span>
+            <span>Opening times follow the office calendar, including lunch, holidays and closures.</span>
         </div>
 
         <header class="hero">
+            <div class="hero-flock" aria-hidden="true">
+                <svg class="hero-bird hero-bird-one" viewBox="0 0 40 20" fill="none" focusable="false"><path class="bird-wing-left" d="M20 14Q11 3 2 7"/><path class="bird-wing-right" d="M20 14Q29 3 38 7"/></svg>
+                <svg class="hero-bird hero-bird-two" viewBox="0 0 40 20" fill="none" focusable="false"><path class="bird-wing-left" d="M20 14Q11 3 2 7"/><path class="bird-wing-right" d="M20 14Q29 3 38 7"/></svg>
+                <svg class="hero-bird hero-bird-three" viewBox="0 0 40 20" fill="none" focusable="false"><path class="bird-wing-left" d="M20 14Q11 3 2 7"/><path class="bird-wing-right" d="M20 14Q29 3 38 7"/></svg>
+            </div>
             <div class="hero-inner">
                 <span class="eyebrow">Student &amp; Guest</span>
                 <h1>One Place to Begin. <br> <em>Every</em> Step Made Within.</h1>
-                <p>Provide the required information, select your desired service, and choose whether to schedule an appointment or join the service queue.</p>
+                <p>Choose a service, select a walk-in visit or appointment request, then enter your details. Keep your Visit ID to track what happens next.</p>
+                <div class="hero-actions"><a class="btn btn-primary" href="../User/user.html">Start a Visit</a></div>
             </div>
         </header>
 
@@ -106,15 +117,15 @@
                 </li>
                 <li class="step">
                     <span class="step-num">2</span>
-                    <h3>Walk in or schedule ahead</h3>
-                    <p>Walk in to get your queue number right away, or schedule ahead and upload your requirements. The
-                        office assigns your date and time.</p>
+                    <h3>Choose how to visit</h3>
+                    <p>During office hours, join the walk-in queue and stay near OSS. Or request an appointment anytime,
+                        enter your details and upload supporting documents. OSS assigns and confirms your date and time.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">3</span>
                     <h3>Follow your visit</h3>
-                    <p>Your Visit ID stays with you from start to finish. Watch your place in line, and look your visit
-                        up anytime under Check My Visit.</p>
+                    <p>Save your Visit ID and open Check My Visit anytime to see your queue status or appointment updates.
+                        For a confirmed appointment, arrive at OSS on your assigned date and show your Visit Pass to staff.</p>
                 </li>
             </ol>
         </section>
@@ -134,8 +145,8 @@
                 <div class="feat-card">
                     <div class="num">02</div>
                     <h3>Appointment Scheduling</h3>
-                    <p>Supports advance appointment scheduling and monitors visitor attendance, including late arrivals
-                        and appointment no-shows.</p>
+                    <p>Submit a request anytime. OSS reviews your details, assigns a date and time, and confirms your
+                        schedule. Track updates using your Visit ID.</p>
                 </div>
                 <div class="feat-card">
                     <div class="num">03</div>
@@ -148,12 +159,6 @@
                     <h3>Student Case Management</h3>
                     <p>Documents, monitors, and facilitates the appropriate handling of incident reports and student
                         concerns through authorized administrative processes.</p>
-                </div>
-                <div class="feat-card">
-                    <div class="num">05</div>
-                    <h3>Service Monitoring</h3>
-                    <p>Maintains visitor and transaction records while providing operational information on service
-                        activity, queue performance, and service utilization.</p>
                 </div>
             </div>
         </section>
@@ -177,7 +182,7 @@
         <section class="section-pad" id="feedback">
             <div class="section-head">
                 <div class="kicker">Visitor feedback</div>
-                <h2>What visitors say about OSS</h2>
+                <h2>What visitors say about UniServe</h2>
             </div>
             <div id="feedbackBody"></div>
         </section>
@@ -190,35 +195,35 @@
             <div class="faq-list">
                 <details class="faq-item">
                     <summary>What should I bring?</summary>
-                    <div class="faq-body">Each service lists its own requirements in the section above. If you schedule
-                        ahead, you can upload the documents when you submit your request. If you walk in, bring the
+                    <div class="faq-body">Each service lists its own requirements in the section above. For an appointment
+                        request, you can upload supporting documents when you submit your details. If you walk in, bring the
                         physical documents to the counter.</div>
                 </details>
                 <details class="faq-item">
                     <summary>What happens if I'm late for my appointment?</summary>
                     <div class="faq-body">You have a grace period of <b id="faqGrace">15</b> minutes after your
-                        scheduled time. After that you're marked as late, but you can still check in and OSS staff will
-                        review your arrival. If you arrive more than <b id="faqNoShow">60</b> minutes late, the
-                        appointment is marked as a no-show. Staff can still review and correct it, so speak to the front
-                        desk.</div>
+                        confirmed time. After that, your arrival may be marked late. Show your Visit Pass to OSS staff
+                        so they can record and review your arrival. If no arrival is recorded after
+                        <b id="faqNoShow">60</b> minutes, your appointment may be marked as a no-show.
+                        Speak to OSS staff if you still need assistance.</div>
                 </details>
                 <details class="faq-item">
                     <summary>Who gets served first?</summary>
-                    <div class="faq-body">Senior citizens are served first (priority lane under RA 9994). After that,
-                        visitors who checked in for a scheduled appointment are served before walk-ins, once their
+                    <div class="faq-body">Senior citizens and persons with disabilities receive priority service. After that,
+                        visitors whose arrival has been recorded by OSS for a confirmed appointment are served before walk-ins, once their
                         scheduled time arrives. Within each group, it's first come, first served.</div>
                 </details>
                 <details class="faq-item">
                     <summary>How do I check my visit, or find my Visit ID?</summary>
                     <div class="faq-body">Open <b>Check My Visit</b> and enter your Visit ID to see your live status. Your
-                        Visit ID is printed on your Visit Pass and in your confirmation email. If you've lost it, ask
-                        the front desk.</div>
+                        Visit ID appears on your Visit Pass and in visit emails. Keep it after submitting your request;
+                        an appointment request is pending until OSS confirms the schedule. If you've lost your Visit ID, ask OSS staff.</div>
                 </details>
                 <details class="faq-item">
                     <summary>Can I use the portal outside office hours?</summary>
-                    <div class="faq-body">No. The visitor portal, including appointment requests, check-in, visit
-                        tracking and chat, is open only during office hours (8:00 AM &ndash; 5:00 PM). It closes
-                        automatically after hours and reopens as soon as the office opens.</div>
+                    <div class="faq-body">Yes. Appointment requests and Check My Visit remain available when the office is closed.
+                        Walk-in queue entry and messages to OSS are available during office hours, following the office calendar,
+                        lunch breaks, holidays and special closures. OSS reviews appointment requests during office hours.</div>
                 </details>
             </div>
         </section>
@@ -229,51 +234,40 @@
                 <h2>Visit or reach the office</h2>
             </div>
             <div class="contact-grid">
-                <div class="contact-card">
-                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
                         </svg></div>
-                    <div class="c-lbl">Office</div>
-                    <div class="c-val" id="contactOrg">Office of Student Services</div>
-                    <div class="c-sub">Polytechnic University of the Philippines, Santa Maria Campus</div>
-                </div>
-                <div class="contact-card">
-                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+<div class="contact-details"><h3 class="c-lbl">Office</h3></div></div><div class="svc-bring">
+                    <div class="desc" id="contactOrg">Office of Student Services</div>
+                    <div class="desc">Polytechnic University of the Philippines, Santa Maria Campus</div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7" />
                         </svg></div>
-                    <div class="c-lbl">Email</div>
-                    <div class="c-val"><a id="contactEmail" href="#">&mdash;</a></div>
-                </div>
-                <div class="contact-card">
-                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+<div class="contact-details"><h3 class="c-lbl">Email</h3></div></div><div class="svc-bring">
+                    <div class="desc"><a id="contactEmail" href="#">&mdash;</a></div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path
                                 d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
                         </svg></div>
-                    <div class="c-lbl">Phone</div>
-                    <div class="c-val"><a id="contactPhone" href="#">&mdash;</a></div>
-                </div>
-                <div class="contact-card">
-                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
-                        </svg></div>
-                    <div class="c-lbl">Office hours</div>
-                    <div class="c-val">8:00 AM &ndash; 5:00 PM</div>
-                </div>
-                <div class="contact-card">
-                    <div class="c-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+<div class="contact-details"><h3 class="c-lbl">Phone</h3></div></div><div class="svc-bring">
+                    <div class="desc"><a id="contactPhone" href="#">&mdash;</a></div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z" />
                         </svg></div>
-                    <div class="c-lbl">Location</div>
-                    <div class="c-val">Santa Maria, Bulacan</div>
-                    <div class="c-sub"><a target="_blank" rel="noopener"
+<div class="contact-details"><h3 class="c-lbl">Location</h3></div></div><div class="svc-bring">
+                    <div class="desc">Santa Maria, Bulacan</div>
+                    <div class="desc"><a target="_blank" rel="noopener"
                             href="https://www.google.com/maps/search/?api=1&query=PUP+Santa+Maria+Campus+Bulacan">Open
-                            in Google Maps</a></div>
-                </div>
+                            in Google Maps</a></div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
+                        </svg></div>
+<div class="contact-details"><h3>Office hours</h3></div></div><div class="svc-bring"><div class="office-hours" id="contactOfficeHours"></div><div class="desc">Holiday and special hours may differ.</div><button class="btn btn-primary btn-sm contact-calendar-button" onclick="UniServeUX.visitorCalendar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Office calendar</span></button></div></article>
             </div>
         </section>
 
@@ -309,11 +303,48 @@
                     <span>&copy; <span id="yearNow"></span> Office of Student Services, PUP Santa Maria Campus</span>
                 </div>
                 <p class="privacy-note" id="privacy">
-                    <b>Data privacy notice.</b> UniServe collects your name, ID number, contact details and any
-                    documents you upload only to process your visit and service requests at the Office of Student
-                    Services. Your records are accessible only to authorized OSS staff and are handled in accordance
-                    with the Data Privacy Act of 2012 (Republic Act No. 10173).
+                    <b>Data privacy notice.</b> UniServe uses your name, ID details, contact number, Gmail address,
+                    uploaded documents, messages and feedback to manage OSS visits, appointments and service requests.
+                    Verification codes, tickets and appointment updates are sent to your Gmail. You can access your
+                    own records after verification; staff access depends on their assigned permissions. System activity
+                    is logged for accountability. Contact OSS for questions about your information.
                 </p>
+            </div>
+            <div class="footer-drive" aria-hidden="true">
+                <div class="footer-drive-road"></div>
+                <span class="campus-cloud campus-cloud-one"></span><span class="campus-cloud campus-cloud-two"></span>
+                <svg class="campus-birds" width="36" height="16" viewBox="0 0 36 16" fill="none" focusable="false"><path d="M2 9q4-5 8 0 4-5 8 0M21 4q3-4 6 0 3-4 6 0" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <div class="campus-bench"><span></span></div>
+                <div class="campus-lamp campus-lamp-one"><span></span></div><div class="campus-lamp campus-lamp-two"><span></span></div>
+                <div class="campus-garden campus-garden-one"><i></i><i></i><i></i></div><div class="campus-garden campus-garden-two"><i></i><i></i><i></i></div>
+                <div class="footer-campus-gate"><span class="footer-gate-sign">PUP CAMPUS</span><span class="footer-gate-leaf footer-gate-left"></span><span class="footer-gate-leaf footer-gate-right"></span></div>
+                <div class="footer-campus-trees">
+                    <svg class="footer-tree footer-tree-one" viewBox="0 0 40 64" fill="none" focusable="false"><path d="M20 34v28" stroke="#927353" stroke-width="5"/><path d="m20 47-9-9m9 3 9-9" stroke="#927353" stroke-width="3"/><path d="M8 37C-3 30 4 18 9 18 7 5 29 0 32 16c12 3 11 23-1 23-6 7-18 6-23-2Z" fill="#6f977e"/></svg>
+                    <svg class="footer-tree footer-tree-two" viewBox="0 0 40 64" fill="none" focusable="false"><path d="M20 34v28" stroke="#927353" stroke-width="5"/><path d="m20 47-9-9m9 3 9-9" stroke="#927353" stroke-width="3"/><path d="M8 37C-3 30 4 18 9 18 7 5 29 0 32 16c12 3 11 23-1 23-6 7-18 6-23-2Z" fill="#85a58a"/></svg>
+                    <svg class="footer-tree footer-tree-three" viewBox="0 0 40 64" fill="none" focusable="false"><path d="M20 34v28" stroke="#927353" stroke-width="5"/><path d="m20 47-9-9m9 3 9-9" stroke="#927353" stroke-width="3"/><path d="M8 37C-3 30 4 18 9 18 7 5 29 0 32 16c12 3 11 23-1 23-6 7-18 6-23-2Z" fill="#6f977e"/></svg>
+                </div>
+                <div class="footer-student footer-student-one student-boy"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-two student-girl"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-three student-girl"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-four student-boy"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-five student-professor"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-six student-girl"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-seven student-boy"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+                <div class="footer-student footer-student-eight student-professor"><span class="student-head"></span><span class="student-body"></span><span class="student-bag"></span><span class="student-leg student-leg-left"></span><span class="student-leg student-leg-right"></span></div>
+            <svg class="footer-school" viewBox="0 0 180 110" fill="none" aria-hidden="true" focusable="false">
+                <path d="M90 4v18" stroke="#a7aeb6" stroke-width="1.5"/>
+                <path class="campus-flag" d="M91 4h17l-3 5 3 5H91Z" fill="#b74848"/>
+                <path d="M10 53h160v5H10z" fill="#b77f76"/>
+                <path d="M14 55h152v49H14z" fill="var(--surface-2)" stroke="var(--border)"/>
+                <path d="M54 42 90 22l36 20v62H54z" fill="var(--surface)" stroke="var(--border)"/>
+                <path d="m50 43 40-23 40 23" stroke="var(--accent)" stroke-width="4" stroke-linejoin="round"/>
+                <text x="90" y="59" text-anchor="middle" fill="var(--accent-strong)" font-family="Georgia,serif" font-size="12" font-weight="bold">PUP</text>
+                <path d="M80 104V76h20v28" fill="var(--accent)"/>
+                <path d="M90 79v23m-7-12h2m10 0h2" stroke="#e4c8a2" stroke-width="1.5"/>
+                <path d="M74 104h32m-36 3h40" stroke="#b5b1aa" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="90" cy="36" r="5" fill="#f9f1df" stroke="#b77f76"/><path d="M90 32v4l3 1" stroke="#796b62" stroke-width="1"/>
+                <g fill="var(--text-soft)" opacity=".4"><path d="M24 67h12v12H24zm18 0h7v12h-7zm89 0h12v12h-12zm18 0h7v12h-7zM24 86h12v12H24zm18 0h7v12h-7zm89 0h12v12h-12zm18 0h7v12h-7z"/></g>
+            </svg>
             </div>
         </footer>
     </div>
@@ -364,9 +395,10 @@
                             <input type="checkbox" id="loginRemember">
                             <span>Remember me</span>
                         </label>
-                        <a class="forgot-link" onclick="showForgotPassword()">Forgot password?</a>
+                        <button type="button" class="forgot-link" onclick="showForgotPassword()">Forgot password?</button>
                     </div>
 
+                    <div id="loginTurnstile" hidden><div id="loginTurnstileWidget"></div><p id="loginTurnstileStatus" class="field-hint" role="status" aria-live="polite"></p></div>
                     <button class="btn btn-primary btn-block" onclick="doLogin()">Sign In</button>
                 </div>
             </div>
@@ -388,7 +420,15 @@
 
     <div class="toast-wrap" id="toastWrap"></div>
 
-    <script src="landing.js"></script>
+    <script src="../shared/office-calendar.js?v=20261020.40"></script>
+    <script src="../shared/ui-components.js?v=20261020.40"></script>
+    <script src="../shared/code-cooldown.js?v=1.0.0"></script>
+    <script src="../shared/login-turnstile.js?v=1.0.4"></script>
+    <script src="landing.js?v=20261020.40"></script>
+    <script src="../shared/code-boxes.js?v=1.0.0"></script>
+    <script src="../shared/responsive.js?v=1.1.0"></script>
+    <script src="../shared/portal-api.js?v=20261021.11"></script>
+    <script src="../shared/realtime-updates.js?v=1.1.3"></script>
 </body>
 
 </html>

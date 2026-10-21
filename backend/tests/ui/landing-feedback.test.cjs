@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs'),path=require('node:path');
+const source=fs.readFileSync(path.resolve(__dirname,'../../../Landing/landing.js'),'utf8');
+function render(summary){const element={innerHTML:''},c={landingFeedbackSummary:summary,document:{getElementById:()=>element},refreshLandingFeedback:()=>{},STARS:n=>'stars'};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function renderFeedbackSection()'),source.indexOf('function renderLandingInfo()')),c);c.renderFeedbackSection();return element.innerHTML;}
+test('server feedback renders without browser queue records',()=>{const html=render({total:1,average:5,satisfied:100,distribution:[{s:5,count:1}]});assert.ok(html.includes('5.0'));assert.ok(html.includes('1 response'));assert.ok(!html.includes('No feedback yet'));});
+test('empty and pending feedback are displayed separately',()=>{assert.ok(render(null).includes('Loading feedback'));assert.ok(render({total:0}).includes('No feedback yet'));});

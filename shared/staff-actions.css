@@ -1,0 +1,11 @@
+﻿.admin-actions { position:relative; }
+.topbar:has(.admin-actions) { overflow:visible; }
+.admin-actions > summary { display:flex; align-items:center; justify-content:center; width:40px; height:40px; list-style:none; cursor:pointer; color:var(--text-soft); border:0; border-radius:50%; }
+.admin-actions > summary::-webkit-details-marker { display:none; }
+.admin-actions > summary:hover { background:var(--surface-2); }
+.admin-actions-panel { position:absolute; right:0; top:calc(100% + 10px); z-index:150; width:230px; max-width:calc(100vw - 28px); padding:8px; border:0; border-radius:12px; background:var(--surface); box-shadow:0 8px 32px #0002; }
+.topbar-right .admin-actions-panel button { display:flex; align-items:center; justify-content:flex-start; gap:12px; width:100%; height:auto; min-height:44px; padding:10px 12px; border:0; border-radius:8px; background:transparent; color:var(--text); font:inherit; font-size:.8rem; text-align:left; cursor:pointer; }
+.topbar-right .admin-actions-panel button:hover { background:var(--surface-2); }
+.admin-actions-panel button svg { flex-shrink:0; }
+.admin-theme-state { margin-left:auto; color:var(--text-soft); font-size:.72rem; }
+.admin-actions-panel .browser-alert-toggle::after { content:'Notifications'; }

@@ -1,0 +1,155 @@
+/* Six code boxes share a native input, preserving mobile OTP autofill. */
+.code-boxes { position:relative; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:8px; width:100%; max-width:320px; margin:10px auto 16px; }
+.field .code-boxes > input, .code-boxes > input {
+  position:absolute !important; inset:0 !important; width:100% !important; height:100% !important;
+  margin:0 !important; padding:0 !important; opacity:0; z-index:1; cursor:text;
+}
+.code-boxes .code-digit { display:flex; align-items:center; justify-content:center; min-width:0; height:46px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--accent-strong); font-family:var(--font-body,inherit); font-size:1.1rem; font-weight:600; font-variant-numeric:tabular-nums; transition:border-color .15s,box-shadow .15s; }
+.code-boxes .code-digit.is-filled { border-color:color-mix(in srgb,var(--accent) 30%,var(--border)); }
+.code-boxes .code-digit.is-current { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent); }
+.code-boxes.is-invalid .code-digit { border-color:var(--danger); }
+@media(max-width:400px) { .code-boxes { gap:7px; } .code-boxes .code-digit { height:42px; border-radius:7px; font-size:1rem; } }
+@media(forced-colors:active) { .code-boxes .code-digit.is-current { outline:2px solid Highlight; } }
+/* Match the existing UniServe controls across each portal. */
+.btn:not(:disabled):not(.is-disabled):hover {
+  transform: translateY(-1px);
+}
+.btn:not(:disabled):not(.is-disabled):active {
+  transform: translateY(0);
+}
+.btn:disabled,
+.btn.is-disabled {
+  transform: none;
+}
+.field,
+.form-row > * {
+  min-width: 0;
+}
+.form-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.field label .req {
+  color: var(--danger);
+  margin-left: 2px;
+}
+.field label .opt {
+  color: var(--text-soft);
+  font-weight: 400;
+}
+.field-hint,
+.field-error {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.staff-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+@media (max-width: 700px) {
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn:not(:disabled):not(.is-disabled):hover {
+    transform: none;
+  }
+}
+/* Consistent outline danger actions and pagination across the portals. */
+.btn.btn-danger-o, .btn.btn-danger-ghost { background:transparent; color:var(--danger); border-color:var(--danger); }
+.btn.btn-danger-o:hover, .btn.btn-danger-ghost:hover { background:var(--danger-bg); }
+.audit-pagination, .audit-pager { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+.audit-pagination-info { margin:0; font-size:.82rem; color:var(--text-soft); }
+.audit-pagination-info b { color:var(--text); }
+.audit-pagination-info span { display:block; margin-top:4px; font-size:.75rem; }
+.audit-pagination-buttons { display:flex; gap:8px; }
+.audit-pagination-buttons .btn { min-width:105px; min-height:38px; justify-content:center; }
+.audit-pagination-buttons .btn:disabled { opacity:.45; cursor:default; }
+@media(max-width:480px) { .audit-pagination, .audit-pager { align-items:flex-start; } .audit-pagination-buttons { width:100%; } .audit-pagination-buttons .btn { flex:1; } }
+
+/* Keep account details and password controls within the same compact card. */
+.staff-profile-card { max-width: 1080px; }
+.staff-profile-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: start; }
+.staff-profile-grid > section { min-width: 0; }
+.staff-profile-password { position: relative; }
+
+.staff-profile-password::before { content: ""; position: absolute; top: 0; bottom: 0; left: -28px; width: 1px; background: var(--border, #e5e7eb); }
+@media (max-width: 900px) {
+  .staff-profile-grid { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .staff-profile-password::before { display: none; }
+
+  .staff-profile-password { border-top: 1px solid var(--border, #e5e7eb); padding-left: 0; padding-top: 20px; }
+}
+
+.profile-password-input { position:relative; }
+.profile-password-input input { padding-right:44px; }
+.profile-password-input .profile-pass-toggle { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:34px; height:34px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; border-radius:7px; color:var(--text-soft); padding:0; cursor:pointer; transition:color .15s, background .15s; }
+.profile-pass-toggle:hover { color:var(--accent); background:var(--surface-2); }
+
+/* Stack the new and confirmation password fields in staff profiles. */
+.staff-profile-password > .form-row { display: block; }
+.staff-profile-password > .btn-block { margin-top: 0; }
+
+/* Small interaction details shared by every portal. */
+.err-box { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:12px 0; padding:12px 14px; border:1px solid color-mix(in srgb,var(--danger) 22%,var(--border)); border-radius:10px; background:var(--danger-bg); color:var(--danger); font-size:.8rem; line-height:1.6; overflow-wrap:anywhere; }
+.err-box[hidden] { display:none; }
+.err-box .btn { margin-left:auto; flex-shrink:0; }
+.field input[aria-invalid="true"], .field textarea[aria-invalid="true"], .field select[aria-invalid="true"] { border-color:var(--danger); }
+.field input:disabled, .field textarea:disabled, .field select:disabled { cursor:not-allowed; opacity:1; color:var(--text-soft); background:var(--surface-2); }
+.field input[type="file"] { width:100%; max-width:100%; padding:8px; font-size:.78rem; line-height:1.5; color:var(--text-soft); }
+.field input[type="file"]::file-selector-button { margin-right:10px; padding:8px 12px; border:0; border-radius:6px; background:var(--surface-2); color:var(--accent-strong); font:inherit; font-weight:600; cursor:pointer; }
+.field input[type="file"]::file-selector-button:hover { background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }
+button:disabled { cursor:not-allowed; }
+.visitor-actions-panel button:disabled, .admin-actions-panel button:disabled { opacity:.45; }
+.modal-head h3 { min-width:0; overflow-wrap:anywhere; }
+.modal-head .close-x { width:40px; height:40px; min-width:40px; display:inline-flex; align-items:center; justify-content:center; border-radius:8px; }
+.modal .modal-foot { position:sticky; bottom:0; z-index:1; background:var(--surface); }
+.field input[aria-invalid="true"]:focus, .field textarea[aria-invalid="true"]:focus, .field select[aria-invalid="true"]:focus { border-color:var(--danger); box-shadow:0 0 0 3px color-mix(in srgb,var(--danger) 14%,transparent); }
+button svg, .btn svg, summary svg { flex-shrink:0; }
+.field label .req { font-size:inherit; }
+.field input::placeholder, .field textarea::placeholder { color:var(--text-soft); opacity:1; }
+.field-hint a { color:var(--accent-strong); text-underline-offset:3px; }
+.rpt-h-count { font-family:var(--font-body); font-size:.78rem; font-weight:400; color:var(--text-soft); }
+.contact-details .c-lbl { margin:0; font-family:var(--font-body); font-size:.88rem; font-weight:600; color:var(--text); }
+@media screen and (max-width:600px) {
+  .modal-foot .btn { flex:1 1 auto; justify-content:center; }
+  .flow-review-row .toolbar { gap:8px; margin-top:10px; }
+  .field input[type="file"] { font-size:.72rem; }
+}
+
+/* One restrained focus treatment across all portals. */
+:root { --control-focus: #800000; --control-focus-halo: rgba(128,0,0,.09); }
+html[data-theme="dark"] { --control-focus:#d99a9a; --control-focus-halo:rgba(217,154,154,.12); }
+:where(input,textarea,select):focus-visible { outline:none; }
+.field :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus,
+:is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus-visible {
+ border-color:var(--control-focus); outline:none; box-shadow:0 0 0 2px var(--control-focus-halo);
+}
+.field :is(input,textarea,select)[aria-invalid="true"]:focus { border-color:var(--danger); box-shadow:0 0 0 2px color-mix(in srgb,var(--danger) 10%,transparent); }
+:is(button,a,input[type="checkbox"],input[type="radio"]):focus-visible { outline:2px solid var(--control-focus); outline-offset:2px; }
+.ph-phone-input:focus-within { border-color:var(--control-focus); box-shadow:0 0 0 2px var(--control-focus-halo); }
+.field .ph-phone-input input:focus { border:0; outline:none; box-shadow:none; }
+.code-boxes .code-digit.is-current { border-color:var(--control-focus); box-shadow:0 0 0 2px var(--control-focus-halo); }
+@media(forced-colors:active) {
+ :is(input,textarea,select,button,a):focus-visible { outline:2px solid Highlight; outline-offset:2px; }
+}
+
+/* Minimal input focus without a colored halo. */
+:root { --control-focus:#737b87; --control-focus-halo:transparent; }
+html[data-theme="dark"] { --control-focus:#a4adb9; --control-focus-halo:transparent; }
+.field :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus,
+:is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus-visible { border-color:var(--control-focus); box-shadow:none; outline:none; }
+.field :is(input,textarea,select)[aria-invalid="true"]:focus { border-color:var(--danger); box-shadow:none; }
+.ph-phone-input:focus-within { border-color:var(--control-focus); box-shadow:none; }
+.field .ph-phone-input input:focus { border:0; box-shadow:none; outline:none; }
+.code-boxes .code-digit.is-current { border-color:var(--control-focus); box-shadow:none; }
+@media(forced-colors:active) { :is(input,textarea,select):focus-visible { outline:2px solid Highlight; outline-offset:2px; } }
+
+.visitor-security { width:100%; min-width:0; margin:16px 0; }
+.visitor-security[hidden] { display:none; }
+.visitor-security-widget { width:100%; min-width:0; }
+.visitor-security .field-hint:empty { display:none; }

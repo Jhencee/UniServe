@@ -1,0 +1,150 @@
+/* Shared screen spacing; printed reports keep their own layout. */
+@media screen {
+  #content .table-wrap,
+  #content .rpt-table-wrap {
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+  }
+
+  #content .table-wrap > table,
+  #content .rpt-table-wrap > table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  #content .table-wrap > table th,
+  #content .table-wrap > table td {
+    padding: 14px 16px;
+    line-height: 1.5;
+    min-width: 100px;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  #content .table-wrap > table th {
+    white-space: nowrap;
+  }
+
+  #content .table-wrap td.mono,
+  #content .table-wrap td .mono,
+  #content .table-wrap td .pill,
+  #content .table-wrap td.act-cell,
+  #content .table-wrap td.nw {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+
+  #content .table-wrap td.mono {
+    font-size: .74rem;
+  }
+
+  #content .table-wrap td.row-num,
+  #content .table-wrap > table:has(td.row-num) thead th:first-child {
+    min-width: 0;
+    width: 44px;
+    text-align: center;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  #content .table-wrap td[colspan] {
+    min-width: 0;
+    white-space: normal;
+  }
+
+  #content .rpt-table-wrap > table th,
+  #content .rpt-table-wrap > table td {
+    padding: 10px 12px;
+    min-width: 80px;
+    overflow-wrap: normal;
+    word-break: normal;
+    line-height: 1.5;
+  }
+
+  #content .rpt-table-wrap > table th,
+  #content .rpt-table-wrap > table td.mono,
+  #content .rpt-table-wrap > table td.nw {
+    white-space: nowrap;
+  }
+
+  #content .rpt-table-wrap > table td.mono {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #userBody td:nth-child(2),
+  #userBody td:nth-child(3) {
+    white-space: nowrap;
+  }
+}
+
+@page staff-table-report {
+  size: 13in 8.5in;
+  margin: 14mm 14mm 6mm;
+}
+
+@media print {
+  #printArea:has(table.rpt-table) {
+    page: staff-table-report;
+  }
+
+  #printArea table.rpt-table {
+    table-layout: auto !important;
+  }
+
+  #printArea table.rpt-table col {
+    width: auto !important;
+  }
+
+  #printArea table.rpt-table th,
+  #printArea table.rpt-table td,
+  #printArea table.rpt-table td.mono,
+  #printArea table.rpt-table .nw {
+    white-space: normal !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    line-height: 1.45;
+    padding: 5px 6px;
+  }
+
+  #printArea table.rpt-table td {
+    font-size: 8pt;
+  }
+
+  #printArea table.rpt-table td.mono,
+  #printArea table.rpt-table th {
+    font-size: 7.5pt;
+  }
+
+  #printArea table.rpt-table th,
+  #printArea table.rpt-table td.nw {
+    white-space: nowrap !important;
+  }
+
+  #printArea table.rpt-table td.mono {
+    overflow-wrap: anywhere !important;
+    min-width: 16mm;
+    max-width: 38mm;
+  }
+  #printArea table.rpt-table .report-email {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    max-width: none;
+  }
+  #printArea table.rpt-table .report-row-number {
+    width: 6mm !important;
+    min-width: 0 !important;
+    max-width: 6mm;
+    padding: 4px 2px;
+    text-align: center !important;
+    white-space: nowrap !important;
+    font-size: 7pt;
+  }
+}
+@media screen {
+  #content .table-wrap > table th.appointment-action-heading,
+  #content .table-wrap > table td.appointment-action-cell { width:80px; min-width:80px; padding:14px 12px; text-align:center; vertical-align:middle; }
+  #content .table-wrap > table td.appointment-action-cell > .kebab-btn { display:flex; margin:0 auto; }
+}

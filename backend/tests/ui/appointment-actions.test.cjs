@@ -1,0 +1,18 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const source=fs.readFileSync(path.resolve(__dirname,'../../../Admin/admin.js'),'utf8');
+function modal(status,date='2026-10-13',edit=false){
+ const record={id:'a1',visitId:'VIS-TEST',code:'REF',status,date,service:'Service',name:'Visitor',type:'Student',shared:true,queueId:status==='Checked-in'?'q1':null};let result;
+ const c={loadDB:()=>({appointments:[record]}),today:()=> '2026-10-13',OfficeCalendar:{status:()=>({open:true})},UniServeUX:{conflict:()=>'',timeLabel:x=>x||'',appointmentTime:()=>''},findService:()=>({}),computeReadiness:()=>({}),evaluateArrival:()=>null,openModal:(title,body,buttons)=>{result={body,buttons}},escapeHtml:String,readinessPillHtml:()=>'',statusPill:()=>status,arrivalStatusPill:()=>'',visitExtrasHtml:()=>'',documentReviewHtml:()=>'',attachListHtml:()=>'',icon:()=>'',fmtDateTime:()=>'',closeModal:()=>{},navigate:()=>{}};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function openApptDetail('),source.indexOf('const RANGES =')),c);c.openApptDetail('a1',edit);return result;
+}
+test('requested appointments offer only schedule confirmation without More options',()=>{const r=modal('Requested');assert.deepEqual(Array.from(r.buttons,b=>b.label),['Confirm schedule']);assert.ok(r.body.includes('mApptDate'));assert.ok(!r.body.includes('More options'));assert.ok(!r.body.includes('Check in &amp; Add'));});
+test('booked visits show Check in only on their appointment day and hide scheduling fields',()=>{const r=modal('Booked');assert.deepEqual(Array.from(r.buttons,b=>b.label),['Check in']);assert.ok(!r.body.includes('mApptDate'));assert.equal(modal('Booked','2026-10-14').buttons.length,0);});
+test('reschedule mode offers one save action and suppresses check-in',()=>{const r=modal('Booked','2026-10-13',true);assert.deepEqual(Array.from(r.buttons,b=>b.label),['Save new schedule']);assert.ok(r.body.includes('mApptDate'));});
+test('checked-in visits lead to the queue and completed visits offer no further main action',()=>{assert.deepEqual(Array.from(modal('Checked-in').buttons,b=>b.label),['Open queue']);assert.equal(modal('Completed').buttons.length,0);});
+test('table actions are direct and match the appointment status',()=>{
+ const c={icon:()=>'',today:()=> '2026-10-13',OfficeCalendar:{status:()=>({open:true})},UniServeUX:{conflict:()=>''}};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function appointmentActionsHtml('),source.indexOf('async function openAppointmentVisit(')),c);
+ const requested=c.appointmentActionsHtml({id:'a',status:'Requested',shared:true});assert.ok(requested.includes('Set schedule'));assert.ok(requested.includes('Cancel'));assert.ok(!requested.includes('Check in'));
+ assert.ok(requested.indexOf('Set schedule')>requested.indexOf('class="kebab-menu"'));assert.ok(!requested.includes('btn-primary'));assert.ok(requested.includes('closeKebabs(); openApptDetail'));
+ const booked=c.appointmentActionsHtml({id:'a',status:'Booked',date:'2026-10-13',shared:true});for(const label of ['View details','Check in','Reschedule','Email details','Cancel'])assert.ok(booked.includes(label));assert.ok(!booked.includes('More options'));
+ const cancelled=c.appointmentActionsHtml({id:'a',status:'Cancelled',shared:true});assert.ok(cancelled.includes('Email details'));assert.ok(!cancelled.includes('>Cancel</button>'));assert.ok(!cancelled.includes('Reschedule'));
+});

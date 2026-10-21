@@ -16,7 +16,7 @@ const DEFAULT_SERVICES = [
   { key: 'other', label: 'Other Student Services Documentation', icon: 'home', desc: 'Any other OSS request not covered by the categories above.', requirements: ['Supporting document, if applicable'] },
 ];
 const ICON_CHOICES = ['cap', 'idcard', 'checkin', 'folder', 'alert', 'calendar', 'users', 'chart', 'home', 'chat', 'lock', 'log'];
-const QUEUE_STATUS_LABEL = { Waiting: 'Waiting', Called: 'Called', Serving: 'Processing', Completed: 'Completed', Skipped: 'Skipped', Cancelled: 'Cancelled' };
+const QUEUE_STATUS_LABEL = { Waiting: 'Waiting', Called: 'Called', Serving: 'Serving', Completed: 'Completed', Unfinished: 'Unfinished', Skipped: 'Skipped', Cancelled: 'Cancelled' };
 
 const QUEUE_AVG_MINUTES = 4;
 const DEFAULT_GRACE_MINUTES = 15;
@@ -44,7 +44,8 @@ function evaluateArrival(db, appt) {
 function sweepNoShows(db) {
   let changed = false;
   (db.appointments || []).forEach(a => {
-    if (a.queueId || a.status !== 'Booked') return;
+    if (a.shared || a.queueId || a.status !== 'Booked') return;
+    if (typeof UniServeUX !== 'undefined' && UniServeUX.conflict(a)) return;
     const arr = evaluateArrival(db, a);
     if (arr.status !== 'PastWindow') return;
     Object.assign(a, { status: 'No-show', arrivalStatus: 'NoShow', lateMinutes: arr.lateMinutes, autoNoShow: true });
@@ -76,10 +77,10 @@ const slugify = s => String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').
 function escapeHtml(s) { if (s == null) return ''; return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function fmtFileSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(1) + ' MB'; }
 function fmtMinutes(m) {
-  if (m == null) return '&mdash;';
-  if (m < 60) return `${m} min`;
-  const h = Math.round(m / 6) / 10;
-  return `${h} ${h === 1 ? 'hr' : 'hrs'}`;
+ if(m==null)return '&mdash;';
+ const seconds=Math.max(0,Math.round(Number(m)*60));
+ const h=Math.floor(seconds/3600),n=Math.floor(seconds%3600/60),sec=seconds%60;
+ return [h?h+' '+(h===1?'hour':'hours'):'',n?n+' '+(n===1?'minute':'minutes'):'',sec?sec+' '+(sec===1?'second':'seconds'):''].filter(Boolean).join(' ')||'0 seconds';
 }
 function requestorLabel(name, type) {
   if (!type || String(name || '').toLowerCase().includes(String(type).toLowerCase())) return name || '';
@@ -93,11 +94,11 @@ function randomVisitSuffix(len) {
   return Array.from(buf, b => VISIT_ID_CHARS[b % VISIT_ID_CHARS.length]).join('');
 }
 function visitIdExists(db, id) {
-  return ['appointments', 'queues', 'transactions', 'visitorLog', 'chats'].some(k => (db[k] || []).some(x => x.visitId === id));
+  return ['appointments', 'queues', 'transactions', 'visitorLog', 'chats'].some(k => (db[k] || []).some(x => String(x.visitId || '').replace(/-/g, '') === String(id).replace(/-/g, '')));
 }
 function nextVisitId(db) {
   let id;
-  do { const s = randomVisitSuffix(8); id = `VIS-${s.slice(0, 4)}-${s.slice(4)}`; } while (visitIdExists(db, id));
+  do { const s = randomVisitSuffix(8); id = `VIS-${s}`; } while (visitIdExists(db, id));
   return id;
 }
 function normVisitRef(s) {
@@ -140,9 +141,7 @@ function migrateConfidentialAccess(db) {
 function freshState() {
   return {
     users: [
-      { id: 'u1', username: 'admin', password: 'admin123', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
-      { id: 'u2', username: 'oss.admin', password: '1234', fullName: 'Maria Santos', role: 'ADMIN', active: true, email: 'maria.santos@oss.edu.ph', confidentialAccess: true },
-      { id: 'u3', username: 'oss.admin2', password: '1234', fullName: 'Dr. Ramon Cruz', role: 'ADMIN', active: true, email: 'ramon.cruz@oss.edu.ph', confidentialAccess: false },
+      { id: 'u1', username: 'admin', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
     ],
     services: DEFAULT_SERVICES.map(s => ({ ...s, requirements: [...s.requirements] })),
     transactions: [], appointments: [], chats: [],
@@ -150,13 +149,8 @@ function freshState() {
     systemSettings: { orgName: 'Office of Student Services', supportEmail: 'oss@university.edu.ph', supportPhone: '0917-000-0000', timezone: 'Asia/Manila', maintenanceMode: false, autoCloseChats: false, sessionTimeout: 30, queuePrefixStudent: 'A', queuePrefixGuest: 'G', gracePeriodMinutes: DEFAULT_GRACE_MINUTES, noShowThresholdMinutes: DEFAULT_NOSHOW_MINUTES },
   };
 }
-function mkTxn(o) { return { id: uid('T'), code: randCode('OSS'), status: 'Pending', escalation: null, ...o, updatedAt: o.createdAt || new Date() }; }
 function mkLog(user, role, action, ts) { return { id: uid('L'), user, role, action, ts: ts || new Date() }; }
 function mkChat(o) { return { id: uid('C'), status: 'Open', messages: [], staffUnread: 0, visitorUnread: 0, createdAt: new Date(), updatedAt: new Date(), ...o }; }
-function mkQueue(o) {
-  return { id: uid('Q'), visitId: null, number: null, status: 'Waiting', createdAt: new Date(), checkedInAt: new Date(), scheduledAt: null, calledAt: null, servingAt: null, completedAt: null, assignedAdminId: null, assignedAdminName: null, transactionId: null, appointmentId: null, visitorLogId: null, recallCount: 0, isSenior: false, possibleDuplicate: false, feedback: null, ...o };
-}
-function mkVisitorEntry(o) { return { id: uid('V'), visitId: null, timeIn: new Date(), timeOut: null, ...o }; }
 const DATE_FIELDS = ['createdAt', 'updatedAt', 'calledAt', 'servingAt', 'completedAt', 'recalledAt', 'transferredAt', 'checkedInAt', 'scheduledAt', 'skippedAt', 'cancelledAt', 'startedAt', 'escalatedAt', 'submittedAt', 'ts', 'timeIn', 'timeOut'];
 function reviveDates(obj) {
   if (Array.isArray(obj)) { obj.forEach(reviveDates); return obj; }
@@ -180,29 +174,46 @@ function loadDB() {
     const s = freshState(); localStorage.setItem(DB_KEY, JSON.stringify(s)); return s;
   }
 }
-function saveDB(s) { localStorage.setItem(DB_KEY, JSON.stringify(s)); }
+const sharedQueueSnapshot = new Map();
+let sharedQueueWrites = Promise.resolve();
+function saveDB(s) {
+  localStorage.setItem(DB_KEY, JSON.stringify(s));
+  for (const q of s.queues || []) {
+    // Previous-day closure is server-owned; cached unfinished records are read-only here.
+    if (!q.shared || q.status === 'Unfinished') continue;
+    const snapshot = JSON.stringify(q);
+    if (!sharedQueueSnapshot.has(q.id) || sharedQueueSnapshot.get(q.id) === snapshot) continue;
+    sharedQueueSnapshot.set(q.id, snapshot);
+    sharedQueueWrites = sharedQueueWrites.then(async () => {
+      const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/queue/' + encodeURIComponent(q.id), {
+        method: 'PATCH', headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: 'Bearer ' + (loadSession().token || '') },
+        body: snapshot
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || 'Could not update the shared queue.');
+    }).catch(error => { toast(escapeHtml(error.message || 'Cannot reach the queue service.'), 'err'); });
+  }
+}
+let sharedQueueLoading = false;
+async function loadSharedQueue() {
+  const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/queue', { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/json', Authorization: 'Bearer ' + (loadSession().token || '') } });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.message || 'Could not load the queue.');
+  const db = loadDB();
+  db.queues = db.queues.filter(q => !q.shared && !result.queues.some(server => server.id === q.id || (server.visitId && server.visitId === q.visitId))).concat(result.queues);
+  for (const q of result.queues) sharedQueueSnapshot.set(q.id, JSON.stringify(q));
+  if(window.SecureState)SecureState.persist(db);else localStorage.setItem(DB_KEY,JSON.stringify(db));
+}
 function loadSession() { try { return JSON.parse(sessionStorage.getItem('ossuniserve_session') || '{}'); } catch (e) { return {}; } }
 function saveSession(o) { sessionStorage.setItem('ossuniserve_session', JSON.stringify(o)); }
 
-function queuePrefixFor(db, visitorType) {
-  const s = db.systemSettings;
-  const p = visitorType === 'Student' ? (s.queuePrefixStudent || 'A') : (s.queuePrefixGuest || 'G');
-  return p.toUpperCase().slice(0, 2) || 'A';
-}
-function nextQueueNumber(db, visitorType) {
-  const prefix = queuePrefixFor(db, visitorType);
-  if (!db.queueCounters || db.queueCounters.dayKey !== today()) db.queueCounters = { dayKey: today() };
-  const seq = (db.queueCounters[prefix] || 0) + 1;
-  db.queueCounters[prefix] = seq;
-  return { number: `${prefix}-${String(seq).padStart(3, '0')}`, prefix, seq };
-}
 function queueRef(q) { return q.number || q.visitId; }
 function isDue(q, now = new Date()) { return q.source !== 'Appointment' || !q.scheduledAt || new Date(q.scheduledAt) <= now; }
 function queueRank(q, now) {
-  if (q.source === 'Appointment') return isDue(q, now) ? (q.isSenior ? -1 : 1) : 3;
-  return q.isSenior ? -1 : 2;
+  if (q.source === 'Appointment') return isDue(q, now) ? ((q.isSenior || q.isPWD) ? -1 : 1) : 3;
+  return (q.isSenior || q.isPWD) ? -1 : 2;
 }
-function queueSortKey(q) { return new Date(q.source === 'Appointment' && q.scheduledAt ? q.scheduledAt : (q.checkedInAt || q.createdAt)); }
+function queueSortKey(q) { return new Date(q.queueEnteredAt || (q.source === 'Appointment' && q.scheduledAt ? q.scheduledAt : (q.checkedInAt || q.createdAt))); }
 function waitingQueueSorted(db) {
   const now = new Date();
   return db.queues.filter(q => q.status === 'Waiting').sort((a, b) => queueRank(a, now) - queueRank(b, now) || queueSortKey(a) - queueSortKey(b));
@@ -212,22 +223,6 @@ function findService(db, key) { return db.services.find(x => x.key === key) || d
 function serviceLabel(db, key) { const s = db.services.find(x => x.key === key); return s ? s.label : key; }
 function serviceQueueLabel(db, e) { return e.serviceLabel || (e.serviceKey ? serviceLabel(db, e.serviceKey) : 'General Concern'); }
 function entryMethodLabel(q) { return q.source === 'Appointment' ? 'Scheduled' : (q.source || 'Walk-in'); }
-function addToQueue(db, o) {
-  const isAppt = o.source === 'Appointment';
-  const num = isAppt ? null : nextQueueNumber(db, o.visitorType);
-  const entry = mkQueue({
-    visitId: o.visitId || nextVisitId(db),
-    number: num ? num.number : null, prefix: num ? num.prefix : null, seq: num ? num.seq : null,
-    visitorType: o.visitorType, serviceKey: o.serviceKey || null,
-    serviceLabel: o.serviceLabel || (o.serviceKey ? serviceLabel(db, o.serviceKey) : 'General Concern'),
-    source: o.source || 'Walk-in', name: o.name || '', idNumber: o.idNumber || '', idType: o.idType || '',
-    guestClass: o.guestClass || '', contact: o.contact || '', email: String(o.email || '').trim().toLowerCase(),
-    appointmentId: o.appointmentId || null, scheduledAt: o.scheduledAt || null,
-    isSenior: !!o.isSenior, checkedInAt: o.checkedInAt || new Date(), possibleDuplicate: !!o.possibleDuplicate,
-  });
-  db.queues.push(entry);
-  return entry;
-}
 function myQueueEntries(db, adminId) { return db.queues.filter(q => q.assignedAdminId === adminId && (q.status === 'Called' || q.status === 'Serving')); }
 function todaysQueue(db) { const t = today(); return db.queues.filter(q => fmtDate(q.createdAt) === t); }
 function visitRequirements(db, q) {
@@ -240,9 +235,6 @@ function visitStart(q) {
   const arrived = new Date(q.checkedInAt || q.createdAt);
   return q.source === 'Appointment' && q.scheduledAt && new Date(q.scheduledAt) > arrived ? new Date(q.scheduledAt) : arrived;
 }
-function waitingTimeMinutes(q) { if (!q.servingAt) return null; return Math.max(0, Math.round((new Date(q.servingAt) - visitStart(q)) / 60000)); }
-function serviceTimeMinutes(q) { if (!q.servingAt || !q.completedAt) return null; return Math.max(0, Math.round((new Date(q.completedAt) - new Date(q.servingAt)) / 60000)); }
-function totalTimeMinutes(q) { if (!q.completedAt) return null; return Math.max(0, Math.round((new Date(q.completedAt) - visitStart(q)) / 60000)); }
 function timeMetricsGrid(w, s, t) {
   return `<div class="kv"><span>Waiting Time</span><span>${fmtMinutes(w)}</span></div><div class="kv"><span>Service Time</span><span>${fmtMinutes(s)}</span></div><div class="kv"><span>Total Visit Time</span><span>${fmtMinutes(t)}</span></div>`;
 }
@@ -258,7 +250,8 @@ function queueStats(db) {
   const avgWaitMin = withWait.length ? Math.round(withWait.reduce((s, q) => s + (new Date(q.calledAt) - visitStart(q)), 0) / withWait.length / 60000) : null;
   return {
     waiting: list.filter(q => q.status === 'Waiting').length,
-    serving: list.filter(q => q.status === 'Serving' || q.status === 'Called').length,
+    serving: list.filter(q => q.status === 'Serving').length,
+    called: list.filter(q => q.status === 'Called').length,
     completedToday: done.length, avgWaitMin, next: callableQueue(db)[0] || null,
   };
 }
@@ -288,7 +281,7 @@ function readinessPillHtml(r, short) {
   const status = r.status || r;
   const label = short ? (status === 'READY' ? 'Ready' : status === 'FOR_REVIEW' ? 'For review' : 'Incomplete') : (r.label || r);
   const cls = status === 'READY' ? 'ready' : (status === 'FOR_REVIEW' ? 'review' : 'incomplete');
-  return `<span class="readiness-pill ${cls}">${icon(status === 'READY' ? 'check' : 'alert', 12)} ${escapeHtml(label)}</span>`;
+  return `<span class="readiness-pill ${cls}">${cls === 'incomplete' ? '' : icon(status === 'READY' ? 'check' : 'alert', 12) + ' '}${escapeHtml(label)}</span>`;
 }
 const STARS = n => '&#9733;'.repeat(n) + '&#9734;'.repeat(5 - n);
 function feedbackReadoutHtml(q) {
@@ -358,112 +351,6 @@ function feedbackDashboardHtml(db, canOpen) {
       <div class="table-wrap"><table><thead><tr><th>Visitor</th><th>Rating</th><th>Comment</th></tr></thead><tbody>${recent.length ? recent.map(q => { const c = cell(q); return `<tr><td>${escapeHtml(c.name)}</td><td><span class="fb-readout"><span class="stars">${STARS(q.feedback.rating)}</span></span></td><td class="fb-comment-cell">${c.text ? feedbackCommentHtml(q.id, c.text) : '<span class="muted">Hidden</span>'}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="3">No comments yet.</td></tr>`}</tbody></table></div></div></div>`;
 }
 
-function callSpecificQueue(db, id, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q || q.status !== 'Waiting' || !isDue(q) || myQueueEntries(db, admin.id).length) return null;
-  Object.assign(q, { status: 'Called', assignedAdminId: admin.id, assignedAdminName: admin.fullName, calledAt: new Date(), recallCount: 0 });
-  logActivity(db, admin, `Called ${queueRef(q)} (${serviceQueueLabel(db, q)})`);
-  return q;
-}
-function callNextQueue(db, admin) { const next = callableQueue(db)[0]; return next ? callSpecificQueue(db, next.id, admin) : null; }
-function beginServingQueue(db, id, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return null;
-  q.status = 'Serving'; q.servingAt = new Date();
-  if (admin && !q.assignedAdminId) { q.assignedAdminId = admin.id; q.assignedAdminName = admin.fullName; }
-  const has = (q.visitorLogId && db.visitorLog.some(v => v.id === q.visitorLogId)) || db.visitorLog.some(v => v.visitId && v.visitId === q.visitId);
-  if (!has) {
-    const e = mkVisitorEntry({ name: q.name, type: q.visitorType || 'Guest', idNumber: q.idNumber || '', contact: q.contact || '', email: q.email || '', purpose: serviceQueueLabel(db, q), source: q.source || 'Walk-in', visitId: q.visitId });
-    db.visitorLog.push(e);
-    q.visitorLogId = e.id;
-  }
-  if (admin) logActivity(db, admin, `Began service for ${queueRef(q)} (${q.visitId}) &mdash; checked in`);
-  return q;
-}
-function completeQueue(db, id, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return null;
-  q.status = 'Completed'; q.completedAt = new Date();
-  if (admin && !q.assignedAdminId) { q.assignedAdminId = admin.id; q.assignedAdminName = admin.fullName; }
-  const linkedAppt = q.appointmentId ? db.appointments.find(a => a.id === q.appointmentId) : null;
-  const svc = findService(db, q.serviceKey || q.serviceLabel);
-  const txn = mkTxn({
-    name: q.name || (q.visitorType + ' Visitor'), type: q.visitorType, idNumber: q.idNumber || '', email: q.email || '',
-    service: svc ? svc.key : (q.serviceLabel || 'other'),
-    details: q.source === 'Appointment' ? `Served via appointment${linkedAppt ? ' ' + linkedAppt.code : ''} — ${q.visitId}` : `Served via walk-in — queue ${q.number}`,
-    status: 'Completed', queueId: q.id, queueNumber: q.number || null, visitId: q.visitId, entryMethod: entryMethodLabel(q),
-    appointmentId: q.appointmentId || null, servedBy: (admin && admin.fullName) || q.assignedAdminName || '',
-    startedAt: q.servingAt || null, createdAt: q.createdAt, completedAt: q.completedAt,
-    waitingTimeMin: waitingTimeMinutes(q), serviceTimeMin: serviceTimeMinutes(q), totalTimeMin: totalTimeMinutes(q),
-    possibleDuplicate: !!q.possibleDuplicate,
-  });
-  db.transactions.push(txn);
-  q.transactionId = txn.id;
-  const log = db.visitorLog.find(v => (q.visitorLogId && v.id === q.visitorLogId) || (v.visitId && v.visitId === q.visitId));
-  if (log && !log.timeOut) log.timeOut = q.completedAt;
-  if (linkedAppt) linkedAppt.status = 'Completed';
-  if (admin) logActivity(db, admin, `Completed visit ${q.visitId} (${queueRef(q)}) &mdash; logged as transaction ${txn.code} &mdash; checked out`);
-  return txn;
-}
-function skipQueue(db, id, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return;
-  q.status = 'Skipped'; q.skippedAt = new Date();
-  if (admin) logActivity(db, admin, `Skipped ${queueRef(q)} (${q.visitId}) &mdash; no response when called`, { category: 'Queue', target: q.visitId });
-}
-function recallQueue(db, id, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return;
-  q.recallCount = (q.recallCount || 0) + 1; q.recalledAt = new Date();
-  if (admin) logActivity(db, admin, `Recalled ${queueRef(q)} (${q.visitId})`, { category: 'Queue', target: q.visitId });
-}
-function cancelQueue(db, id, actor) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return;
-  q.status = 'Cancelled'; q.cancelledAt = new Date();
-  const a = q.appointmentId ? db.appointments.find(x => x.id === q.appointmentId) : null;
-  if (a) a.status = 'Cancelled';
-  if (actor) logActivity(db, actor, `Cancelled ${queueRef(q)} (${q.visitId})`, { category: 'Queue', target: q.visitId });
-}
-function transferQueue(db, id, newKey, admin) {
-  const q = db.queues.find(x => x.id === id);
-  if (!q) return;
-  const svc = findService(db, newKey), from = serviceQueueLabel(db, q);
-  Object.assign(q, { serviceKey: newKey, serviceLabel: svc ? svc.label : newKey, status: 'Waiting', assignedAdminId: null, assignedAdminName: null, calledAt: null, transferredAt: new Date() });
-  if (admin) logActivity(db, admin, `Transferred ${queueRef(q)} (${q.visitId}) from ${from} to ${q.serviceLabel}`, { category: 'Queue', target: q.visitId });
-}
-function queueStatusPillForLog(q) {
-  if (!q) return `<span class="muted" style="font-size:.76rem;">&mdash;</span>`;
-  return `<span class="pill ${q.status === 'Waiting' ? 'pill-warn' : (q.status === 'Called' ? 'pill-gold' : 'pill-info')}">${escapeHtml(QUEUE_STATUS_LABEL[q.status] || q.status)} &middot; ${escapeHtml(queueRef(q))}</span>`;
-}
-function activeQueueForVisit(db, visitId) {
-  return visitId ? db.queues.find(q => q.visitId === visitId && ['Waiting', 'Called', 'Serving'].includes(q.status)) || null : null;
-}
-
-function adminCheckInAppointment(apptId) {
-  const db = loadDB(), appt = db.appointments.find(x => x.id === apptId);
-  if (!appt) { toast('Appointment not found.', 'err'); return; }
-  const existing = appt.queueId ? db.queues.find(x => x.id === appt.queueId) : null;
-  if (existing) { toast('This visit is already checked in.', 'err'); closeModal(); openQueueVisitDetail(existing.id); return; }
-  if (appt.status === 'Cancelled') { toast('This appointment was cancelled.', 'err'); return; }
-  if (appt.status === 'No-show') { toast('This appointment was marked as a no-show.', 'err'); return; }
-  const arr = evaluateArrival(db, appt), now = new Date(), svc = findService(db, appt.service);
-  const entry = addToQueue(db, {
-    visitorType: appt.type, serviceKey: svc ? svc.key : null, serviceLabel: appt.service, source: 'Appointment',
-    name: appt.name, idNumber: appt.idNumber, idType: appt.idType || '', guestClass: appt.guestClass, contact: appt.contact, email: appt.email,
-    appointmentId: appt.id, scheduledAt: apptScheduledDate(appt), isSenior: appt.isSenior,
-    visitId: appt.visitId, checkedInAt: now, possibleDuplicate: !!appt.possibleDuplicate,
-  });
-  Object.assign(appt, { status: 'Checked-in', checkedInAt: now, arrivalStatus: arr.status === 'PastWindow' ? 'Late' : arr.status, lateMinutes: arr.lateMinutes, queueId: entry.id });
-  logActivity(db, currentUser, `Checked in ${appt.visitId} (${appt.code})${arr.status !== 'OnTime' ? ` &mdash; arrived ${fmtMinutes(arr.lateMinutes)} late` : ''}`);
-  saveDB(db);
-  closeModal();
-  toast(`Checked in &mdash; ${escapeHtml(appt.visitId)} is in the queue by scheduled time.`, 'ok');
-  if (state_view === 'appointments') renderApptTable();
-  if (state_view === 'queue') renderQueueDashboard();
-  renderSidebar();
-}
-
 function inferCategory(action) {
   const a = String(action || '').toLowerCase();
   if (/confidential/.test(a)) return 'Confidential';
@@ -504,13 +391,14 @@ function logActivity(db, user, action, extra) {
   e.changes = (extra && extra.changes) || [];
   sealEntry(e, (db.activityLog[0] && db.activityLog[0].hash) || '');
   db.activityLog.unshift(e);
+  if (typeof UniServeUX !== 'undefined') UniServeUX.auditRecord(e);
   db.auditHead = { hash: e.hash };
   if (db.activityLog.length > AUDIT_MAX_ENTRIES) db.activityLog.length = AUDIT_MAX_ENTRIES;
 }
 
 function readFileAsDataURL(file) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res({ name: file.name, size: file.size, type: file.type, dataUrl: r.result }); r.onerror = rej; r.readAsDataURL(file); }); }
 async function readFilesAsAttachments(list) { return Promise.all(Array.from(list || []).map(readFileAsDataURL)); }
-function attachChip(a) { return `<a class="attach-chip" href="${a.dataUrl}" download="${escapeHtml(a.name)}" target="_blank">${icon('paperclip', 13)}<span class="fname">${escapeHtml(a.name)}</span><span class="fsize">${fmtFileSize(a.size)}</span></a>`; }
+function attachChip(a) { return `<a class="attach-chip" href="${a.dataUrl}" download="${escapeHtml(a.name)}" target="_blank" rel="noopener noreferrer">${icon('paperclip', 13)}<span class="fname">${escapeHtml(a.name)}</span><span class="fsize">${fmtFileSize(a.size)}</span></a>`; }
 function attachListHtml(list, emptyText) { if (!list || !list.length) return `<div class="no-attach">${emptyText || 'No files uploaded.'}</div>`; return `<div class="attach-list">${list.map(attachChip).join('')}</div>`; }
 function csvEscape(v) { v = v == null ? '' : String(v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
 function downloadCSV(filename, rows) {
@@ -540,6 +428,7 @@ function printInjected(html) {
   wrap.id = 'printArea'; wrap.className = 'print-inject';
   wrap.innerHTML = `<table class="print-sheet"><tbody><tr><td>${html}</td></tr></tbody><tfoot><tr><td><div class="print-footer-space"></div></td></tr></tfoot></table>${reportFooter()}`;
   document.body.appendChild(wrap);
+  window.prepareStaffReport?.(wrap);
   const cleanup = () => { wrap.remove(); window.removeEventListener('afterprint', cleanup); };
   window.addEventListener('afterprint', cleanup);
   const imgs = Array.from(wrap.querySelectorAll('img')).map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
@@ -562,15 +451,23 @@ function buildTrendBuckets(txns, start) {
 function truncateLabel(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function svgLineChart(trend) {
   const { labels, values } = trend;
+  const gradientId = `trend-fill-${svgLineChart.gradientSequence = (svgLineChart.gradientSequence || 0) + 1}`;
   const w = 760, h = 220, padL = 34, padR = 20, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
   const max = Math.max(1, ...values), stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
   const pts = values.map((v, i) => ({ x: padL + (values.length > 1 ? i * stepX : innerW / 2), y: padT + innerH - (v / max) * innerH, v }));
-  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const line = pts.map((p, i) => {
+    if (!i) return `M${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    const previous = pts[i - 1], middle = (previous.x + p.x) / 2;
+    return `C${middle.toFixed(1)},${previous.y.toFixed(1)} ${middle.toFixed(1)},${p.y.toFixed(1)} ${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  }).join(' ');
   const area = pts.length > 1 ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : '';
-  const grid = [0, .25, .5, .75, 1].map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.12"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
+  const grid = [0, .25, .5, .75, 1].map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
   const xl = pts.map((p, i) => `<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`).join('');
-  const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="1"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart">${grid}${area ? `<path class="cl-area" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg>`;
+  const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="2"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const average = values.length ? (total / values.length).toFixed(1) : '0';
+  const peak = values.length ? Math.max(...values) : 0;
+  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} transactions</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #8b5cf6)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--trend-color, #8b5cf6)" stop-opacity="0.015"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
 }
 function svgBarChart(rows, opts) {
   opts = opts || {};
@@ -604,6 +501,7 @@ function icon(name, size = 17) {
     trash: 'M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2m2 0v14a1 1 0 01-1 1H7a1 1 0 01-1-1V6h12z',
     idcard: 'M3 5h18v14H3V5zm4 4h.01M7 15h6M14 9h6M14 12h6',
     x: 'M18 6L6 18M6 6l12 12',
+    clock: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18 M12 7v5l3 2',
     check: 'M20 6L9 17l-5-5',
     chat: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
     paperclip: 'M21 11.5V7a4 4 0 00-8 0v10a3 3 0 006 0V9',
@@ -640,7 +538,7 @@ function openModal(title, bodyHtml, buttons) {
   wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
 }
 function closeModal() { const m = document.getElementById('activeModal'); if (m) m.remove(); }
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.getElementById('activeModal')) closeModal(); });
+
 function setTheme(t) { localStorage.setItem('ossuniserve_theme', t); document.documentElement.setAttribute('data-theme', t); document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === t)); }
 setTheme(localStorage.getItem('ossuniserve_theme') || 'light');
 
@@ -660,10 +558,16 @@ function endSession(reason) {
   location.href = '../Landing/landing.html';
 }
 function doLogout() {
-  const db = loadDB();
-  logActivity(db, currentUser, 'Logged out');
-  saveDB(db);
-  endSession();
+  openModal('Log Out?', '<p>Are you sure you want to log out?</p>', [
+    { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
+    { label: 'Log Out', cls: 'btn-primary', action: () => {
+      const db = loadDB();
+      logActivity(db, currentUser, 'Logged out');
+      saveDB(db);
+      closeModal();
+      endSession();
+    } }
+  ]);
 }
 function validateSession() {
   const fresh = loadDB().users.find(u => u.id === currentUser.id);
@@ -688,6 +592,7 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
   { key: 'queue', label: 'Queue', ic: 'ticket' },
   { key: 'appointments', label: 'Appointments', ic: 'calendar' },
+  { key: 'calendar', label: 'Calendar', ic: 'calendar' },
   { key: 'logbook', label: 'Visitor Log', ic: 'log' },
   { key: 'messages', label: 'Messages', ic: 'chat' },
   { key: 'transactions', label: 'Transactions', ic: 'folder' },
@@ -697,6 +602,7 @@ const NAV = [
   { key: 'profile', label: 'My Profile', ic: 'userc' },
 ];
 const TITLES = {
+  calendar: ['Calendar', 'Office hours, lunch breaks, holidays and closures'],
   dashboard: ['Dashboard', "Overview of today's activity"],
   queue: ['Queue', "Today's active service line — call, serve and complete visits."],
   appointments: ['Appointments', 'Scheduled visits awaiting check-in — set date and time, then check visitors in'],
@@ -710,7 +616,7 @@ const TITLES = {
 };
 document.getElementById('avatarInit').textContent = currentUser.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
 document.getElementById('userNameLbl').textContent = currentUser.fullName;
-document.getElementById('userRoleLbl').textContent = ROLES[currentUser.role].label;
+document.getElementById('userRoleLbl').textContent = currentUser.confidentialApprover ? "Head Admin" : ROLES[currentUser.role].label;
 function tickClock() { const d = new Date(), l = document.getElementById('clockLbl'); if (l) l.textContent = `${fmtDate(d)}  ${fmtTime(d)}`; }
 setInterval(tickClock, 20000); tickClock();
 
@@ -728,14 +634,16 @@ let txnServiceFilter;
 function totalStaffUnread() { return loadDB().chats.reduce((s, c) => s + (c.staffUnread || 0), 0); }
 function countTxnForService(db, key) { return db.transactions.filter(t => t.service === key).length; }
 function renderSidebar() {
-  const db = loadDB(), pending = db.transactions.filter(t => t.status === 'Pending').length;
-  document.getElementById('navList').innerHTML = NAV.map(n => {
-    const badge = n.key === 'messages' ? totalStaffUnread() : (n.key === 'transactions' ? pending : 0);
+  const db = loadDB();
+  const requests = db.transactions.filter(t => t.status === 'Pending' || (t.caseStatus && t.caseStatus !== 'Resolved')).length;
+  const appointments = db.appointments.filter(a => a.status === 'Requested' || a.rescheduleRequested || a.calendarReview).length;
+  document.getElementById('navList').innerHTML = NAV.filter(n => n.key !== 'services' || currentUser.confidentialApprover).map(n => {
+    const badge = n.key === 'messages' ? totalStaffUnread() : n.key === 'transactions' ? requests : n.key === 'appointments' ? appointments : 0;
     return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}</button></li>`;
   }).join('');
 }
 function navigate(key) {
-  if (!TITLES[key]) key = 'dashboard';
+  if (!TITLES[key] || (key === 'services' && !currentUser.confidentialApprover)) key = 'dashboard';
   if (key !== 'queue') stopAdminQueuePolling();
   if (key !== 'messages') { stopMessagesPolling(); activeStaffChatId = null; }
   state_view = key; txnServiceFilter = undefined;
@@ -743,11 +651,11 @@ function navigate(key) {
   document.getElementById('pageSub').innerHTML = TITLES[key][1];
   renderSidebar();
   document.getElementById('sidebar').classList.remove('open');
-  ({ dashboard: renderDashboard, queue: renderQueueDashboard, appointments: renderAppointments, logbook: renderVisitorLogbook, messages: renderMessages, transactions: renderTransactions, feedback: renderFeedback, services: renderServicesManage, reports: renderReports, profile: renderProfile })[key]();
+  ({ calendar: renderCalendar, dashboard: renderDashboard, queue: renderQueueDashboard, appointments: renderAppointments, logbook: renderVisitorLogbook, messages: renderMessages, transactions: renderTransactions, feedback: renderFeedback, services: renderServicesManage, reports: renderReports, profile: renderProfile })[key]();
 }
 function navigateTxnService(key) { navigate('transactions'); if (key) setTxnService(key); }
 function statusPill(status) {
-  const map = { Pending: 'pill-warn', Processing: 'pill-info', Approved: 'pill-ok', Completed: 'pill-ok', Rejected: 'pill-danger', Requested: 'pill-warn', Booked: 'pill-info', Scheduled: 'pill-info', 'Checked-in': 'pill-gold', Cancelled: 'pill-danger', 'No-show': 'pill-danger', Waiting: 'pill-warn', Called: 'pill-gold', Serving: 'pill-info', Skipped: 'pill-danger', 'Under Review': 'pill-warn', Resolved: 'pill-ok', Open: 'pill-info', Closed: 'pill-danger' };
+  const map = { Pending: 'pill-warn', Processing: 'pill-info', Approved: 'pill-ok', Completed: 'pill-ok', Rejected: 'pill-danger', Requested: 'pill-warn', Booked: 'pill-info', Scheduled: 'pill-info', 'Checked-in': 'pill-gold', Cancelled: 'pill-danger', 'No-show': 'pill-danger', Waiting: 'pill-warn', Called: 'pill-gold', Serving: 'pill-info', Unfinished: 'pill-warn', Skipped: 'pill-danger', 'Under Review': 'pill-warn', Resolved: 'pill-ok', Open: 'pill-info', Closed: 'pill-danger' };
   return `<span class="pill ${map[status] || 'pill-info'}">${status}</span>`;
 }
 function queueStatusPill(status) { return statusPill(QUEUE_STATUS_LABEL[status] || status); }
@@ -760,7 +668,9 @@ function renderDashboard() {
   const todaysTxn = db.transactions.filter(x => fmtDate(x.createdAt) === t);
   const pending = db.transactions.filter(x => x.status === 'Pending').length;
   const openIncidents = db.transactions.filter(x => x.service === 'incident_report' && !['Completed', 'Rejected'].includes(x.status)).length;
-  const upcoming = db.appointments.filter(a => !a.queueId && ['Booked', 'Requested'].includes(a.status)).length;
+  const upcoming = db.appointments.filter(a => ['Booked', 'Requested'].includes(a.status)).length;
+  const needsScheduling=db.appointments.filter(a=>a.status==='Requested'||a.rescheduleRequested||a.calendarReview).length;
+  const followUpCases=db.transactions.filter(t=>t.caseStatus&&t.caseStatus!=='Resolved').length;
   const recent = [...db.transactions].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
   const lateToday = db.appointments.filter(a => a.date === t && a.arrivalStatus === 'Late').length;
   const noShowToday = db.appointments.filter(a => a.date === t && a.status === 'No-show').length;
@@ -773,6 +683,11 @@ function renderDashboard() {
   db.transactions.forEach(x => { if (sc[x.status] !== undefined) sc[x.status]++; });
 
   document.getElementById('content').innerHTML = `
+
+    ${workloadSummaryHtml(db, `    <section class="dashboard-attention" aria-label="Tasks needing attention">
+      <div class="dashboard-attention-heading"><span class="dashboard-attention-icon" aria-hidden="true">${icon(needsScheduling || followUpCases ? 'clock' : 'check',20)}</span><div><h3>${needsScheduling || followUpCases ? 'Needs your attention' : 'You’re all caught up'}</h3><p>${needsScheduling || followUpCases ? 'Review the items waiting for your next step.' : 'No appointment requests or cases need attention.'}</p></div></div>
+      ${needsScheduling || followUpCases ? `<div class="dashboard-attention-actions">${needsScheduling ? `<button class="btn btn-ghost btn-sm" onclick="navigate('appointments')">Review appointment requests <span class="dashboard-attention-count">${needsScheduling}</span> ${icon('arrowright',14)}</button>` : ''}${followUpCases ? `<button class="btn btn-ghost btn-sm" onclick="navigate('transactions')">Review case follow-ups <span class="dashboard-attention-count">${followUpCases}</span> ${icon('arrowright',14)}</button>` : ''}</div>` : `<div class="dashboard-attention-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="navigate('appointments')">Review appointment requests <span class="dashboard-attention-count">0</span> ${icon('arrowright',14)}</button></div>`}
+    </section>`)}
     <section class="dash-section"><h2 class="dash-h">Today at a glance</h2>
       <div class="stat-grid">
         <div class="stat-card"><div class="lbl">Today's Transactions</div><div class="val">${todaysTxn.length}</div></div>
@@ -811,36 +726,64 @@ function renderDashboard() {
 }
 
 let adminQueuePollTimer = null;
-function startAdminQueuePolling() { stopAdminQueuePolling(); adminQueuePollTimer = setInterval(() => { if (state_view === 'queue') renderQueueDashboard(); }, 4000); }
+function startAdminQueuePolling() { stopAdminQueuePolling(); adminQueuePollTimer = setInterval(() => { if (state_view === 'queue' && !window.UniServeRealtime?.connected && document.visibilityState !== 'hidden') renderQueueDashboard(); }, 4000); }
 function stopAdminQueuePolling() { if (adminQueuePollTimer) { clearInterval(adminQueuePollTimer); adminQueuePollTimer = null; } }
-function renderQueueDashboard() {
-  const db = loadDB(), stats = queueStats(db), mine = myQueueEntries(db, currentUser.id), waiting = waitingQueueSorted(db), nextUp = stats.next, busy = mine[0];
+async function manageWalkInIntake(){try{const status=await UniServeUX.request('/walk-in-capacity');openModal('Walk-in intake',`<div class="intake-settings"><div class="intake-summary"><span class="intake-summary-icon" aria-hidden="true">${icon('clock',20)}</span><div><strong>Today's walk-in settings</strong><p>Normal cutoff: ${escapeHtml(status.cutoff||'Before closing')}. Existing visits will still be served.</p></div></div><div class="field"><label for="intakeCounters">Staffed counters</label><p class="field-hint">How many counters are serving visitors today?</p><input id="intakeCounters" type="number" min="1" max="20" value="${status.counters||1}"></div><div class="field"><label for="intakeMode">Walk-in intake today</label><select id="intakeMode" onchange="toggleIntakeTime()"><option value="automatic" ${!status.manualCutoff&&!status.scheduledCutoff&&!status.override?'selected':''}>Use automatic cutoff</option><option value="closed" ${status.manualCutoff?'selected':''}>Close walk-in intake now</option><option value="scheduled" ${status.scheduledCutoff&&!status.manualCutoff?'selected':''}>Schedule cutoff today</option><option value="extra" ${status.override?'selected':''}>Allow extra walk-ins today</option></select></div><div class="field intake-time-field" id="intakeTimeField" ${status.scheduledCutoff&&!status.manualCutoff?'':'hidden'}><label for="intakeTime">Cutoff time </label><input id="intakeTime" type="time" value="${escapeHtml(status.cutoffTime||'')}"><p class="field-hint">Walk-in intake may close earlier if the queue reaches capacity.</p>${status.closedTime?`<p class="field-hint">Intake closed at ${escapeHtml(status.closedTime)}.</p>`:''}</div></div>`,[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Save changes',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/walk-in-capacity/override','POST',{counters:Number(document.getElementById('intakeCounters').value),mode:document.getElementById('intakeMode').value,cutoffTime:document.getElementById('intakeTime').value||null});closeModal();toast('Walk-in intake updated.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}}]);}catch(e){toast(escapeHtml(e.message),'err');}}
+async function reviewRemainingVisits(){
+  try{await loadSharedQueue();const rows=loadDB().queues.filter(q=>['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status));
+    openModal('Review remaining visits',`<div class="remaining-visits"><p class="remaining-visits-hint">Review an open visit to finish service, schedule a follow-up, or close the record.</p><div class="flow-review-list">${rows.length?rows.map(q=>`<div class="flow-review-row remaining-visit-row"><span class="remaining-visit-icon" aria-hidden="true">${icon('ticket',18)}</span><div class="remaining-visit-details"><div class="remaining-visit-title"><b>${escapeHtml(queueRef(q))}</b>${queueStatusPill(q.status)}</div><span class="remaining-visit-service">${escapeHtml(serviceQueueLabel(loadDB(),q))}</span></div><button class="btn btn-ghost btn-sm remaining-visit-action" onclick="openQueueVisitDetail('${q.id}')">Review ${icon('arrowright',14)}</button></div>`).join(''):'<p class="remaining-visits-hint">No remaining visits.</p>'}</div><p class="remaining-visits-footnote">Previous-day visits are kept for review.</p></div>`,[]);
+  }catch(e){toast(escapeHtml(e.message),'err');}
+}
+function arrangeFollowUp(id){
+  openModal('Arrange another visit','<p class="field-hint">Keep the same Visit ID, details and uploaded documents. This visit will leave the queue and appear under appointment requests for scheduling.</p>'+reasonSelectHtml('followUpReason',['Additional requirements needed','Follow-up consultation','Further case review','Referred to another service','Visitor requested another visit'])+'',[
+    {label:'Back',cls:'btn-ghost',action:()=>openQueueVisitDetail(id)},
+    {label:'Arrange another visit',cls:'btn-primary',action:async()=>{try{const result=await SharedAppointments.request('/queue/'+id+'/follow-up','POST',{reason:readSelectedReason('followUpReason')});SharedAppointments.cache(result);closeModal();navigate('appointments');toast('Details retained. Confirm a new schedule.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}}
+  ]);
+}
+function closeUnservedVisit(id){
+  openModal('Close as not served','<div class="field"><label for="unservedReasonChoice">Reason</label><select id="unservedReasonChoice" onchange="document.getElementById(\'unservedOtherField\').hidden=this.value!==\'Other\';if(this.value===\'Other\')document.getElementById(\'unservedReason\').focus()"><option value="">Select a reason</option><option>Visitor left before service</option><option>Visitor did not respond when called</option><option>Visitor requested cancellation</option><option>Incomplete requirements</option><option>Duplicate visit</option><option>Other</option></select></div><div class="field" id="unservedOtherField" hidden><label for="unservedReason">Other reason</label><textarea id="unservedReason" minlength="5" maxlength="500" placeholder="Please specify the reason."></textarea></div>',[
+    {label:'Back',cls:'btn-ghost',action:()=>openQueueVisitDetail(id)},
+    {label:'Close visit',cls:'btn-danger-o',action:async()=>{try{const choice=document.getElementById('unservedReasonChoice').value;const reason=choice==='Other'?document.getElementById('unservedReason').value.trim():choice;if(!reason||reason.length<5){toast(choice==='Other'?'Enter at least 5 characters for the other reason.':'Select a reason.','err');document.getElementById(choice==='Other'?'unservedReason':'unservedReasonChoice').focus();return;}await UniServeUX.request('/queue/'+id,'PATCH',{status:'Cancelled',closureReason:reason});closeModal();await renderQueueDashboard();toast('Visit closed as not served.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}}
+  ]);
+}
+async function renderQueueDashboard() {
+  if (sharedQueueLoading) return;
+  sharedQueueLoading = true;
+  let queueError = '';
+  try { await loadSharedQueue(); }
+  catch (_) { queueError = 'Cannot connect to UniServe. Please retry before changing a visit.'; }
+  finally { sharedQueueLoading = false; }
+  if (state_view !== 'queue' || document.querySelector('.ux-secondary-actions[open]')) return;
+  const db = loadDB(), stats = queueStats(db), mine = myQueueEntries(db, currentUser.id), waiting = waitingQueueSorted(db), nextUp = stats.next;
   document.getElementById('content').innerHTML = `
+    ${queueError ? '<div class="err-box">' + queueError + '<button class="btn btn-ghost btn-sm" onclick="renderQueueDashboard()">Retry</button></div>' : ''}
     <div class="stat-grid">
       <div class="stat-card"><div class="lbl">Currently Waiting</div><div class="val">${stats.waiting}</div></div>
-      <div class="stat-card"><div class="lbl">Currently Serving</div><div class="val">${stats.serving}</div></div>
+      <div class="stat-card"><div class="lbl">Currently Serving</div><div class="val">${stats.serving}</div><div class="desc">${stats.called} called, awaiting arrival</div></div>
       <div class="stat-card"><div class="lbl">Completed Today</div><div class="val">${stats.completedToday}</div></div>
       <div class="stat-card"><div class="lbl">Average Wait</div><div class="val">${fmtMinutes(stats.avgWaitMin)}</div></div>
     </div>
-    <div class="grid-2">
+    <section class="queue-service-notice" aria-label="Queue service guidance"><span class="queue-service-notice-icon" aria-hidden="true">${icon('users',20)}</span><div class="queue-service-notice-copy"><h3>${db.systemSettings?.allowParallelService?'Parallel service enabled':'One visitor at a time'}</h3><p>${db.systemSettings?.allowParallelService?'You can handle more than one visit at a time.':'Finish your current visit before calling the next visitor.'}</p></div><button class="btn btn-ghost btn-sm" onclick="reviewRemainingVisits()">Review remaining visits ${db.queues.some(q => ['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)) ? `<span class="dashboard-attention-count">${db.queues.filter(q => ['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)).length}</span>` : ''} ${icon('arrowright',14)}</button></section>
+    ${db.queues.some(q=>q.status==='Skipped')?`<div class="card card-pad"><h3>Absent visitors</h3><p class="field-hint">When they return, rejoin them at the end of their priority group using their return time.</p>${db.queues.filter(q=>q.status==='Skipped').map(q=>`<button class="btn btn-ghost btn-sm" onclick="openQueueVisitDetail('${q.id}')">${escapeHtml(queueRef(q))} &middot; Review / return</button>`).join('')}</div>`:''}
+    <div class="admin-queue-layout">
       <div class="card">
         <div class="card-head"><div><h3>My Queue</h3><div class="desc">${escapeHtml(currentUser.fullName)} &mdash; OSS Admin</div></div>
-          <div class="toolbar"><button class="btn btn-gold btn-sm" onclick="handleCallNext()" ${!nextUp || busy ? 'disabled' : ''} title="${busy ? 'Finish or skip your current visitor first' : ''}">${icon('arrowright', 14)} Call Next</button></div></div>
+          <div class="toolbar">${currentUser.confidentialApprover?'<button class="btn btn-ghost btn-sm" onclick="manageWalkInIntake()">Walk-in intake</button>':''}<button class="btn btn-gold btn-sm" onclick="handleCallNext()" ${!nextUp||(!db.systemSettings?.allowParallelService&&mine.length) ? 'disabled' : ''}>${icon('arrowright', 14)} Call Next</button></div></div>
         <div class="card-pad">
           ${mine.length ? mine.map(q => renderMyQueueCard(db, q)).join('') : `<div class="helper-empty" style="padding:30px 10px;">${icon('ticket', 30)}<p>${waiting.length && !nextUp ? 'Everyone waiting is scheduled for a later time.' : "You're not currently serving anyone. Click Call Next to bring up the next visit."}</p></div>`}
-          ${nextUp ? `<div class="divider"></div><div class="lbl" style="font-size:.72rem; text-transform:uppercase; letter-spacing:.6px; color:var(--text-soft); font-weight:600; margin-bottom:8px;">Next${busy ? ` &mdash; finish or skip ${escapeHtml(queueRef(busy))} to call` : ''}</div>
-            <div class="qd-next-row"><span class="pill pill-gold">${escapeHtml(queueRef(nextUp))}</span><span class="muted" style="font-size:.82rem;">${escapeHtml(nextUp.name || nextUp.visitorType)} &middot; ${escapeHtml(serviceQueueLabel(db, nextUp))} &middot; ${escapeHtml(entryMethodLabel(nextUp))}</span>${nextUp.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${nextUp.possibleDuplicate ? ' <span class="pill pill-warn">Possible Dup.</span>' : ''}</div>` : ''}
+          ${nextUp ? `<div class="divider"></div><div class="lbl" style="font-size:.72rem; text-transform:uppercase; letter-spacing:.6px; color:var(--text-soft); font-weight:600; margin-bottom:8px;">Next</div>
+            <div class="qd-next-row"><span class="pill pill-gold">${escapeHtml(queueRef(nextUp))}</span><span class="muted" style="font-size:.82rem;">${escapeHtml(nextUp.name || nextUp.visitorType)} &middot; ${escapeHtml(serviceQueueLabel(db, nextUp))} &middot; ${escapeHtml(entryMethodLabel(nextUp))}</span>${nextUp.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${nextUp.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${nextUp.possibleDuplicate ? ' <span class="pill pill-warn">Possible Dup.</span>' : ''}</div>` : ''}
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><div><h3>Waiting</h3><div class="desc">${waiting.length} in line &mdash; seniors, then scheduled visits by time, then walk-ins</div></div></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Entry</th><th></th></tr></thead>
+        <div class="card-head"><div><h3>Waiting</h3><div class="desc">${waiting.length} in line &mdash; seniors and PWDs, then scheduled visits by time, then walk-ins</div></div></div>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Entry</th><th>Actions</th></tr></thead>
           <tbody>${waiting.length ? waiting.map((q, i) => `<tr><td class="row-num">${i + 1}</td>
-            <td class="mono">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}${q.number ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(q.visitId || '')}</div>` : ''}</td>
+            <td class="mono">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${UniServeUX.previousDay(q) ? ' <span class="pill pill-warn">Previous day</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}${q.number ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(q.visitId || '')}</div>` : ''}</td>
             <td>${escapeHtml(q.name || '—')}<div class="muted" style="font-size:.72rem;">${escapeHtml(q.visitorType)}</div></td>
             <td>${escapeHtml(serviceQueueLabel(db, q))}</td>
             <td>${q.source === 'Appointment' ? (dueTagHtml(q) || `<span class="pill pill-info">Scheduled</span>`) : `<span class="muted" style="font-size:.76rem;">Walk-in</span>`}</td>
-            <td style="white-space:nowrap;"><button class="icon-btn" title="View Visit" onclick="openQueueVisitDetail('${q.id}')">${icon('eye', 14)}</button> <button class="icon-btn" title="Cancel" onclick="adminCancelQueue('${q.id}')">${icon('x', 14)}</button></td></tr>`).join('') : `<tr class="empty-row"><td colspan="6">Queue is empty.</td></tr>`}</tbody></table></div>
+            <td class="act-cell"><button class="icon-btn kebab-btn" aria-label="Visit actions" aria-haspopup="true" onclick="toggleKebab(event,'waiting_${q.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_waiting_${q.id}" hidden><button class="kebab-item" onclick="closeKebabs();openQueueVisitDetail('${q.id}')">View visit</button><button class="kebab-item danger" onclick="closeKebabs();adminCancelQueue('${q.id}')">Cancel visit</button></div></td></tr>`).join('') : `<tr class="empty-row"><td colspan="6">Queue is empty.</td></tr>`}</tbody></table></div>
       </div>
     </div>`;
   startAdminQueuePolling();
@@ -848,41 +791,31 @@ function renderQueueDashboard() {
 function renderMyQueueCard(db, q) {
   const called = q.status === 'Called', reqCount = visitRequirements(db, q).length, delayed = isServiceDelayed(db, q);
   return `<div class="qd-serving-card"><div class="qd-serving-top">
-      <div><div class="qd-serving-number">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}</div>
+      <div><div class="qd-serving-number">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}</div>
         <div class="muted" style="font-size:.8rem;">${escapeHtml(q.name || q.visitorType)} &middot; ${escapeHtml(serviceQueueLabel(db, q))} &middot; ${escapeHtml(entryMethodLabel(q))}</div>
         <div class="muted mono" style="font-size:.7rem; margin-top:2px;">${q.number ? escapeHtml(q.visitId || '') : (q.scheduledAt ? 'Scheduled ' + fmtTime(q.scheduledAt) : '')}${reqCount ? ` &middot; ${reqCount} requirement(s)` : ''}</div></div>
       ${delayed ? `<span class="pill delay-pill">${icon('alert', 11)} Delayed</span>` : (called ? `<span class="pill pill-warn">Called &mdash; awaiting arrival</span>` : `<span class="pill pill-ok">Processing</span>`)}
     </div>
     <div class="qd-serving-actions">
-      <button class="btn btn-ghost btn-sm" onclick="openQueueVisitDetail('${q.id}')">${icon('eye', 13)} View Visit</button>
-      ${called ? `<button class="btn btn-primary btn-sm" onclick="handleBeginServing('${q.id}')">${icon('check', 13)} Begin Service</button>
-        <button class="btn btn-ghost btn-sm" onclick="handleRecall('${q.id}')">${icon('megaphone', 13)} Recall</button>
-        <button class="btn btn-danger-o btn-sm" onclick="handleSkip('${q.id}')">Skip</button>`
-      : `<button class="btn btn-primary btn-sm" onclick="handleCompleteQueue('${q.id}')">${icon('check', 13)} Complete Transaction</button>
-        <button class="btn btn-ghost btn-sm" onclick="openTransferModal('${q.id}')">${icon('swap', 13)} Transfer</button>`}
+      <button class="btn btn-ghost btn-sm" onclick="openQueueVisitDetail('${q.id}')">${icon('eye', 13)} View visit</button>
+      ${called ? `<button class="btn btn-primary btn-sm" onclick="handleBeginServing('${q.id}')">${icon('check', 13)} Begin service</button>
+        <div class="qd-more-actions"><div class="qd-secondary-actions" aria-label="Other visit actions"><button class="btn btn-ghost btn-sm" onclick="handleRecall('${q.id}')">Recall</button><button class="btn btn-ghost btn-sm" onclick="handleSkip('${q.id}')">Mark absent</button><button class="btn btn-ghost btn-sm" onclick="openTransferModal('${q.id}')">Transfer</button><button class="btn btn-danger-o btn-sm" onclick="adminCancelQueue('${q.id}')">Cancel visit</button></div></div>`
+      : `<button class="btn btn-primary btn-sm" onclick="handleCompleteQueue('${q.id}')">${icon('check', 13)} Complete transaction</button>
+        <div class="qd-more-actions"><div class="qd-secondary-actions" aria-label="Other visit actions"><button class="btn btn-ghost btn-sm" onclick="openTransferModal('${q.id}')">Transfer</button></div></div>`}
     </div></div>`;
 }
-function handleCallNext() {
-  const db = loadDB(), busy = myQueueEntries(db, currentUser.id)[0];
-  if (busy) { toast(`Finish or skip ${escapeHtml(queueRef(busy))} first.`, 'err'); return; }
-  const entry = callNextQueue(db, currentUser);
-  if (!entry) { toast('No visit can be called yet.', 'err'); return; }
-  saveDB(db);
-  toast(`Called ${escapeHtml(queueRef(entry))} &mdash; please proceed to ${escapeHtml(currentUser.fullName)}.`, 'ok');
-  renderQueueDashboard();
-}
-function handleBeginServing(id) { const db = loadDB(), q = beginServingQueue(db, id, currentUser); saveDB(db); toast(q ? `Now processing ${escapeHtml(queueRef(q))} &mdash; checked in to the Visitor Log.` : 'Now processing.', 'ok'); renderQueueDashboard(); }
-function handleCompleteQueue(id) { const db = loadDB(), txn = completeQueue(db, id, currentUser); saveDB(db); toast(txn ? `Visit completed &mdash; logged as transaction ${txn.code} and checked out.` : 'Visit marked Completed.', 'ok'); renderQueueDashboard(); renderSidebar(); }
-function handleSkip(id) { const db = loadDB(); skipQueue(db, id, currentUser); saveDB(db); toast('Skipped.', 'ok'); renderQueueDashboard(); }
-function handleRecall(id) { const db = loadDB(); recallQueue(db, id, currentUser); saveDB(db); toast('Recalled on the public display.', 'ok'); renderQueueDashboard(); }
-function adminCancelQueue(id) { if (!confirm('Cancel this visit?')) return; const db = loadDB(); cancelQueue(db, id, currentUser); saveDB(db); renderQueueDashboard(); }
+async function handleCallNext(){try{const result=await UniServeUX.request('/queue/call-next','POST',{});await renderQueueDashboard();toast('Visitor called.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
+async function handleBeginServing(id){try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Serving'});await renderQueueDashboard();toast('Service started.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
+async function handleSkip(id){try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Skipped'});await renderQueueDashboard();}catch(e){toast(escapeHtml(e.message),'err');}}
+async function handleRecall(id) { const q=loadDB().queues.find(q=>q.id===id);if(!q)return;try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Called',recallCount:(q.recallCount||0)+1});await renderQueueDashboard();toast('Recalled on the public display.','ok');}catch(e){toast(escapeHtml(e.message),'err');} }
+async function adminCancelQueue(id){if(!await UniServeUX.confirm('Cancel visit','Cancel this visit and its pending reminders?','Cancel visit'))return;try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Cancelled'});await renderQueueDashboard();toast('Visit cancelled.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
 function openTransferModal(id) {
   const db = loadDB(), q = db.queues.find(x => x.id === id);
   if (!q) return;
   openModal(`Transfer ${escapeHtml(queueRef(q))}`, `<p class="field-hint" style="margin-bottom:12px;">Move this visit back into the queue under a different OSS service. The Visit ID and uploaded requirements stay with it.</p>
     <div class="field"><label>New Service</label><select id="mTransferSvc">${db.services.map(s => `<option value="${s.key}" ${s.key === q.serviceKey ? 'selected' : ''}>${s.label}</option>`).join('')}</select></div>`,
     [{ label: 'Cancel', cls: 'btn-ghost', action: closeModal },
-     { label: 'Transfer', cls: 'btn-primary', action: () => { const db2 = loadDB(); transferQueue(db2, id, document.getElementById('mTransferSvc').value, currentUser); saveDB(db2); closeModal(); renderQueueDashboard(); toast('Visit transferred.', 'ok'); } }]);
+     { label: 'Transfer', cls: 'btn-primary', action: async () => {try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Waiting',serviceKey:document.getElementById('mTransferSvc').value,transferredAt:new Date().toISOString()});closeModal();await renderQueueDashboard();toast('Visit transferred.','ok');}catch(e){toast(escapeHtml(e.message),'err');}} }]);
 }
 function openQueueVisitDetail(id) {
   const db = loadDB(), q = db.queues.find(x => x.id === id);
@@ -891,18 +824,20 @@ function openQueueVisitDetail(id) {
   const reqs = visitRequirements(db, q), mine = q.assignedAdminId === currentUser.id;
   const txn = q.transactionId ? db.transactions.find(t => t.id === q.transactionId) : null;
   const buttons = [];
+  if(['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Arrange another visit',cls:'btn-ghost',action:()=>arrangeFollowUp(q.id)});
+  if(q.status==='Unfinished') {
+    buttons.push({label:'Resume today',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Waiting'});closeModal();await renderQueueDashboard();toast('Visitor returned to the queue.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}});
+    buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});
+  }
+  if (q.status === 'Skipped') buttons.push({label:'Return to queue',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Waiting'});closeModal();await renderQueueDashboard();toast('Visitor returned to queue.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}});
   if (q.status === 'Waiting') {
-    buttons.push({ label: 'Call Now', cls: 'btn-gold', action: () => {
-      if (!isDue(q)) { toast(`Scheduled for ${fmtTime(q.scheduledAt)} &mdash; it cannot be called before then.`, 'err'); return; }
-      const db2 = loadDB(), busy2 = myQueueEntries(db2, currentUser.id)[0];
-      if (busy2) { toast(`Finish or skip ${escapeHtml(queueRef(busy2))} first.`, 'err'); return; }
-      const called = callSpecificQueue(db2, q.id, currentUser);
-      if (!called) { toast('Could not call this visit.', 'err'); return; }
-      saveDB(db2); closeModal(); toast(`Called ${escapeHtml(queueRef(called))}.`, 'ok');
-      if (state_view === 'queue') renderQueueDashboard();
+    buttons.push({ label: 'Call Now', cls: 'btn-gold', action: async () => {
+      try {await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Called'});closeModal();await renderQueueDashboard();toast('Visitor called.','ok');}
+      catch(e){toast(escapeHtml(e.message),'err');}
     } });
-  } else if (q.status === 'Called' && mine) buttons.push({ label: 'Begin Service', cls: 'btn-primary', action: () => { closeModal(); handleBeginServing(q.id); } });
-  else if (q.status === 'Serving' && mine) buttons.push({ label: 'Complete Transaction', cls: 'btn-primary', action: () => { closeModal(); handleCompleteQueue(q.id); } });
+  } else if (q.status === 'Called' && mine) buttons.push({ label: 'Begin service', cls: 'btn-primary', action: () => { closeModal(); handleBeginServing(q.id); } });
+  else if (q.status === 'Serving' && mine) buttons.push({ label: 'Complete transaction', cls: 'btn-primary', action: () => { closeModal(); handleCompleteQueue(q.id); } });
+  if(['Waiting','Called','Serving','Skipped'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});
 
   openModal(`Visit &mdash; ${escapeHtml(q.visitId || q.number)}`, `
     ${q.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged by the visitor portal as a possible duplicate active visit for this ID number or Gmail and service. Review before proceeding if unsure.</div>` : ''}
@@ -918,12 +853,14 @@ function openQueueVisitDetail(id) {
     ${q.scheduledAt ? `<div class="kv"><span>Scheduled For</span><span>${fmtDateTime(q.scheduledAt)} ${dueTagHtml(q)}</span></div>` : ''}
     <div class="kv"><span>Status</span><span>${queueStatusPill(q.status)}</span></div>
     ${q.isSenior ? `<div class="kv"><span>Priority</span><span><span class="pill pill-gold">Senior Citizen</span></span></div>` : ''}
+    ${q.isPWD ? '<div class="kv"><span>Priority</span><span><span class="pill pill-gold">Person with disability</span></span></div>' : ''}
     ${linkedAppt ? `<div class="kv"><span>Appointment</span><span>${escapeHtml(linkedAppt.code)}</span></div>` : ''}
     ${linkedAppt && linkedAppt.arrivalStatus ? `<div class="kv"><span>Arrival</span><span>${arrivalStatusPill(linkedAppt)}</span></div>` : ''}
     ${q.assignedAdminName ? `<div class="kv"><span>OSS Admin</span><span>${escapeHtml(q.assignedAdminName)}</span></div>` : ''}
     ${txn ? `<div class="kv"><span>Transaction</span><span class="mono">${escapeHtml(txn.code)}</span></div>` : ''}
     ${feedbackReadoutHtml(q)}
     ${timelineBlockHtml(q, linkedAppt)}
+    ${typeof flowServiceHistory==='function'?flowServiceHistory(q.serviceHistory):''}
     <div class="divider"></div>
     <div class="field"><label>Uploaded Requirements</label>${attachListHtml(reqs, q.source === 'Appointment' ? 'No files uploaded with this appointment.' : 'No files uploaded &mdash; walk-in visitors bring physical documents to the counter.')}</div>`, buttons);
 }
@@ -937,8 +874,8 @@ function renderAppointments(keep) {
     <div class="card">
       <div class="card-head"><div><h3>Scheduled Visits</h3><div class="desc">${escapeHtml(rangeLabel(RANGES.appt))} &mdash; by appointment date</div></div></div>
       <div class="filter-bar">${dateRangeHtml('appt')}<div class="search-box">${icon('search', 15)}<input id="apptSearch" placeholder="Name, code or visit ID" value="${escapeHtml(prev)}" oninput="renderApptTable()"></div></div>
-      <div class="subnav tab-row">${['all', 'Requested', 'Booked', 'Checked-in', 'No-show', 'Cancelled'].map(f => `<button class="${apptFilter === f ? 'active' : ''}" onclick="setApptFilter('${f}',this)">${f === 'all' ? 'All' : f}</button>`).join('')}</div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Visit ID</th><th>Requestor</th><th>Service</th><th>Date</th><th>Time</th><th>Readiness</th><th>Status</th><th></th></tr></thead><tbody id="apptBody"></tbody></table></div>
+      <div class="subnav tab-row">${['all', 'Requested', 'Booked', 'Needs rescheduling', 'Checked-in', 'Completed', 'Unfinished', 'No-show', 'Cancelled'].map(f => `<button class="${apptFilter === f ? 'active' : ''}" onclick="setApptFilter('${f}',this)">${f === 'all' ? 'All' : f}</button>`).join('')}</div>
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Visit ID</th><th>Requestor</th><th>Service</th><th>Date</th><th>Time</th><th>Readiness</th><th>Status</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="apptBody"></tbody></table></div>
     </div>`;
   renderApptTable();
 }
@@ -946,19 +883,19 @@ function setApptFilter(f, el) { apptFilter = f; document.querySelectorAll('.subn
 function renderApptTable() {
   const db = loadDB(), q = (document.getElementById('apptSearch')?.value || '').toLowerCase();
   let rows = [...db.appointments].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-  if (apptFilter !== 'all') rows = rows.filter(r => r.status === apptFilter);
+  if (apptFilter !== 'all') rows = rows.filter(r => apptFilter === 'Needs rescheduling' ? !!(UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview) : r.status === apptFilter);
   rows = rows.filter(r => inRange(r.date ? new Date(r.date + 'T00:00:00') : r.createdAt, RANGES.appt));
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.visitId || '').toLowerCase().includes(q));
   document.getElementById('apptBody').innerHTML = rows.length ? rows.map((r, i) => {
     const linkedQ = r.queueId ? db.queues.find(x => x.id === r.queueId) : null;
     return `<tr><td class="row-num">${i + 1}</td>
-    <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
+    <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
     <td>${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div></td>
-    <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(r.time) : '&mdash;'}</td>
+    <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(UniServeUX.timeLabel(r.time)) : '&mdash;'}</td>
     <td>${readinessPillHtml(computeReadiness(findService(db, r.service), r.attachments), true)}</td>
-    <td>${statusPill(r.status)} ${arrivalStatusPill(r)}</td>
-    <td style="white-space:nowrap;">${linkedQ ? `<button class="btn btn-ghost btn-sm" onclick="openQueueVisitDetail('${linkedQ.id}')">View Visit</button>` : `<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}')">Manage</button>`}</td></tr>`;
-  }).join('') : `<tr class="empty-row"><td colspan="9">No scheduled visits.</td></tr>`;
+    <td>${statusPill(r.status)} ${arrivalStatusPill(r)} ${r.earlierSlotOptIn?'<span class="pill pill-info">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</td>
+    <td class="act-cell appointment-action-cell">${appointmentActionsHtml(r)}</td></tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="9">No appointments match these filters.</td></tr>`;
 }
 function appointmentPassText(appt, svc) {
   const line = '='.repeat(40), thin = '-'.repeat(40);
@@ -975,7 +912,7 @@ function appointmentPassText(appt, svc) {
     `Visitor:    ${appt.name}`,
     `Type:       ${appt.guestClass ? `${appt.type} (${appt.guestClass})` : appt.type}${appt.isSenior ? ' · Senior (priority)' : ''}`,
     `Date:       ${appt.date}`,
-    `Time:       ${appt.time}`,
+    `Time:       ${UniServeUX.timeLabel(appt.time)}`,
     `Reference:  ${appt.code}`,
     `Entry:      Scheduled appointment`,
     thin,
@@ -991,20 +928,39 @@ function appointmentPassText(appt, svc) {
     '— Office of Student Services',
   ].join('\n');
 }
-function mailtoForAppt(appt) {
-  const db = loadDB(), svc = findService(db, appt.service);
-  const subject = appt.date ? `Your OSS visit pass ${appt.visitId} — ${appt.date} ${appt.time}` : `Your OSS appointment request ${appt.visitId} — received`;
-  const body = appt.date
-    ? `Hi ${appt.name},\n\nYour appointment has been scheduled. Here is your pass:\n\n${appointmentPassText(appt, svc)}`
-    : `Hi ${appt.name},\n\nWe've received your appointment request for ${appt.service} (Visit ID ${appt.visitId}). We'll email your pass once a date and time is assigned.\n\n— Office of Student Services`;
-  return `mailto:${encodeURIComponent(appt.email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+function appointmentActionsHtml(r){
+  if(r.restricted)return '<span class="muted">Confidential access required</span>';
+  const buttons=[`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',false,true)">View details</button>`];
+  const editable=['Requested','Booked','No-show','Unfinished'].includes(r.status);
+  if(editable&&r.status==='Requested')buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Set schedule</button>`);
+  if(editable&&r.status==='Booked'){
+    if(r.date===today()&&OfficeCalendar.status().open&&!UniServeUX.conflict(r))buttons.push(`<button class="btn btn-primary btn-sm" onclick="adminCheckInAppointment('${r.id}')">Check in</button>`);
+    buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
+  }
+  if(editable&&['No-show','Unfinished'].includes(r.status))buttons.push(`<button class="btn btn-primary btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
+  if(r.queueId)buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openAppointmentVisit('${r.id}')">View visit</button>`);
+  if(r.shared&&(r.date||r.status==='Cancelled'))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`);
+  if(r.shared&&editable)buttons.push(`<button class="btn btn-danger-o btn-sm" onclick="cancelSharedAppointment('${r.id}')">Cancel</button>`);
+  const mainIndex=buttons.findIndex(button=>button.includes('btn-primary'));
+  const main=mainIndex<0?'':buttons.splice(mainIndex,1)[0];
+  const items=buttons.map(button=>button.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); '));
+  return `${main}<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
 }
-function openApptDetail(id) {
+async function openAppointmentVisit(id){
+  try{await loadSharedQueue();const appointment=loadDB().appointments.find(a=>a.id===id),queue=loadDB().queues.find(q=>q.id===appointment?.queueId);if(queue)openQueueVisitDetail(queue.id);else openApptDetail(id,false,true);}catch(error){toast(escapeHtml(error.message),'err');}
+}
+function openApptDetail(id, editSchedule = false, viewOnly = false) {
   const db = loadDB(), r = db.appointments.find(x => x.id === id);
   if (!r) return;
-  const inQueue = !!r.queueId, canSetSchedule = !inQueue && !['Cancelled', 'No-show'].includes(r.status), canCheckIn = !inQueue && (r.status === 'Booked' || r.status === 'Requested');
+  const inQueue = !!r.queueId && ['Checked-in','Completed','Cancelled'].includes(r.status), canSetSchedule = !inQueue && ['Requested','Booked','No-show','Unfinished'].includes(r.status);
+  const showSchedule = !viewOnly && canSetSchedule && (['Requested','No-show','Unfinished'].includes(r.status) || editSchedule);
+  const canCheckIn = !inQueue && r.status === 'Booked' && r.date === today() && OfficeCalendar.status().open && !UniServeUX.conflict(r);
   const readiness = computeReadiness(findService(db, r.service), r.attachments), arrival = canCheckIn ? evaluateArrival(db, r) : null;
   openModal(escapeHtml(r.visitId || r.code), `
+    ${UniServeUX.conflict(r) ? `<div class="alert-banner warn"><b>Needs rescheduling</b>${escapeHtml(UniServeUX.conflict(r))}. Set a new date and time below.</div>` : ''}
+    ${r.rescheduleRequested ? `<div class="info-banner warn"><b>New schedule requested</b><p>${escapeHtml(r.rescheduleReason||'Please arrange another visit.')}</p></div>` : ''}
+    ${r.preferredDate ? `<div class="kv"><span>Preferred date</span><span>${escapeHtml(r.preferredDate)}</span></div>` : ''}
     ${r.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} Flagged as a possible duplicate active visit for this ID number or Gmail and service.</div>` : ''}
     ${arrival && arrival.status !== 'OnTime' ? `<div class="alert-banner ${arrival.status === 'PastWindow' ? 'danger' : 'warn'}"><b>${icon('alert', 13)} ${arrival.status === 'PastWindow' ? 'Past Appointment Window' : 'Late Arrival'}</b>Scheduled time has passed by ${fmtMinutes(arrival.lateMinutes)}${arrival.status === 'PastWindow' ? ' — beyond the configured no-show threshold.' : ', still within the no-show threshold.'}</div>` : ''}
     <div class="kv"><span>Visit ID</span><span class="mono">${escapeHtml(r.visitId || '—')}</span></div>
@@ -1014,29 +970,35 @@ function openApptDetail(id) {
     <div class="kv"><span>Contact</span><span>${escapeHtml(r.contact || '—')}</span></div>
     <div class="kv"><span>Email</span><span>${escapeHtml(r.email || '—')}</span></div>
     <div class="kv"><span>Service</span><span>${escapeHtml(r.service)}</span></div>
-    <div class="kv"><span>Appointment</span><span>${r.date ? `${r.date} &middot; ${escapeHtml(r.time || '')}` : 'Not yet set'}</span></div>
+    <div class="kv"><span>Appointment</span><span>${r.date ? `${r.date} &middot; ${escapeHtml(UniServeUX.timeLabel(r.time))}` : 'Not yet set'}</span></div>
     <div class="kv"><span>Readiness</span><span>${readinessPillHtml(readiness)}</span></div>
     <div class="kv"><span>Status</span><span>${statusPill(r.status)} ${arrivalStatusPill(r)}</span></div>
     <div class="kv"><span>Requested</span><span>${r.createdAt ? fmtDateTime(r.createdAt) : '&mdash;'}</span></div>
     ${r.isSenior ? `<div class="kv"><span>Priority</span><span><span class="pill pill-gold">Senior Citizen</span></span></div>` : ''}
+    ${r.isPWD ? '<div class="kv"><span>Priority</span><span><span class="pill pill-gold">Person with disability</span></span></div>' : ''}
     <div class="divider"></div>
-    <div class="field"><label>Uploaded Requirements</label>${attachListHtml(r.attachments)}</div>
-    ${canCheckIn ? `<div class="field"><button class="btn btn-gold btn-block" onclick="adminCheckInAppointment('${r.id}')">${icon('checkin', 14)} Check In &amp; Add to Queue</button>
-      <div class="field-hint">No queue number is issued. The visit waits in the queue ordered by its scheduled time and can be called once that time arrives. The Visitor Log check-in happens when you begin service.</div></div>` : ''}
-    ${canSetSchedule ? `<div class="form-row">
-      <div class="field"><label>Date</label><input id="mApptDate" type="date" value="${r.date || ''}" min="${today()}"></div>
-      <div class="field"><label>Time</label><input id="mApptTime" type="time" value="${r.time ? '' : '09:00'}"></div></div>
-      <p class="field-hint" style="margin-bottom:0;">Setting a date &amp; time marks this visit as Booked and prepares an email with the visitor's pass.</p>` : ''}`, [
-    { label: 'Email Pass', cls: 'btn-ghost', action: () => { if (!r.email) { toast('No email on file for this request.', 'err'); return; } window.open(mailtoForAppt(r), '_blank'); } },
-    ...(canSetSchedule ? [{ label: 'Save Date & Time', cls: 'btn-primary', action: () => {
+    <div class="field"><label>Uploaded Requirements</label>${attachListHtml(r.attachments)}</div>${documentReviewHtml(r, !viewOnly)}
+    ${canCheckIn && !showSchedule ? '<p class="field-hint">Check in only after the visitor arrives at the OSS counter. This adds the appointment to the waiting queue.</p>' : ''}
+    ${r.status === 'Booked' && !canCheckIn && !showSchedule ? '<p class="field-hint">Check-in is available at the counter on the appointment day during office hours.</p>' : ''}
+    ${showSchedule ? `<div class="form-row">
+      <div class="field"><label>Date</label><input onchange="calendarAppointmentWarning()" id="mApptDate" type="date" value="${r.date || ''}" min="${today()}"></div>
+      <div class="field"><label>Time</label><input onchange="calendarAppointmentWarning()" id="mApptTime" type="time" value="${UniServeUX.appointmentTime(r.time) || '09:00'}"></div></div>
+      <p id="calendarApptWarning" role="alert" class="field-hint"></p><p class="field-hint" style="margin-bottom:0;">Setting a date &amp; time marks this visit as Booked and queues the visitor's confirmation and reminder emails.</p>` : ''}
+    <div class="appointment-detail-extras">${r.scheduleHistory?.length ? `<details class="schedule-history"><summary><span>Previous schedules</span><span class="schedule-history-count">${r.scheduleHistory.length}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><ol>${r.scheduleHistory.map(s=>`<li><div class="schedule-history-details"><span class="schedule-history-date">${escapeHtml(s.date||'Not yet scheduled')}${s.time ? ` &middot; ${escapeHtml(UniServeUX.timeLabel(s.time))}` : ''}</span>${s.changedAt ? `<span class="schedule-history-updated">Updated ${escapeHtml(String(fmtDateTime(s.changedAt)).replace(/&middot;/g,String.fromCharCode(183)))}</span>` : ''}</div><span class="schedule-history-status">${escapeHtml(s.status||'Previous')}</span></li>`).join('')}</ol></details>` : ''}${visitExtrasHtml(r,true)}</div>`, [
+    ...(canCheckIn&&!showSchedule&&!viewOnly ? [{label:'Check in',cls:'btn-primary',action:()=>adminCheckInAppointment(r.id)}] : []),
+    ...(inQueue&&r.status==='Checked-in'&&!viewOnly ? [{label:'Open queue',cls:'btn-primary',action:()=>{closeModal();navigate('queue');}}] : []),
+    ...(showSchedule ? [{ label: r.status==='Requested'?'Confirm schedule':'Save new schedule', cls: 'btn-primary', action: async () => {
       const dateVal = document.getElementById('mApptDate').value, timeVal = document.getElementById('mApptTime').value;
       if (!dateVal || !timeVal) { toast('Please set both a date and a time.', 'err'); return; }
-      const [h, m] = timeVal.split(':').map(Number), db2 = loadDB(), r2 = db2.appointments.find(x => x.id === id);
-      r2.date = dateVal; r2.time = `${h % 12 || 12}:${pad2(m)} ${h >= 12 ? 'PM' : 'AM'}`; r2.status = 'Booked';
-      logActivity(db2, currentUser, `Set appointment ${r2.code} to ${r2.date} ${r2.time}`);
-      saveDB(db2);
-      closeModal(); renderApptTable(); toast('Visit booked. Opening email with the visitor\'s pass.', 'ok');
-      if (r2.email) window.open(mailtoForAppt(r2), '_blank');
+      if (!await OfficeCalendar.refresh()) {toast('Cannot verify office hours. Please try again.', 'err'); return;}
+      const availability = OfficeCalendar.at(dateVal, timeVal);
+      if (!availability.open) {toast(escapeHtml(availability.reason) + '. Choose an open time outside lunch.', 'err'); return;}
+      const appointment = loadDB().appointments.find(x => x.id === id);
+      if (!appointment.shared) {toast('This legacy request must be migrated before scheduling.', 'err');return;}
+      try {
+        const result=await SharedAppointments.request('/appointments/'+encodeURIComponent(id),'PATCH',{date:dateVal,time:timeVal,revision:appointment.revision});
+        SharedAppointments.cache(result);closeModal();await renderAppointments(true);toast('Visit booked. Confirmation and reminder emails queued.','ok');
+      }catch(error){toast(escapeHtml(error.message),'err');}
     } }] : [])]);
 }
 
@@ -1084,10 +1046,10 @@ function renderVisitorLogbook(keep) {
       <div class="stat-card"><div class="lbl">Checked Out</div><div class="val">${rows.length - inside}</div></div>
     </div>
     <div class="card"><div class="card-head"><div><h3>Visitor Log</h3><div class="desc">${escapeHtml(rangeLabel(RANGES.log))}</div></div>
-      <div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printVisitorLog()">${icon('print', 14)} Print Report</button>
+      <div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printVisitorLog()">${icon('print', 14)} Print report</button>
         <button class="btn btn-ghost btn-sm" onclick="downloadLogbook()">${icon('download', 14)} Download CSV</button></div></div>
       <div class="filter-bar">${dateRangeHtml('log')}<div class="search-box">${icon('search', 15)}<input id="logSearch" placeholder="Name, ID or Gmail" value="${escapeHtml(prev)}" oninput="renderLogbookTable()"></div></div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Entry Method</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Queue Status</th></tr></thead><tbody id="logBody"></tbody></table></div></div>`;
+      <div class="table-wrap visitor-log-table-wrap"><table class="visitor-log-table"><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Entry Method</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Purpose</th><th>Date</th><th>Time In</th><th>Time Out</th></tr></thead><tbody id="logBody"></tbody></table></div></div>`;
   renderLogbookTable();
 }
 function logbookRows(db, ascending) {
@@ -1101,19 +1063,19 @@ function renderLogbookTable() {
     <td>${escapeHtml(r.name)}${r.visitId ? `<div class="muted mono" style="font-size:.68rem;">${escapeHtml(r.visitId)}</div>` : ''}</td><td>${escapeHtml(r.type)}</td>
     <td>${r.source === 'Appointment' ? '<span class="pill pill-info">Scheduled</span>' : '<span class="pill pill-gold">Walk-in</span>'}</td>
     <td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td>
-    <td class="mono">${fmtDateTime(r.timeIn)}</td><td class="mono">${r.timeOut ? fmtDateTime(r.timeOut) : '&mdash;'}</td>
-    <td>${queueStatusPillForLog(activeQueueForVisit(db, r.visitId))}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="11">No visitor entries logged.</td></tr>`;
+    <td class="mono log-timestamp">${fmtDate(r.timeIn)}</td><td class="mono log-timestamp">${fmtTime(r.timeIn)}</td><td class="mono log-timestamp">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="11">No visitor entries logged.</td></tr>`;
 }
 function downloadLogbook() {
   const db = loadDB(), rows = logbookRows(db, true);
   downloadCSV(`Visitor_Logbook_${RANGES.log.from || 'start'}_${RANGES.log.to || 'all'}.csv`, [
-    ['Visit ID', 'Name', 'Type', 'ID Number', 'Contact', 'Gmail', 'Queue No.', 'Entry Method', 'Purpose', 'Date', 'Time In', 'Time Out', 'Status'],
-    ...rows.map(r => [r.visitId || '', r.name, r.type, r.idNumber || '', logContact(db, r), logEmail(db, r), queueNumberForVisit(db, r.visitId), r.source || 'Walk-in', r.purpose || '', fmtDate(r.timeIn), fmtTime(r.timeIn), r.timeOut ? fmtTime(r.timeOut) : '', r.timeOut ? 'Checked Out' : 'Checked In']),
+    ['Visit ID', 'Name', 'Type', 'ID Number', 'Contact', 'Gmail', 'Queue No.', 'Entry Method', 'Purpose', 'Date', 'Time In', 'Time Out'],
+    ...rows.map(r => [r.visitId || '', r.name, r.type, r.idNumber || '', logContact(db, r), logEmail(db, r), queueNumberForVisit(db, r.visitId), r.source || 'Walk-in', r.purpose || '', fmtDate(r.timeIn), fmtTime(r.timeIn), r.timeOut ? fmtTime(r.timeOut) : '']),
   ]);
   logActivity(db, currentUser, 'Downloaded visitor log'); saveDB(db);
   toast('Logbook downloaded.', 'ok');
 }
 function printVisitorLog() {
+  const auditDb=loadDB();logActivity(auditDb,currentUser,'Opened visitor log print report',{category:'Data'});saveDB(auditDb);
   const db = loadDB(), rows = logbookRows(db, true);
   const period = escapeHtml(rangeLabel(RANGES.log));
   const total = rows.length, inside = rows.filter(r => !r.timeOut).length, appts = rows.filter(r => r.source === 'Appointment').length;
@@ -1127,15 +1089,15 @@ function printVisitorLog() {
     <div class="rpt-section"><h3 class="rpt-h">Visitor Entries</h3><div class="rpt-desc">${total} record${total === 1 ? '' : 's'} &mdash; ${period}, sorted by Time In</div>
       <div class="rpt-table-wrap"><table class="rpt-table">
         <colgroup><col style="width:3%"><col style="width:9%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:8%"><col style="width:12%"><col style="width:5%"><col style="width:6%"><col style="width:9%"><col style="width:9%"><col style="width:7%"><col style="width:8%"></colgroup>
-        <thead><tr><th>#</th><th>Visit ID</th><th>Name</th><th>Type</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Queue No.</th><th>Entry</th><th>Purpose</th><th>Time In</th><th>Time Out</th><th>Status</th></tr></thead>
-        <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(r.visitId || '—')}</td><td>${escapeHtml(r.name)}</td><td class="nw">${escapeHtml(r.type || '—')}</td><td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td class="mono nw">${escapeHtml(queueNumberForVisit(db, r.visitId) || '—')}</td><td class="nw">${r.source === 'Appointment' ? 'Scheduled' : 'Walk-in'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td><td class="mono nw">${fmtDate(r.timeIn)}<br>${fmtTime(r.timeIn)}</td><td class="mono nw">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td><td>${r.timeOut ? 'Checked Out' : 'Checked In'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="13">No visitor entries recorded for this period.</td></tr>`}</tbody></table></div></div>
+        <thead><tr><th>#</th><th>Visit ID</th><th>Name</th><th>Type</th><th>ID Number</th><th>Contact</th><th>Gmail</th><th>Queue No.</th><th>Entry</th><th>Purpose</th><th>Date</th><th>Time In</th><th>Time Out</th></tr></thead>
+        <tbody>${rows.length ? rows.map((r, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(r.visitId || '—')}</td><td>${escapeHtml(r.name)}</td><td class="nw">${escapeHtml(r.type || '—')}</td><td class="mono">${r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td class="mono nw">${escapeHtml(queueNumberForVisit(db, r.visitId) || '—')}</td><td class="nw">${r.source === 'Appointment' ? 'Scheduled' : 'Walk-in'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td><td class="mono nw">${fmtDate(r.timeIn)}</td><td class="mono nw">${fmtTime(r.timeIn)}</td><td class="mono nw">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="13">No visitor entries recorded for this period.</td></tr>`}</tbody></table></div></div>
     ${reportSignatureBlock()}`);
 }
 
 let activeStaffChatId = null, pendingStaffAttachments = [], messagesPollTimer = null;
 function renderMessages() {
   document.getElementById('content').innerHTML = `<div class="card"><div class="card-head"><div><h3>Messages</h3></div></div>
-    <div class="chat-shell"><div class="chat-thread-list" id="chatThreadList"><div class="thread-list-head"><span class="lbl">Conversations</span><button class="btn btn-gold btn-sm" onclick="openNewChatModal()">${icon('plus', 13)} New Chat</button></div><div class="thread-search"><input id="chatCodeSearch" placeholder="Search Visit ID or name" autocomplete="off" oninput="renderChatThreadList()" onkeydown="if(event.key==='Enter') openChatByCode()"></div><div id="chatThreadBody"></div></div><div class="chat-panel" id="chatPanel">${emptyChatPanel()}</div></div></div>`;
+    <div class="chat-shell"><div class="chat-thread-list" id="chatThreadList"><div class="thread-list-head"><span class="lbl">Conversations</span></div><div class="thread-search"><input id="chatCodeSearch" placeholder="Search name" autocomplete="off" oninput="renderChatThreadList()"></div><div id="chatThreadBody"></div></div><div class="chat-panel" id="chatPanel">${emptyChatPanel()}</div></div></div>`;
   renderChatThreadList();
   startMessagesPolling();
 }
@@ -1152,54 +1114,24 @@ function findVisitByRef(db, ref) {
   if (!ref) return null;
   return db.queues.find(q => (q.visitId || '').toUpperCase() === ref) || db.appointments.find(a => (a.visitId || '').toUpperCase() === ref) || null;
 }
-const chatRef = c => c.visitId || 'No Visit ID';
+const chatRef = c => c.email || c.visitId || 'General inquiry';
 function renderChatThreadList() {
   const db = loadDB(), body = document.getElementById('chatThreadBody');
   if (!body) return;
   const q = (document.getElementById('chatCodeSearch')?.value || '').trim().toLowerCase();
   let rows = [...db.chats].sort((a, b) => b.updatedAt - a.updatedAt);
-  if (q) rows = rows.filter(c => [c.visitId, c.visitorName].some(v => String(v || '').toLowerCase().includes(q)));
+  if (q) rows = rows.filter(c => String(c.visitorName || '').toLowerCase().includes(q));
   body.innerHTML = rows.length ? rows.map(c => {
     const last = c.messages[c.messages.length - 1];
     return `<div class="chat-thread-item ${activeStaffChatId === c.id ? 'active' : ''}" style="cursor:pointer;" onclick="openStaffChat('${c.id}')">
-      <div class="ttl"><span class="mono">${escapeHtml(chatRef(c))}</span><span class="thread-actions">${c.staffUnread ? '<span class="unread-dot"></span>' : ''}<button class="icon-btn" title="Delete conversation" onclick="event.stopPropagation(); removeChatThread('${c.id}')">${icon('trash', 13)}</button></span></div>
-      <div class="muted" style="font-size:.74rem; margin-top:2px;">${escapeHtml(c.visitorName || 'Visitor')}</div>
-      <div class="prev">${last ? escapeHtml(last.text) : 'No messages yet'}</div>
-      <div class="meta-row"><span></span>${statusPill(c.status)}</div></div>`;
+      <div class="ttl"><span class="thread-identity"><span class="thread-name">${escapeHtml(c.visitorName || 'Visitor')}</span><span class="thread-contact muted" title="${escapeHtml(chatRef(c))}">${escapeHtml(chatRef(c))}</span></span><span class="thread-actions">${c.staffUnread ? '<span class="unread-dot"></span>' : ''}<button class="icon-btn" title="Delete conversation" onclick="event.stopPropagation(); removeChatThread('${c.id}')">${icon('trash', 13)}</button></span></div>
+      <div class="meta-row"><div class="prev">${last ? escapeHtml(last.text) : 'No messages yet'}</div>${statusPill(c.status)}</div></div>`;
   }).join('') : `<div class="helper-empty" style="padding:40px 16px;"><p>${q ? 'No conversation matches.' : 'No conversations yet.'}</p></div>`;
 }
-function openChatByCode() {
-  const q = normVisitRef(document.getElementById('chatCodeSearch')?.value || '');
-  const c = q ? loadDB().chats.filter(x => (x.visitId || '').toUpperCase() === q).sort((a, b) => b.updatedAt - a.updatedAt)[0] : null;
-  if (!c) { toast('No conversation with that Visit ID.', 'err'); return; }
-  openStaffChat(c.id);
-}
-function openNewChatModal() {
-  openModal('Start New Chat', `
-    <p class="field-hint" style="margin-bottom:12px;">Every chat belongs to a visit. Enter the visitor's Visit ID &mdash; they open the same chat in the portal with that Visit ID.</p>
-    <div class="field"><label>Visit ID <span class="req">*</span></label><input id="mChatVisit" placeholder="VIS-K7M2-9QXA" style="text-transform:uppercase"></div>
-    <div class="field"><label>Visitor name <span class="muted" style="font-weight:400;">(optional)</span></label><input id="mChatName" placeholder="e.g. Juan Dela Cruz"></div>
-    <div class="field"><label>Contact <span class="muted" style="font-weight:400;">(optional)</span></label><input id="mChatContact" placeholder="Email or phone number"></div>`, [
-    { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
-    { label: 'Start Chat', cls: 'btn-primary', action: () => {
-      const db = loadDB(), ref = normVisitRef(document.getElementById('mChatVisit').value), src = findVisitByRef(db, ref);
-      if (!ref) { toast('Enter the visitor\'s Visit ID.', 'err'); return; }
-      if (!src) { toast('No visit found with that Visit ID.', 'err'); return; }
-      const existing = db.chats.find(x => x.visitId === src.visitId && x.status === 'Open');
-      if (existing) { closeModal(); openStaffChat(existing.id); toast(`${existing.visitId} already has an open conversation.`, 'ok'); return; }
-      const chat = mkChat({
-        visitorName: document.getElementById('mChatName').value.trim() || (src && src.name) || 'Visitor',
-        visitorType: src ? (src.visitorType || src.type || '') : '',
-        contact: document.getElementById('mChatContact').value.trim() || (src && src.contact) || '',
-        visitId: src.visitId,
-      });
-      db.chats.push(chat);
-      logActivity(db, currentUser, `Started a new conversation for ${chat.visitId}`);
-      saveDB(db); closeModal(); renderChatThreadList(); openStaffChat(chat.id); toast(`Conversation started &mdash; ${chat.visitId}.`, 'ok');
-    } }]);
-}
-function removeChatThread(id) {
-  if (!confirm('Delete this conversation? This cannot be undone.')) return;
+
+
+async function removeChatThread(id) {
+  if (!await UniServeUX.confirm('Delete conversation', 'Delete this conversation? This cannot be undone.', 'Delete conversation')) return;
   const db = loadDB(), c = db.chats.find(x => x.id === id);
   db.chats = db.chats.filter(x => x.id !== id);
   if (c) logActivity(db, currentUser, `Deleted conversation with ${c.visitorName}`);
@@ -1216,7 +1148,7 @@ function openStaffChat(id) {
   const closed = c.status === 'Closed';
   document.getElementById('chatPanel').innerHTML = `
     <div class="chat-panel-head"><div><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><b class="mono" style="font-size:.92rem;">${escapeHtml(chatRef(c))}</b>${c.visitId ? `<button class="btn btn-ghost btn-sm" onclick="copyText('${escapeHtml(c.visitId)}')">Copy Visit ID</button>` : ''}</div>
-      <div class="muted" style="font-size:.76rem; margin-top:3px;">${escapeHtml(c.visitorName || 'Visitor')}${c.visitorType ? ' &middot; ' + escapeHtml(c.visitorType) : ''}${c.contact ? ' &middot; ' + escapeHtml(c.contact) : ''}</div>
+      <div class="muted" style="font-size:.76rem; margin-top:3px;">${escapeHtml(c.visitorName || 'Visitor')}${c.visitorType ? ' &middot; ' + escapeHtml(c.visitorType) : ''}${c.contact ? ' &middot; ' + escapeHtml(c.contact) : ''}${c.email ? ' &middot; ' + escapeHtml(c.email) : ''}</div>
       ${c.messages.some(m => m.sender === 'visitor') ? '' : `<div class="field-hint" style="margin-top:4px;">The visitor opens this chat in the portal with their Visit ID.</div>`}</div>
       <div class="chat-status-toggle"><button class="cst-btn ok ${c.status === 'Open' ? 'active' : ''}" onclick="setChatStatus('${c.id}','Open')">${icon('check', 12)}<span>Open</span></button><button class="cst-btn danger ${closed ? 'active' : ''}" onclick="setChatStatus('${c.id}','Closed')">${icon('x', 12)}<span>Closed</span></button></div></div>
     <div class="chat-messages" id="chatMsgArea">${renderBubbles(c)}</div>
@@ -1271,10 +1203,9 @@ function startMessagesPolling() {
 function stopMessagesPolling() { if (messagesPollTimer) { clearInterval(messagesPollTimer); messagesPollTimer = null; } }
 
 const CONFIDENTIAL_SERVICES = ['incident_report', 'concern', 'scholarship_txn', 'excuse_letter'];
-const CONF_UNLOCK_MS = 5 * 60 * 1000;
 const CONF_REASONS = ['Case review', 'Requested by the student / requestor', 'Audit or compliance', 'Official referral or endorsement', 'Other (explain in note)'];
 const confUnlocked = new Map(), confTimers = {};
-function isConfidentialTxn(t) { return !!t && CONFIDENTIAL_SERVICES.includes(t.service); }
+function isConfidentialTxn(t) { return !!t && (loadDB().services.find(s=>s.key===t.service)?.confidential ?? CONFIDENTIAL_SERVICES.includes(t.service)); }
 function hasConfAccess(db) { const u = (db || loadDB()).users.find(x => x.id === currentUser.id); return !!(u && u.confidentialAccess); }
 function isTxnLocked(t) {
   if (!isConfidentialTxn(t)) return false;
@@ -1295,39 +1226,6 @@ function maskName(name) {
   const p = String(name || '').trim().split(/\s+/).filter(Boolean);
   return p.length < 2 ? (p[0] || '—') : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`;
 }
-function requireConfUnlock(r, onOk) {
-  if (!isTxnLocked(r)) { onOk(); return; }
-  const db = loadDB();
-  if (!hasConfAccess(db)) {
-    logActivity(db, currentUser, `Blocked: tried to open confidential record ${r.code} without access`);
-    saveDB(db);
-    openModal(`${escapeHtml(r.code)} ${icon('lock', 13)}`, `<div class="alert-banner warn"><div><b>Restricted record</b>This record is confidential and your account does not have Confidential access. Ask a Super Admin if you need it.</div></div>`, []);
-    return;
-  }
-  openModal(`Unlock ${escapeHtml(r.code)}`, `
-    <p class="field-hint" style="margin-bottom:12px;">${icon('lock', 11)} This record is confidential. Confirm it is you, then state why you need it. Your name, the reason and the time are saved in the Activity Log, and access closes automatically after 5 minutes.</p>
-    <div class="field"><label>Your password</label><input id="mConfPass" type="password" autocomplete="current-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"></div>
-    <div class="field"><label>Reason for access</label><select id="mConfReason">${CONF_REASONS.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('')}</select></div>
-    <div class="field"><label>Note</label><textarea id="mConfNote" maxlength="200" placeholder="Short explanation, e.g. reviewing complaint filed on this record"></textarea></div>`, [
-    { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
-    { label: 'Unlock', cls: 'btn-primary', action: () => {
-      const pass = document.getElementById('mConfPass').value, reason = document.getElementById('mConfReason').value, note = document.getElementById('mConfNote').value.trim();
-      if (!pass) { toast('Enter your password to continue.', 'err'); return; }
-      if (note.length < 5) { toast('Add a short note explaining why you need this record.', 'err'); return; }
-      const db2 = loadDB(), me = db2.users.find(x => x.id === currentUser.id);
-      if (!me || !me.confidentialAccess) { toast('Your Confidential access was removed.', 'err'); closeModal(); return; }
-      if (me.password !== pass) { logActivity(db2, currentUser, `Failed unlock attempt on confidential record ${r.code} &mdash; wrong password`); saveDB(db2); toast('Incorrect password.', 'err'); return; }
-      logActivity(db2, currentUser, `Unlocked confidential record ${r.code} &mdash; Reason: ${escapeHtml(reason)} &mdash; Note: ${escapeHtml(note)}`);
-      saveDB(db2);
-      confUnlocked.set(r.id, Date.now() + CONF_UNLOCK_MS);
-      if (confTimers[r.id]) clearTimeout(confTimers[r.id]);
-      confTimers[r.id] = setTimeout(() => { lockConfTxn(r.id); toast(`${r.code} locked again (5 minutes passed).`, 'ok'); }, CONF_UNLOCK_MS);
-      closeModal();
-      if (state_view === 'transactions') renderTxnTable();
-      onOk();
-    } }]);
-}
-
 let txnFilter = 'all';
 const TXN_STATUSES = ['Pending', 'Processing', 'Approved', 'Completed'];
 const ESCALATABLE_SERVICES = ['incident_report', 'concern'];
@@ -1358,7 +1256,7 @@ function renderTxnCard(keepSearch) {
       <div class="filter-bar">${dateRangeHtml('txn')}<select id="txnSvcSelect" class="filter-select" aria-label="Service" onchange="setTxnService(this.value || null)">${serviceSelectOptions(db)}</select>
         <div class="search-box">${icon('search', 15)}<input id="txnSearch" placeholder="Name, code or visit ID" value="${escapeHtml(prev)}" oninput="renderTxnTable()"></div></div>
       <div class="subnav tab-row" id="txnStatusNav">${tabs.map(([f, label, n]) => `<button data-f="${f}" class="${txnFilter === f ? 'active' : ''}" onclick="setTxnFilter('${f}')">${label}<span class="cnt">${n}</span></button>`).join('')}</div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Code</th><th>Requestor</th>${txnServiceFilter ? '' : '<th>Service</th>'}<th>Visit</th><th>Files</th><th>Status</th><th>Logged</th><th></th></tr></thead><tbody id="txnBody"></tbody></table></div></div>`;
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Code</th><th>Requestor</th>${txnServiceFilter ? '' : '<th>Service</th>'}<th>Visit</th><th>Files</th><th>Status</th><th>Logged</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="txnBody"></tbody></table></div></div>`;
   renderTxnTable();
 }
 function setTxnService(key) { txnServiceFilter = key || undefined; txnFilter = 'all'; renderTxnCard(true); }
@@ -1377,10 +1275,9 @@ function renderTxnTable() {
     <td>${locked ? '<span class="muted" style="font-size:.76rem;">Hidden</span>' : (r.visitId ? `<span class="mono" style="font-size:.72rem;">${escapeHtml(r.visitId)}</span>${r.queueNumber ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.queueNumber)} &middot; ${escapeHtml(r.entryMethod || '')}</div>` : (r.entryMethod ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.entryMethod)}</div>` : '')}` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
     <td>${locked ? '<span class="muted" style="font-size:.76rem;">&bull;&bull;</span>' : (files.length ? `<span class="pill pill-gold">${icon('paperclip', 11)} ${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
     <td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td class="muted">${fmtDateTime(r.createdAt)}</td>
-    <td class="act-cell"><button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
+    <td class="act-cell appointment-action-cell"><button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
       <div class="kebab-menu" id="kebab_${r.id}" hidden>
-        <button class="kebab-item" onclick="closeKebabs(); openTxnDetail('${r.id}')">${locked ? icon('lock', 14) + ' Unlock' : icon('eye', 14) + ' View'}</button>
-        <button class="kebab-item" onclick="closeKebabs(); printTransaction('${r.id}')">${icon('print', 14)} Print Report</button></div></td></tr>`;
+        ${isConfidentialTxn(r)&&!currentUser.confidentialApprover&&!(window.isAssignedConfidentialRecord?.(r.id)) ? `<button class="kebab-item" onclick="closeKebabs();requestTransactionAccess('${r.id}')">${icon('lock',14)} Request access</button>` : `<button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button><button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button>`}</div></td></tr>`;
   }).join('') : `<tr class="empty-row"><td colspan="${showService ? 9 : 8}">No matching transactions.</td></tr>`;
 }
 function closeKebabs() { document.querySelectorAll('.kebab-menu').forEach(m => { m.hidden = true; }); }
@@ -1405,13 +1302,14 @@ function openTxnDetail(id) {
   const files = txnRequirements(db, r), isVisit = !!(linkedQueue || r.visitId), canEscalate = ESCALATABLE_SERVICES.includes(r.service);
   const buttons = [
     ...(sensitive ? [{ label: 'Lock Again', cls: 'btn-ghost', action: () => { lockConfTxn(id); toast('Record locked.', 'ok'); } }] : []),
-    ...(canEscalate ? [{ label: 'Save', cls: 'btn-primary', action: () => {
+    ...(canEscalate ? [{ label: 'Save', cls: 'btn-primary', action: async () => {
       const db2 = loadDB(), r2 = db2.transactions.find(x => x.id === id), esc = document.getElementById('mTxEscalation').value;
       if (esc !== (r2.escalation || 'Normal')) {
         r2.escalation = esc === 'Normal' ? null : esc; r2.escalatedBy = esc === 'Normal' ? null : currentUser.fullName; r2.escalatedAt = esc === 'Normal' ? null : new Date();
         logActivity(db2, currentUser, `Set escalation for ${r2.code} to ${esc}`);
       }
-      r2.updatedAt = new Date(); saveDB(db2); closeModal(); renderTxnTable(); toast('Record updated.', 'ok');
+      if(r2.shared){try{await SharedAppointments.request('/service-records/'+encodeURIComponent(id),'PATCH',{escalation:esc});await SharedAppointments.reloadRecords();}catch(e){toast(escapeHtml(e.message),'err');return;}}else {toast('Migrate this legacy record before editing.','err');return;}
+      closeModal();renderTxnTable();toast('Record updated.','ok');
     } }] : [])];
   openModal(`${r.code}${sensitive ? ` ${icon('lock', 13)}` : ''}`, `
     ${sensitive ? `<p class="field-hint" style="margin-bottom:12px;">${icon('lock', 11)} This record is confidential &mdash; visible only to admins with Confidential access. It locks again automatically after 5 minutes.</p>` : ''}
@@ -1422,13 +1320,15 @@ function openTxnDetail(id) {
     <div class="kv"><span>Service</span><span>${serviceLabel(db, r.service)}</span></div>
     ${!isVisit && r.details ? `<div class="kv"><span>Details</span><span style="max-width:260px; text-align:right;">${escapeHtml(r.details)}</span></div>` : ''}
     <div class="kv"><span>Status</span><span>${statusPill(r.status)}</span></div>
+    ${r.caseStatus ? `<div class="kv"><span>Case follow-up</span><span>${escapeHtml(r.caseStatus)} (visit remains Completed)</span></div>` : ''}
+    ${typeof flowServiceHistory==='function'?flowServiceHistory(r.serviceHistory):''}
     ${r.escalation && r.escalation !== 'Normal' ? `<div class="kv"><span>Escalation</span><span>${escalationPill(r.escalation)}${r.escalatedBy ? ` <span class="muted" style="font-size:.72rem;">by ${escapeHtml(r.escalatedBy)}</span>` : ''}</span></div>` : ''}
     <div class="kv"><span>Logged</span><span>${fmtDateTime(r.createdAt)}</span></div>
     ${r.completedAt ? `<div class="kv"><span>Completed</span><span class="mono">${fmtDateTime(r.completedAt)}</span></div>` : ''}
     ${r.servedBy ? `<div class="kv"><span>Served By</span><span>${escapeHtml(r.servedBy)}</span></div>` : ''}
     ${r.visitId ? `<div class="kv"><span>Visit ID</span><span class="mono">${escapeHtml(r.visitId)}</span></div>` : ''}
     ${linkedQueue ? `<div class="kv"><span>Entry Method</span><span>${linkedQueue.number ? `<span class="pill pill-info">${escapeHtml(linkedQueue.number)}</span> ` : ''}${escapeHtml(entryMethodLabel(linkedQueue))}</span></div>` : ''}
-    ${linkedAppt ? `<div class="kv"><span>Appointment</span><span>${escapeHtml(linkedAppt.code)}${linkedAppt.date ? ` &middot; ${linkedAppt.date} ${escapeHtml(linkedAppt.time || '')}` : ''}</span></div>` : ''}
+    ${linkedAppt ? `<div class="kv"><span>Appointment</span><span>${escapeHtml(linkedAppt.code)}${linkedAppt.date ? ` &middot; ${linkedAppt.date} ${escapeHtml(UniServeUX.timeLabel(linkedAppt.time))}` : ''}</span></div>` : ''}
     ${feedbackReadoutHtml(linkedQueue)}
     ${linkedQueue ? timelineBlockHtml(linkedQueue, linkedAppt) : ''}
     ${r.waitingTimeMin != null || r.serviceTimeMin != null || r.totalTimeMin != null ? timeMetricsGrid(r.waitingTimeMin, r.serviceTimeMin, r.totalTimeMin) : ''}
@@ -1457,7 +1357,7 @@ function printTransaction(id) {
       <tr><th>Status</th><td>${escapeHtml(r.status)}</td></tr>
       ${r.visitId ? `<tr><th>Visit ID</th><td>${escapeHtml(r.visitId)}</td></tr>` : ''}
       ${linkedQueue ? `<tr><th>Entry Method</th><td>${linkedQueue.number ? escapeHtml(linkedQueue.number) + ' ' : ''}(${escapeHtml(entryMethodLabel(linkedQueue))})</td></tr>` : ''}
-      ${linkedAppt ? `<tr><th>Appointment</th><td>${escapeHtml(linkedAppt.code)}${linkedAppt.date ? ` &middot; ${linkedAppt.date} ${escapeHtml(linkedAppt.time || '')}` : ''}</td></tr>` : ''}
+      ${linkedAppt ? `<tr><th>Appointment</th><td>${escapeHtml(linkedAppt.code)}${linkedAppt.date ? ` &middot; ${linkedAppt.date} ${escapeHtml(UniServeUX.timeLabel(linkedAppt.time))}` : ''}</td></tr>` : ''}
       <tr><th>Served By</th><td>${escapeHtml(r.servedBy || '—')}</td></tr><tr><th>Logged</th><td>${fmtDateTime(r.createdAt)}</td></tr>
       ${linkedQueue ? timelinePrintRows(linkedQueue, linkedAppt) : ''}
       ${r.completedAt ? `<tr><th>Completed</th><td>${fmtDateTime(r.completedAt)}</td></tr>` : ''}
@@ -1484,7 +1384,7 @@ function askIncludeConf(confCount, cb) {
 function printTxnReport(serviceKey, which, includeConf) {
   const db = loadDB(), range = which === 'txn' ? RANGES.txn : { from: '', to: '' }, svc = serviceKey ? findService(db, serviceKey) : null;
   const title = svc ? svc.label : 'All Services', period = escapeHtml(rangeLabel(range));
-  const gated = !!serviceKey && CONFIDENTIAL_SERVICES.includes(serviceKey);
+  const gated = !!serviceKey && (loadDB().services.find(s=>s.key===serviceKey)?.confidential ?? CONFIDENTIAL_SERVICES.includes(serviceKey));
   if (gated) {
     const gate = { id: 'svc:' + serviceKey, code: title, service: serviceKey };
     if (isTxnLocked(gate)) { requireConfUnlock(gate, () => printTxnReport(serviceKey, which)); return; }
@@ -1554,7 +1454,8 @@ function renderFeedback() {
 }
 
 function renderServicesManage() {
-  document.getElementById('content').innerHTML = `<div class="card"><div class="card-head"><div><h3>Service Catalog</h3></div><button class="btn btn-primary btn-sm" onclick="openServiceForm()">${icon('plus', 14)} Create Service</button></div><div class="card-pad"><div class="svc-manage-grid" id="svcManageGrid"></div></div></div>`;
+  if (!currentUser.confidentialApprover) { navigate("dashboard"); return; }
+  document.getElementById('content').innerHTML = `<div class="card"><div class="card-head"><div><h3>Service Catalog</h3></div><button class="btn btn-primary btn-sm" onclick="openServiceForm()">${icon('plus', 14)} Create service</button></div><div class="card-pad"><div class="svc-manage-grid" id="svcManageGrid"></div></div></div>`;
   renderSvcManageGrid();
 }
 function renderSvcManageGrid() {
@@ -1585,43 +1486,50 @@ function renderSvcTplList() {
   if (w) w.innerHTML = svcFormTemplates.length ? `<div style="margin-top:8px;">${svcFormTemplates.map((t, i) => `<span class="attach-preview-chip">${icon('paperclip', 11)}<span class="fname">${escapeHtml(t.name)}</span><span class="fsize">${fmtFileSize(t.size)}</span><button type="button" onclick="removeSvcTpl(${i})" title="Remove">${icon('x', 11)}</button></span>`).join('')}</div>` : '';
 }
 function openServiceForm(key) {
+  if (!currentUser.confidentialApprover) { toast("Only the OSS Head can manage services.", "err"); return; }
   const db = loadDB(), editing = key ? db.services.find(s => s.key === key) : null;
   svcFormTemplates = editing && editing.templates ? editing.templates.map(t => ({ ...t })) : [];
-  openModal(editing ? 'Edit Service' : 'Create Service', `
+  openModal(editing ? 'Edit service' : 'Create service', `
     <div class="field"><label>Service Name</label><input id="mSvcLabel" value="${editing ? escapeHtml(editing.label) : ''}" placeholder="e.g. Good Moral Character"></div>
     <div class="field"><label>Short Description</label><textarea id="mSvcDesc" placeholder="Shown as the card blurb on the visitor portal">${editing ? escapeHtml(editing.desc || '') : ''}</textarea></div>
+    <div class="field"><label for="mSvcNotice">Service announcement</label><textarea id="mSvcNotice" maxlength="1000" placeholder="Optional notice or deadline for visitors">${escapeHtml(editing?.announcement || '')}</textarea><p class="field-hint">Shown when a visitor selects this service. Clear this field to remove the notice.</p></div>
     <div class="field"><label>Requirements <span class="muted" style="font-weight:400;">(one per line)</span></label><textarea id="mSvcReq" placeholder="Valid School ID">${editing ? escapeHtml((editing.requirements || []).join('\n')) : ''}</textarea>
       <div class="field-hint">Each requirement is what "Smart Service Readiness" counts against when a visitor uploads files, and what the emailed pass lists under "What to bring".</div></div>
     <div class="field"><label>Downloadable forms <span class="muted" style="font-weight:400;">(optional)</span></label>
       <input type="file" id="mSvcFiles" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,image/*" onchange="handleTemplateFiles(this)">
       <div id="svcTplList"></div>
       <div class="field-hint">Blank forms visitors can download before they come (request form, consent form, etc.). PDF, Word, Excel or image, up to 2 MB each.</div></div>
+    ${currentUser.confidentialApprover ? `<div class="field service-privacy-field"><label class="service-privacy-control" for="mSvcConfidential"><input id="mSvcConfidential" type="checkbox" aria-describedby="mSvcPrivacyHint" ${(editing?.confidential ?? CONFIDENTIAL_SERVICES.includes(key)) ? "checked" : ""}> ${icon("lock",14)}<span>Confidential service</span></label><div id="mSvcPrivacyHint" class="field-hint">Protect existing and new records. Authorized staff only.</div></div>` : ""}
     <div class="field"><label>Icon</label><div class="icon-picker">${ICON_CHOICES.map(ic => `<label><input type="radio" name="mSvcIcon" value="${ic}" ${(editing ? editing.icon : ICON_CHOICES[0]) === ic ? 'checked' : ''}><span>${icon(ic, 18)}</span></label>`).join('')}</div></div>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
-    { label: editing ? 'Save Changes' : 'Create Service', cls: 'btn-primary', action: () => {
+    { label: editing ? 'Save changes' : 'Create service', cls: 'btn-primary', action: async () => {
       const label = document.getElementById('mSvcLabel').value.trim();
       if (!label) { toast('Service name is required.', 'err'); return; }
+      const privacyInput=document.getElementById('mSvcConfidential'),confidential=privacyInput?privacyInput.checked:(editing?.confidential ?? CONFIDENTIAL_SERVICES.includes(key));
+      if(editing && privacyInput && confidential!==(editing.confidential ?? CONFIDENTIAL_SERVICES.includes(key)) && !await UniServeUX.confirm('Change service privacy', confidential?'Protect existing and new records for this service?':'Allow normal staff access to existing and new records for this service?', 'Confirm change'))return;
+      const announcement=document.getElementById('mSvcNotice').value.trim();
       const desc = document.getElementById('mSvcDesc').value.trim(), reqs = document.getElementById('mSvcReq').value.split('\n').map(s => s.trim()).filter(Boolean);
       const iconEl = document.querySelector('input[name="mSvcIcon"]:checked'), iconVal = iconEl ? iconEl.value : 'home', db2 = loadDB();
       if (editing) {
-        Object.assign(db2.services.find(s => s.key === editing.key), { label, desc, requirements: reqs, icon: iconVal, templates: svcFormTemplates });
-        logActivity(db2, currentUser, `Updated service "${label}"`); toast('Service updated.', 'ok');
+        Object.assign(db2.services.find(s => s.key === editing.key), { label, desc, announcement, requirements: reqs, icon: iconVal, templates: svcFormTemplates, confidential });
+        logActivity(db2, currentUser, `Updated service "${label}"`);
       } else {
         const k = slugify(label);
         if (db2.services.some(s => s.key === k)) { toast('A service with a similar name already exists.', 'err'); return; }
-        db2.services.push({ key: k, label, desc, requirements: reqs, icon: iconVal, templates: svcFormTemplates });
-        logActivity(db2, currentUser, `Created service "${label}"`); toast('Service created.', 'ok');
+        db2.services.push({ key: k, label, desc, announcement, requirements: reqs, icon: iconVal, templates: svcFormTemplates, confidential });
+        logActivity(db2, currentUser, `Created service "${label}"`);
       }
-      try { saveDB(db2); } catch (e) { toast('Storage is full &mdash; remove some forms and try again.', 'err'); return; }
+      try { await SharedAppointments.request('/services/'+encodeURIComponent(editing ? editing.key : slugify(label)), 'PUT', {label,desc,announcement,requirements:reqs,icon:iconVal,templates:svcFormTemplates,...(privacyInput?{confidential}:{})});saveDB(db2); } catch (e) { toast(escapeHtml(e.message), 'err'); return; }
       closeModal(); renderSvcManageGrid(); renderSidebar();
     } }]);
   renderSvcTplList();
 }
-function deleteService(key) {
+async function deleteService(key) {
   const db = loadDB(), s = db.services.find(x => x.key === key);
   if (!s) return;
   const used = countTxnForService(db, key);
-  if (!confirm(`Delete "${s.label}"?${used ? ` ${used} existing transaction(s) will keep the label for reference.` : ''}`)) return;
+  if (!await UniServeUX.confirm('Delete service', `Delete "${s.label}"?${used ? ` ${used} existing transaction(s) will keep the label for reference.` : ''}`, 'Delete service')) return;
+  try {await SharedAppointments.request('/services/'+encodeURIComponent(key),'DELETE');} catch(error){toast(escapeHtml(error.message),'err');return;}
   db.services = db.services.filter(x => x.key !== key);
   logActivity(db, currentUser, `Deleted service "${s.label}"`);
   if (txnServiceFilter === key) txnServiceFilter = undefined;
@@ -1629,16 +1537,21 @@ function deleteService(key) {
 }
 
 let reportPeriod = 'Daily';
-function renderReports() {
+async function renderReports() {
+  const reportDb = loadDB(); if (sweepNoShows(reportDb)) saveDB(reportDb);
+  let reportRefreshFailed = false;
+  try { await loadSharedQueue(); } catch (_) { reportRefreshFailed = true; }
+  if (state_view !== 'reports') return;
   document.getElementById('content').innerHTML = `
     <div class="card card-pad no-print">
       <div class="subnav">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map((p, i) => `<button class="${i ? '' : 'active'}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print Report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportCSV()">${icon('download', 14)} Download CSV</button></div></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
     <div class="card card-pad" id="reportSheet" style="margin-top:16px;">${reportLetterhead()}
       <div class="report-title-block"><h2 id="repTitle">Daily Transaction Report</h2><div class="report-meta"><span id="repPeriodLbl"></span><span id="repGenLbl"></span></div></div>
       <div id="repBody"></div></div>`;
   reportPeriod = 'Daily';
   buildReport();
+  document.getElementById('content').insertAdjacentHTML('beforeend', (reportRefreshFailed ? '<div class="err-box">Shared queue could not be refreshed. Showing available records. <button class="btn btn-ghost btn-sm" onclick="renderReports()">Retry</button></div>' : '') + UniServeUX.reportHtml(loadDB()));
 }
 let reportIncludeConf = false;
 function printReport(includeConf) {
@@ -1659,7 +1572,7 @@ function buildReport() {
   const db = loadDB(), start = periodStart(reportPeriod);
   document.getElementById('repTitle').textContent = `${reportPeriod} Transaction Report`;
   document.getElementById('repPeriodLbl').textContent = `Period: ${fmtDate(start)} to ${today()}`;
-  document.getElementById('repGenLbl').textContent = `Generated: ${fmtDateTime(new Date())} by ${currentUser.fullName}`;
+  document.getElementById('repGenLbl').textContent = `Generated: ${fmtDateTime(new Date()).replace(/&middot;/g,'·')} by ${currentUser.fullName}`;
   const txns = db.transactions.filter(t => t.createdAt >= start).sort((a, b) => a.createdAt - b.createdAt), appts = db.appointments.filter(a => a.createdAt && a.createdAt >= start);
   const confCount = reportIncludeConf ? 0 : txns.filter(isConfidentialTxn).length, logTxns = reportIncludeConf ? txns : txns.filter(t => !isConfidentialTxn(t));
   const ORDER = ['Completed', 'Approved', 'Processing', 'Pending', 'Rejected'], sc = {}; ORDER.forEach(s => sc[s] = 0);
@@ -1706,17 +1619,21 @@ function buildReport() {
         ${g.hidden ? `<tr><td colspan="9"><em>${g.hidden} record${g.hidden === 1 ? '' : 's'} counted in the totals but not listed.</em></td></tr>` : ''}${!g.rows.length && !g.hidden ? '<tr class="empty-row"><td colspan="9">No transactions in this period.</td></tr>' : ''}</tbody></table></div></div>`).join('') : `<div class="rpt-section"><div class="rpt-table-wrap"><table class="rpt-table"><tbody><tr class="empty-row"><td>No transactions in this period.</td></tr></tbody></table></div></div>`}
     ${reportSignatureBlock()}`;
 }
-function downloadReportCSV() {
+function downloadReportExcel() {
   const db = loadDB(), start = periodStart(reportPeriod), txns = db.transactions.filter(t => t.createdAt >= start), counts = {};
   db.services.forEach(s => counts[s.key] = 0);
   txns.forEach(t => { counts[t.service] = (counts[t.service] || 0) + 1; });
-  downloadCSV(`OSS_${reportPeriod}_Report_${today()}.csv`, [
-    ['Polytechnic University of the Philippines - Santa Maria Campus'], ['Office of the Student Services'], [`${reportPeriod} Transaction Report`], [`Period: ${fmtDate(start)} to ${today()}`],
+  const rows = [
+    ['Polytechnic University of the Philippines - Santa Maria Campus'], ['Office of Student Services'], [`${reportPeriod} Transaction Report`], [`Period: ${fmtDate(start)} to ${today()}`],
     [`Generated: ${fmtDateTime(new Date()).replace('&middot;', '-')} by ${currentUser.fullName}`], [],
     ['Summary'], ['Total Transactions', txns.length], ['Completed', txns.filter(t => t.status === 'Completed').length], ['Pending', txns.filter(t => t.status === 'Pending').length],
     ['Records not listed (count only)', txns.filter(isConfidentialTxn).length], ['Chat Conversations Started', db.chats.filter(c => c.createdAt >= start).length], [],
-    ['Breakdown by Service'], ['Service', 'Count'], ...db.services.map(s => [s.label, counts[s.key] || 0]),
-  ]);
+    ['Breakdown by Service'], ['Service', 'Count'], ...db.services.map(s => [s.label, counts[s.key] || 0]), [],
+    ['Detailed Transaction Log'], ['Code','Name','Visitor type','ID number','Visit ID','Queue number','Service','Status','Logged'],
+    ...txns.filter(t=>!isConfidentialTxn(t)).map(t=>[t.code,t.name,t.type||'',t.idNumber||'',t.visitId||'',t.queueNumber||'',serviceLabel(db,t.service),t.status,fmtDateTime(t.createdAt)]),
+  ];
+  const headings=new Set(['Summary','Breakdown by Service','Service','Detailed Transaction Log','Code']);
+  SpreadsheetExport.download(`OSS_${reportPeriod}_Report_${today()}.xlsx`,rows,[24,28,20,26,24,20,36,20,28],{sheetName:'Admin Report',filter:false,headingRows:rows.flatMap((row,index)=>index===0||headings.has(row[0])?[index]:[])});
   logActivity(db, currentUser, `Downloaded ${reportPeriod} report`); saveDB(db);
   toast('Report downloaded.', 'ok');
 }
@@ -1724,31 +1641,50 @@ function downloadReportCSV() {
 function renderProfile() {
   const u = currentUser, initials = u.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
   document.getElementById('content').innerHTML = `
-    <div class="card" style="max-width:560px;">
-      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="pill pill-gold">${ROLES[u.role].label}</span></div></div>
-      <div class="card-pad">
+    <div class="card staff-profile-card">
+      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="pill pill-gold">${u.confidentialApprover ? "Head Admin" : ROLES[u.role].label}</span></div></div>
+      <div class="card-pad staff-profile-grid"><section class="staff-profile-details" aria-label="Profile details">
         <div class="field"><label>Full Name</label><input value="${escapeHtml(u.fullName)}" disabled></div>
         <div class="field"><label>Username</label><input value="${escapeHtml(u.username)}" disabled></div>
         <div class="field"><label>Email</label><input value="${escapeHtml(u.email || 'Not set — ask your Super Admin to add one')}" disabled></div>
         <div class="field-hint" style="margin-top:-8px; margin-bottom:14px;">Full name, username and email are managed by your Super Admin.</div>
-        <div class="divider"></div>
-        <div class="field-hint" style="margin-bottom:10px;">Enter a new password below.</div>
-        <div class="form-row"><div class="field"><label>New Password</label><input id="pfPass" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"></div><div class="field"><label>Confirm New Password</label><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"></div></div>
-        <button class="btn btn-primary btn-block" onclick="saveProfile()">Save Password</button>
-      </div></div>`;
+        </section><section class="staff-profile-password" aria-label="Change password">
+        <div class="field"><label>Current Password</label><div class="profile-password-input"><input id="pfCurrentPass" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfCurrentPass',this)">${profilePasswordEye(false)}</button></div></div>
+        <div class="form-row"><div class="field"><label>New Password</label><div class="profile-password-input"><input id="pfPass" aria-describedby="pfPasswordHint" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass',this)">${profilePasswordEye(false)}</button></div></div><div class="field"><label>Confirm New Password</label><div class="profile-password-input"><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass2',this)">${profilePasswordEye(false)}</button></div></div></div>
+        <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p><button class="btn btn-primary btn-block" onclick="saveProfile()">Save password</button>
+        <p class="field-hint" style="margin-top:10px; margin-bottom:0;">Enter your current password to save a new password.</p>
+      </section></div></div>`;
 }
-function saveProfile() {
+async function saveProfile() {
   const pass = document.getElementById('pfPass').value, pass2 = document.getElementById('pfPass2').value;
   if (!pass && !pass2) { toast('Enter a new password to save changes.', 'err'); return; }
-  if (pass.length < 4) { toast('Password should be at least 4 characters.', 'err'); return; }
+  if (pass.length < 12 || pass.length > 72 || !/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass) || !/[^A-Za-z0-9\s]/.test(pass)) { toast('At least 12 characters with uppercase and lowercase letters, a number, and a special character.', 'err'); return; }
   if (pass !== pass2) { toast('Passwords do not match.', 'err'); return; }
   const db = loadDB(), u2 = db.users.find(x => x.id === currentUser.id);
-  u2.password = pass;
+  try {
+    const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/password', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ username: currentUser.username, password: document.getElementById('pfCurrentPass').value, new_password: pass })
+    });
+    const result = await response.json();
+    if (!response.ok) { toast(escapeHtml(Object.values(result.errors||{}).flat().join(' ')||result.message||'Password update failed.'), 'err'); return; }
+    Object.assign(u2,result.user);saveSession({...loadSession(),token:result.token,currentUser:result.user});
+  } catch (_) { toast('Cannot reach the login service.', 'err'); return; }
+  delete u2.password;
   logActivity(db, currentUser, 'Changed own password');
-  saveDB(db); currentUser = u2; saveSession({ currentUser: u2 });
+  saveDB(db); currentUser = u2; saveSession({...loadSession(), currentUser: u2 });
   document.getElementById('pfPass').value = ''; document.getElementById('pfPass2').value = '';
+  document.getElementById('pfCurrentPass').value = '';
   toast('Password updated.', 'ok');
 }
 
 renderSidebar();
 navigate('dashboard');
+
+
+UniServeUX.install();
+function toggleIntakeTime() {
+  const scheduled = document.getElementById('intakeMode').value === 'scheduled';
+  document.getElementById('intakeTimeField').hidden = !scheduled;
+  document.getElementById('intakeTime').required = scheduled;
+}

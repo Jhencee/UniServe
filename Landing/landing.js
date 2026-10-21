@@ -1,7 +1,4 @@
 const DB_KEY = 'ossuniserve_db_v1';
-const OFFICE_OPEN_HOUR = 8;
-const OFFICE_CLOSE_HOUR = 17;
-const OFFICE_HOURS_LABEL = '8:00 AM &ndash; 5:00 PM';
 const QUEUE_AVG_MINUTES = 4;
 const DEFAULT_GRACE_MINUTES = 15;
 const DEFAULT_NOSHOW_MINUTES = 60;
@@ -48,12 +45,12 @@ function escapeHtml(s) {
 }
 function fmtWaitDuration(mins) {
   if (!mins || mins <= 0) return 'No wait';
-  if (mins < 1) { const s = Math.max(1, Math.round(mins * 60)); return `${s} sec${s === 1 ? '' : 's'}`; }
-  if (mins < 60) { const m = Math.round(mins); return `${m} min${m === 1 ? '' : 's'}`; }
+  if (mins < 1) { const s = Math.max(1, Math.round(mins * 60)); return `${s} second${s === 1 ? '' : 's'}`; }
+  if (mins < 60) { const m = Math.round(mins); return `${m} minute${m === 1 ? '' : 's'}`; }
   const h = Math.max(1, Math.round(mins / 60));
-  return `${h} hr${h === 1 ? '' : 's'}`;
+  return `${h} hour${h === 1 ? '' : 's'}`;
 }
-function isOfficeHours(d = new Date()) { const h = d.getHours(); return h >= OFFICE_OPEN_HOUR && h < OFFICE_CLOSE_HOUR; }
+function isOfficeHours(d = new Date()) { return OfficeCalendar.status(d).open; }
 
 const VISIT_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 function randomVisitSuffix(len) {
@@ -62,11 +59,11 @@ function randomVisitSuffix(len) {
   return Array.from(buf, b => VISIT_ID_CHARS[b % VISIT_ID_CHARS.length]).join('');
 }
 function visitIdExists(db, id) {
-  return ['appointments', 'queues', 'transactions', 'visitorLog', 'chats'].some(k => (db[k] || []).some(x => x.visitId === id));
+  return ['appointments', 'queues', 'transactions', 'visitorLog', 'chats'].some(k => (db[k] || []).some(x => String(x.visitId || '').replace(/-/g, '') === String(id).replace(/-/g, '')));
 }
 function nextVisitId(db) {
   let id;
-  do { const s = randomVisitSuffix(8); id = `VIS-${s.slice(0, 4)}-${s.slice(4)}`; } while (visitIdExists(db, id));
+  do { const s = randomVisitSuffix(8); id = `VIS-${s}`; } while (visitIdExists(db, id));
   return id;
 }
 const LEGACY_VISIT_ID = /^VIS-\d+$/;
@@ -105,9 +102,7 @@ function migrateConfidentialAccess(db) {
 function freshState() {
   return {
     users: [
-      { id: 'u1', username: 'admin', password: 'admin123', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
-      { id: 'u2', username: 'oss.admin', password: '1234', fullName: 'Maria Santos', role: 'ADMIN', active: true, email: 'maria.santos@oss.edu.ph', confidentialAccess: true },
-      { id: 'u3', username: 'oss.admin2', password: '1234', fullName: 'Dr. Ramon Cruz', role: 'ADMIN', active: true, email: 'ramon.cruz@oss.edu.ph', confidentialAccess: false },
+      { id: 'u1', username: 'admin', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
     ],
     services: DEFAULT_SERVICES.map(s => ({ ...s, requirements: [...s.requirements] })),
     transactions: [], appointments: [], chats: [],
@@ -191,6 +186,7 @@ function logActivity(db, user, action, extra) {
   e.changes = (extra && extra.changes) || [];
   sealEntry(e, (db.activityLog[0] && db.activityLog[0].hash) || '');
   db.activityLog.unshift(e);
+  if (typeof UniServeUX !== 'undefined') UniServeUX.auditRecord(e);
   db.auditHead = { hash: e.hash };
   if (db.activityLog.length > AUDIT_MAX_ENTRIES) db.activityLog.length = AUDIT_MAX_ENTRIES;
 }
@@ -198,10 +194,10 @@ function logActivity(db, user, action, extra) {
 function queueRef(q) { return q.number || q.visitId; }
 function isDue(q, now = new Date()) { return q.source !== 'Appointment' || !q.scheduledAt || new Date(q.scheduledAt) <= now; }
 function queueRank(q, now) {
-  if (q.source === 'Appointment') return isDue(q, now) ? (q.isSenior ? -1 : 1) : 3;
-  return q.isSenior ? -1 : 2;
+  if (q.source === 'Appointment') return isDue(q, now) ? ((q.isSenior || q.isPWD) ? -1 : 1) : 3;
+  return (q.isSenior || q.isPWD) ? -1 : 2;
 }
-function queueSortKey(q) { return new Date(q.source === 'Appointment' && q.scheduledAt ? q.scheduledAt : (q.checkedInAt || q.createdAt)); }
+function queueSortKey(q) { return new Date(q.queueEnteredAt || (q.source === 'Appointment' && q.scheduledAt ? q.scheduledAt : (q.checkedInAt || q.createdAt))); }
 function waitingQueueSorted(db) {
   const now = new Date();
   return db.queues.filter(q => q.status === 'Waiting').sort((a, b) => queueRank(a, now) - queueRank(b, now) || queueSortKey(a) - queueSortKey(b));
@@ -209,23 +205,9 @@ function waitingQueueSorted(db) {
 function servingQueueEntries(db) {
   return db.queues.filter(q => q.status === 'Serving' || q.status === 'Called').sort((a, b) => new Date(a.calledAt || 0) - new Date(b.calledAt || 0));
 }
-function visitStart(q) {
-  const arrived = new Date(q.checkedInAt || q.createdAt);
-  return q.source === 'Appointment' && q.scheduledAt && new Date(q.scheduledAt) > arrived ? new Date(q.scheduledAt) : arrived;
-}
-function overallAvgMinutes(db) {
-  const done = db.queues.filter(q => q.status === 'Completed' && q.servingAt && (q.checkedInAt || q.createdAt));
-  if (!done.length) return QUEUE_AVG_MINUTES;
-  const total = done.reduce((s, q) => s + Math.max(1, (new Date(q.servingAt) - visitStart(q)) / 60000), 0);
-  return Math.max(1, Math.round(total / done.length));
-}
+
 function findService(db, key) { return db.services.find(x => x.key === key) || db.services.find(x => x.label === key); }
 function serviceLabel(db, key) { const s = db.services.find(x => x.key === key); return s ? s.label : key; }
-function serviceQueueLabel(db, e) { return e.serviceLabel || (e.serviceKey ? serviceLabel(db, e.serviceKey) : 'General Concern'); }
-function isConfidentialQueue(db, q) {
-  const svc = findService(db, q.serviceKey || q.serviceLabel);
-  return !!svc && CONFIDENTIAL_SERVICES.includes(svc.key);
-}
 
 function icon(name, size = 17) {
   const p = {
@@ -289,6 +271,7 @@ if (sessionNotice) { sessionStorage.removeItem('ossuniserve_notice'); toast(esca
   const sess = loadSession();
   const sid = sess && sess.currentUser && sess.currentUser.id;
   if (!sid) return;
+  if (!sess.token) { sessionStorage.removeItem('ossuniserve_session'); return; }
   let user = null;
   try { user = loadDB().users.find(u => u.id === sid); } catch (e) { user = null; }
   if (!user || !user.active) { sessionStorage.removeItem('ossuniserve_session'); return; }
@@ -298,19 +281,15 @@ if (sessionNotice) { sessionStorage.removeItem('ossuniserve_notice'); toast(esca
 })();
 
 function applyPortalAvailability() {
+  const schedule = document.getElementById('contactOfficeHours'); if (schedule) schedule.innerHTML = contactHoursHtml();
   const db = loadDB(), maint = !!db.systemSettings.maintenanceMode, open = isOfficeHours();
   const maintBanner = document.getElementById('maintBanner'), hoursBanner = document.getElementById('hoursBanner');
   if (maintBanner) maintBanner.hidden = !maint;
-  if (hoursBanner) hoursBanner.hidden = open || maint;
+  if (hoursBanner) { hoursBanner.hidden = open || maint; hoursBanner.textContent = OfficeCalendar.status().message + (OfficeCalendar.status().lunch ? '' : '. Next opening: ' + OfficeCalendar.status().nextLabel); }
   document.querySelectorAll('a[href*="user.html"]').forEach(a => {
-    const isStart = a.href.includes('flow=visit');
-    const blocked = !open || (maint && isStart);
-    a.classList.toggle('is-disabled', blocked);
-    if (blocked) a.setAttribute('aria-disabled', 'true'); else a.removeAttribute('aria-disabled');
-    a.onclick = blocked ? (e => {
-      e.preventDefault();
-      toast(!open ? `The visitor portal is open ${OFFICE_HOURS_LABEL} only.` : 'The visitor portal is closed for maintenance right now.', 'err');
-    }) : null;
+    a.classList.remove('is-disabled');
+    a.removeAttribute('aria-disabled');
+    a.onclick = null;
   });
 }
 
@@ -325,6 +304,7 @@ function showScreen(id) {
 function showLanding() { showScreen('landing'); }
 function showLogin() {
   showScreen('loginScreen');
+  LoginTurnstile.init();
   document.getElementById('loginErr').hidden = true;
   const savedUser = localStorage.getItem('ossuniserve_remember_user');
   document.getElementById('loginUser').value = savedUser || '';
@@ -342,37 +322,62 @@ function togglePasswordVisibility(inputId, btn) {
   btn.innerHTML = icon(isHidden ? 'eyeoff' : 'eye', 17);
   btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
 }
-function doLogin() {
+let loginPending = false;
+async function doLogin() {
+  if (loginPending) return;
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   const remember = document.getElementById('loginRemember')?.checked;
   const errBox = document.getElementById('loginErr');
   const db = loadDB();
   const uLower = u.toLowerCase();
-  const user = db.users.find(x => (x.username.toLowerCase() === uLower || (x.email && x.email.toLowerCase() === uLower)) && x.password === p);
-  if (!user) { errBox.textContent = 'Invalid username/email or password.'; errBox.hidden = false; return; }
-  if (!user.active) { errBox.textContent = 'This account has been deactivated.'; errBox.hidden = false; return; }
+  errBox.hidden = true;
+  if (!u || !p) { errBox.textContent = 'Enter your username/email and password.'; errBox.hidden = false; return; }
+  let user, token;
+  loginPending = true;
+  const signIn = document.querySelector('button[onclick="doLogin()"]');
+  if (signIn) { signIn.disabled = true; signIn.textContent = 'Signing in...'; }
+  try {
+    const turnstileToken=await LoginTurnstile.getToken();
+    const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ username: u, password: p,turnstileToken })
+    });
+    const result = await response.json();
+    if(response.status===429)throw new Error('Too many sign-in attempts. Please wait '+(response.headers.get('Retry-After')||60)+' seconds, then try again.');
+    if (!response.ok) throw new Error(response.status >= 500 ? 'The login service is unavailable. Check MySQL and the backend server.' : result.message || 'Login failed.');
+    user = result.user;
+    token = result.token;
+    if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role) || !token) throw new Error('Invalid login response.');
+    const index = db.users.findIndex(x => x.id === user.id);
+    if (index >= 0) db.users[index] = user;
+    else db.users.push(user);
+  } catch (error) {
+    errBox.textContent = error instanceof TypeError || error instanceof SyntaxError ? 'Cannot reach the login service. Start MySQL in XAMPP and run php artisan serve in backend.' : error.message;
+    errBox.hidden = false;
+    return;
+  } finally {
+    loginPending = false;
+    LoginTurnstile.reset();
+    if (signIn) { signIn.disabled = false; signIn.textContent = 'Sign In'; }
+  }
   if (remember) localStorage.setItem('ossuniserve_remember_user', u);
   else localStorage.removeItem('ossuniserve_remember_user');
   logActivity(db, user, 'Logged in', { category: 'Authentication' });
   saveDB(db);
-  saveSession({ currentUser: user });
+  saveSession({ currentUser: user, token });
   location.href = user.role === 'SUPER_ADMIN' ? '../Super Admin/superadmin.html' : '../Admin/admin.html';
 }
 ['loginUser', 'loginPass'].forEach(id => {
   document.getElementById(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 });
 
-function mailtoForPasswordReset(user, tempPassword) {
-  const subject = 'Your OSS UniServe password has been reset';
-  const body = `Hi ${user.fullName},\n\nA password reset was requested for your OSS UniServe account.\n\nUsername: ${user.username}\nTemporary Password: ${tempPassword}\n\nPlease sign in with this temporary password, then set a new one right away from My Profile.\n\nIf you didn't request this, contact your Super Admin.\n\n— Office of Student Services`;
-  return `mailto:${encodeURIComponent(user.email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-}
+
 function showForgotPassword() {
   openModal('Forgot Password', `
     <div class="fp-hero">
       <span class="fp-ic">${icon('mail', 26)}</span>
-      <p>Enter the email registered to your staff account. We'll prepare a temporary password for you.</p>
+      <p>Enter your staff account email. We will send a code to reset your password.</p>
     </div>
     <div id="fpErr" class="err-box" hidden></div>
     <div class="field" style="margin-bottom:0;">
@@ -381,41 +386,26 @@ function showForgotPassword() {
     </div>
     <div id="fpResult" hidden></div>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
-    { label: 'Send Reset', cls: 'btn-primary', action: submitForgotPassword },
+    { label: 'Send code', cls: 'btn-primary', action: submitForgotPassword },
   ]);
   setTimeout(() => {
     const input = document.getElementById('fpEmail');
-    if (input) { input.focus(); input.addEventListener('keydown', e => { if (e.key === 'Enter') submitForgotPassword(); }); }
+    if (input) { input.focus(); input.addEventListener('keydown', e => { if (e.key === 'Enter') submitForgotPassword(); }); const bind=()=>window.CodeCooldown?.bind(document.getElementById('modalBtn1'),'staff:'+input.value.trim(),'Send code');input.addEventListener('input',bind);bind(); }
   }, 50);
 }
-function submitForgotPassword() {
-  const email = document.getElementById('fpEmail').value.trim();
-  const errBox = document.getElementById('fpErr');
-  const resultBox = document.getElementById('fpResult');
-  errBox.hidden = true;
-  if (!email) { errBox.textContent = 'Please enter your email.'; errBox.hidden = false; return; }
-  const db = loadDB();
-  const user = db.users.find(x => x.email && x.email.toLowerCase() === email.toLowerCase());
-  if (!user) { errBox.textContent = 'No staff account found with that email. Ask your Super Admin to check the address on file.'; errBox.hidden = false; return; }
-  if (!user.active) { errBox.textContent = 'This account has been deactivated. Contact your Super Admin.'; errBox.hidden = false; return; }
-  const tempPassword = genTempPassword();
-  user.password = tempPassword;
-  logActivity(db, user, 'Password reset (forgot password)', { category: 'Accounts', target: user.username });
-  saveDB(db);
-  const resetLink = mailtoForPasswordReset(user, tempPassword);
-  resultBox.hidden = false;
-  resultBox.innerHTML = `
-    <div class="reset-pass-box">
-      ${icon('check', 16)}
-      <div>A temporary password for <b>${escapeHtml(user.username)}</b> has been prepared for <b>${escapeHtml(user.email)}</b>. If your email app didn't open, <a href="${resetLink}" target="_blank">click here to open it</a>, then sign in with the temporary password.</div>
-    </div>`;
-  document.getElementById('fpEmail').setAttribute('disabled', 'true');
-  window.open(resetLink, '_blank');
-  const modal = document.getElementById('activeModal');
-  if (modal) {
-    modal.querySelector('.modal-foot').innerHTML = `<button class="btn btn-primary btn-sm" id="fpDoneBtn">Done</button>`;
-    document.getElementById('fpDoneBtn').onclick = () => { closeModal(); showLogin(); toast('Password reset email prepared.', 'ok'); };
-  }
+let staffResetBusy=false;
+async function staffResetRequest(path,data){const response=await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+path,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify(data),signal:AbortSignal.timeout(15000)});const result=await response.json();if(!response.ok)throw Error(Object.values(result.errors||{}).flat().join(' ')||result.message||'Please try again.');return result;}
+async function submitForgotPassword() {
+ if(staffResetBusy)return;const input=document.getElementById('fpEmail'),err=document.getElementById('fpErr');
+ if(!input.value.trim()||!input.checkValidity()){err.textContent='Enter your staff account email.';err.hidden=false;return;}
+ const email=input.value.trim(),key='staff:'+email,button=document.getElementById('modalBtn1');
+ if(window.CodeCooldown?.remaining(key)){window.CodeCooldown.bind(button,key,'Send code');return;}
+ window.CodeCooldown?.unbind(button);
+ staffResetBusy=true;err.hidden=true;button.disabled=true;button.textContent='Sending…';
+ try{const result=await staffResetRequest('/password/reset-code',{email});window.CodeCooldown?.start(key);showStaffResetForm(result.challengeId,result.message);const resend=document.createElement('button');resend.type='button';resend.className='btn btn-ghost btn-sm';resend.onclick=()=>{if(!window.CodeCooldown?.remaining(key)){showForgotPassword();document.getElementById('fpEmail').value=email;submitForgotPassword();}};document.querySelector('.staff-reset-form').appendChild(resend);window.CodeCooldown?.bind(resend,key);}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;if(button.isConnected){button.disabled=false;button.textContent='Send code';}}
+}
+function showStaffResetForm(challengeId,message){
+ openModal('Reset password',`<div class="staff-reset-form"><p class="field-hint">${escapeHtml(message)}</p><div id="fpErr" class="err-box" hidden></div><div class="field"><label for="fpCode">Verification code</label><input id="fpCode" class="verification-code-input" oninput="this.value=this.value.replace(/[^0-9]/g,'')" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div><div class="field"><label for="fpPass">New password</label><div class="profile-password-input"><input id="fpPass" type="password" autocomplete="new-password" aria-describedby="fpPasswordHint"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass',this)">${profilePasswordEye(false)}</button></div><p id="fpPasswordHint" class="field-hint" aria-live="polite">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p></div><div class="field"><label for="fpPass2">Confirm new password</label><div class="profile-password-input"><input id="fpPass2" type="password" autocomplete="new-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass2',this)">${profilePasswordEye(false)}</button></div></div></div>`,[{label:'Back',cls:'btn-ghost',action:showForgotPassword},{label:'Reset password',cls:'btn-primary',action:async()=>{if(staffResetBusy)return;const err=document.getElementById('fpErr');staffResetBusy=true;try{await staffResetRequest('/password/reset',{challengeId,code:document.getElementById('fpCode').value.trim(),password:document.getElementById('fpPass').value,password_confirmation:document.getElementById('fpPass2').value});closeModal();toast('Password updated. Sign in with your new password.','ok');}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;}}}]);
 }
 
 function openPublicDisplay() {
@@ -427,7 +417,14 @@ function openPublicDisplay() {
 function startPdPolling() {
   stopPdPolling();
   renderPublicDisplay();
-  pdTimer = setInterval(renderPublicDisplay, 3000);
+  let lastRefresh = Date.now();
+  pdTimer = setInterval(() => {
+    // Cutoff can change with the clock even when no queue event is broadcast.
+    if (!window.UniServeRealtime?.connected || Date.now() - lastRefresh >= 15000) {
+      lastRefresh = Date.now();
+      renderPublicDisplay();
+    }
+  }, 3000);
 }
 function stopPdPolling() { if (pdTimer) { clearInterval(pdTimer); pdTimer = null; } }
 document.addEventListener('visibilitychange', () => {
@@ -438,7 +435,7 @@ document.addEventListener('visibilitychange', () => {
 
 function togglePdVoice() {
   pdVoice = !pdVoice;
-  if (pdVoice && 'speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance('Voice announcements on'));
+  if (pdVoice && isOfficeHours() && !loadDB().systemSettings.maintenanceMode && 'speechSynthesis' in window) speechSynthesis.speak(new SpeechSynthesisUtterance('Voice announcements on'));
   renderPublicDisplay();
 }
 function spokenRef(q) {
@@ -446,13 +443,13 @@ function spokenRef(q) {
   return 'Visit I D ' + String(q.visitId || '').replace(/^VIS-/, '').replace(/-/g, '').split('').join(' ');
 }
 function speakCall(q) {
-  if (!pdVoice || !('speechSynthesis' in window)) return;
+  if (!pdVoice || !isOfficeHours() || loadDB().systemSettings.maintenanceMode || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(`${spokenRef(q)}, please proceed to ${q.assignedAdminName || 'the counter'}.`);
   u.rate = 0.9;
   speechSynthesis.speak(u);
 }
 function pdSourceTag(q) {
-  if (q.isSenior) return { cls: 'priority', txt: 'Priority' };
+  if (q.isSenior || q.isPWD) return { cls: 'priority', txt: 'Priority' };
   if (q.source === 'Appointment') return { cls: 'appt', txt: 'Appointment' };
   return { cls: 'walk', txt: 'Walk-in' };
 }
@@ -468,13 +465,18 @@ function renderPublicDisplay() {
   const callable = waitingAll.filter(q => isDue(q)).length;
   const waiting = waitingAll.slice(0, 6);
   const more = waitingAll.length - waiting.length;
-  const avg = overallAvgMinutes(db);
-  const open = isOfficeHours() && !db.systemSettings.maintenanceMode;
+  const availability = OfficeCalendar.status();
+  const maintenance = !!db.systemSettings.maintenanceMode;
+  const open = availability.open && !maintenance;
+  const intake = window.UniServeWalkInCapacity;
+  const intakeClosed = open && intake?.accepting === false;
+  const reopening = maintenance ? 'Awaiting maintenance completion' : availability.lunch ? OfficeCalendar.clock(OfficeCalendar.get().lunch.end) : availability.nextLabel;
+  if (!open && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 
-  if (pdCalledIds) called.filter(q => !pdCalledIds.has(q.id)).forEach(speakCall);
+  if (open && pdCalledIds) called.filter(q => !pdCalledIds.has(q.id)).forEach(speakCall);
   called.forEach(q => {
     const stamp = q.recalledAt ? new Date(q.recalledAt).getTime() : 0;
-    if (pdCalledIds && pdRecallStamps[q.id] !== undefined && pdRecallStamps[q.id] !== stamp) speakCall(q);
+    if (open && pdCalledIds && pdRecallStamps[q.id] !== undefined && pdRecallStamps[q.id] !== stamp) speakCall(q);
     pdRecallStamps[q.id] = stamp;
   });
   pdCalledIds = new Set(called.map(q => q.id));
@@ -483,28 +485,29 @@ function renderPublicDisplay() {
     <div class="qd-bar">
       <div class="qd-bar-item qd-state"><span class="qd-dot ${open ? 'open' : 'closed'}" aria-hidden="true"></span><b>${open ? 'Office open' : 'Office closed'}</b></div>
       <div class="qd-bar-item"><span class="qd-bar-lbl">Waiting</span><b>${waitingAll.length}</b></div>
-      <div class="qd-bar-item"><span class="qd-bar-lbl">Estimated wait</span><b>${callable ? fmtWaitDuration(callable * avg) : 'None'}</b></div>
+      <div class="qd-bar-item"><span class="qd-bar-lbl">${open ? 'Estimated wait' : availability.lunch ? 'Back at' : 'Reopens'}</span><b>${open ? (callable ? (Number.isFinite(intake?.waitEstimates?.[waitingAll[0]?.id]) ? fmtWaitDuration(intake.waitEstimates[waitingAll[0].id]) : 'Unavailable') : 'None') : escapeHtml(reopening)}</b></div>
       <div class="qd-bar-item qd-bar-end">
         <span class="qd-clock">${fmtTime(new Date())}</span>
-        <button class="qd-voice ${pdVoice ? 'on' : ''}" onclick="togglePdVoice()" aria-pressed="${pdVoice}">Voice announcements: ${pdVoice ? 'On' : 'Off'}</button>
+        <button class="qd-voice ${pdVoice ? 'on' : ''}" onclick="togglePdVoice()" aria-pressed="${pdVoice}" ${open ? '' : 'disabled'}>Voice announcements: ${open ? (pdVoice ? 'On' : 'Off') : 'Paused'}</button>
       </div>
     </div>
-    ${!open ? `<div class="qd-closed">The office is closed at the moment. Office hours are ${OFFICE_HOURS_LABEL}.</div>` : ''}
-    <section class="qd-call ${called.length ? 'active' : ''}" aria-live="assertive" aria-label="Now calling">
-      <h2 class="qd-label">Now calling</h2>
+    ${!open ? `<div class="qd-closed" role="status"><strong>${maintenance ? 'Closed for maintenance' : availability.lunch ? 'Lunch break' : 'Office closed'}</strong><span>${escapeHtml(maintenance ? 'Service is temporarily paused.' : availability.reason)}</span><b>${maintenance ? 'Reopening time will be announced.' : (availability.lunch ? 'Back at ' : 'Reopens ') + escapeHtml(reopening)}</b><small>Existing visits remain recorded. Service and call announcements are paused.</small></div>` : ''}
+    ${open ? `<div class="qd-closed" role="status"><strong>${intakeClosed ? 'Walk-in intake closed' : intake?.accepting === true ? 'Walk-ins available' : 'Walk-in intake status unavailable'}</strong><span>${intakeClosed ? 'Existing visits are still being served. New walk-ins are no longer accepted today.' : intake?.accepting === true ? (intake.override ? 'Additional walk-ins are allowed today by the Head Admin.' : 'Intake may close early when the queue reaches today’s service capacity.') : 'Check with the OSS counter before starting a walk-in.'}</span>${intake?.closedTime ? `<small>Intake closed at ${escapeHtml(intake.closedTime)}.</small>` : intake?.scheduledCutoff && intake.manualCutoffTime ? `<small>Scheduled walk-in cutoff: ${escapeHtml(intake.manualCutoffTime)}.</small>` : ''}${intake?.cutoff ? `<small>Normal walk-in cutoff: ${escapeHtml(intake.cutoff)}</small>` : ''}${intakeClosed ? '<small>You can still book an appointment or check in for your scheduled appointment.</small>' : ''}</div>` : ''}
+    <section class="qd-call ${open && called.length ? 'active' : ''}" aria-live="${open ? 'assertive' : 'off'}" aria-label="Now calling">
+      <h2 class="qd-label">${open ? 'Now calling' : 'Calling paused'}</h2>
       ${called.length ? `
         <div class="qd-call-list ${called.length > 1 ? 'multi' : ''}">
           ${called.map(q => `
             <div class="qd-call-card">
               <div class="qd-call-num${refClass(q)}">${escapeHtml(queueRef(q))}</div>
-              <div class="qd-call-go"><span>Please proceed to</span><b>${escapeHtml(q.assignedAdminName || 'the OSS counter')}</b></div>
+              <div class="qd-call-go"><span>${open ? 'Please proceed to' : 'Assigned counter � service paused'}</span><b>${escapeHtml(q.assignedAdminName || 'the OSS counter')}</b></div>
             </div>`).join('')}
         </div>`
-      : `<p class="qd-call-idle">No number is being called at the moment.<small>Your number will appear here when it is your turn.</small></p>`}
+      : `<p class="qd-call-idle">${open ? 'No number is being called at the moment.' : 'Service is paused.'}<small>${open ? 'Your number will appear here when it is your turn.' : 'Please wait until the office reopens.'}</small></p>`}
     </section>
     <div class="qd-cols">
       <section class="qd-panel" aria-label="Now serving">
-        <h2 class="qd-label">Now serving</h2>
+        <h2 class="qd-label">Now serving ${open ? '' : '<span class="qd-paused">Service paused</span>'}</h2>
         ${serving.length ? `
         <ul class="qd-serving">
           <li class="qd-head"><span>Counter</span><span>Number</span></li>
@@ -518,9 +521,9 @@ function renderPublicDisplay() {
           <li class="qd-head"><span>Order</span><span>Number</span><span>Type</span><span class="qd-eta">Estimated wait</span></li>
           ${waiting.map((q, i) => {
             const tag = pdSourceTag(q);
-            const eta = !isDue(q) ? `At ${fmtTime(q.scheduledAt)}` : (i === 0 ? 'Shortly' : fmtWaitDuration(i * avg));
-            return `<li class="${i === 0 ? 'first' : ''}">
-              <span class="qd-pos">${i === 0 ? 'Next' : i + 1}</span>
+            const eta = !open ? 'Paused' : !isDue(q) ? `At ${fmtTime(q.scheduledAt)}` : (Number.isFinite(intake?.waitEstimates?.[q.id]) ? (intake.waitEstimates[q.id] === 0 ? 'Shortly' : fmtWaitDuration(intake.waitEstimates[q.id])) : 'Unavailable');
+            return `<li class="${open && i === 0 ? 'first' : ''}">
+              <span class="qd-pos">${open && i === 0 ? 'Next' : i + 1}</span>
               <span class="qd-next-num${refClass(q)}">${escapeHtml(queueRef(q))}</span>
               <span class="qd-tag ${tag.cls}">${tag.txt}</span>
               <span class="qd-eta">${eta}</span>
@@ -528,7 +531,7 @@ function renderPublicDisplay() {
           }).join('')}
         </ol>
         ${more > 0 ? `<p class="qd-more">and ${more} more waiting</p>` : ''}`
-        : `<p class="qd-empty">No one is waiting. You may proceed to the counter.</p>`}
+        : `<p class="qd-empty">${open ? (intakeClosed ? 'No one is waiting. Walk-in intake is closed for today.' : intake?.accepting === true ? 'No one is waiting. You may proceed to the counter.' : 'No one is waiting. Check walk-in availability with the OSS counter.') : 'No visits are waiting. New visits resume when the office opens.'}</p>`}
       </section>
     </div>
     <aside class="qd-help" aria-label="How to use this board">
@@ -538,11 +541,11 @@ function renderPublicDisplay() {
         <li><span class="qd-step-n">3</span><p>Proceed to the counter shown beside it.</p></li>
       </ol>
       <ul class="qd-legend">
-        <li><b>Priority</b><span>Senior citizens are served first.</span></li>
+        <li><b>Priority</b><span>Senior citizens and persons with disabilities receive priority service.</span></li>
         <li><b>Appointment</b><span>Called when the scheduled time arrives, before walk-ins.</span></li>
         <li><b>Walk-in</b><span>First come, first served.</span></li>
       </ul>
-      <p class="qd-foot">Lost your pass? Open <b>Check My Visit</b> on your phone.</p>
+      <p class="qd-foot">${open ? 'Lost your pass? Open <b>Check My Visit</b> on your phone.' : 'Start Visit and Check My Visit resume when the office reopens.'}</p>
     </aside>`;
 }
 
@@ -554,11 +557,12 @@ function renderOfficeStatus() {
   const open = isOfficeHours() && !maint;
   const waitingAll = waitingQueueSorted(db);
   const callable = waitingAll.filter(q => isDue(q)).length;
-  const waitTxt = callable === 0 ? 'No wait' : fmtWaitDuration(callable * overallAvgMinutes(db));
+  const estimate = window.UniServeWalkInCapacity?.waitEstimates?.[waitingAll[0]?.id];
+  const waitTxt = callable === 0 ? 'No wait' : Number.isFinite(estimate) ? fmtWaitDuration(estimate) : 'Unavailable';
   const serving = servingQueueEntries(db);
   const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : '—';
-  const title = maint ? 'Closed for maintenance' : (open ? 'Open now' : 'Closed');
-  const sub = maint ? 'The visitor portal is temporarily unavailable' : `Office hours ${OFFICE_HOURS_LABEL}`;
+  const title = maint ? 'Closed for maintenance' : (open ? 'Open now' : escapeHtml(OfficeCalendar.status().message));
+  const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? 'Office hours follow the calendar' : escapeHtml(OfficeCalendar.status().lunch ? OfficeCalendar.status().message : 'Next opening: ' + OfficeCalendar.status().nextLabel));
   el.innerHTML = `
     <div class="status-cell status-main">
       <span class="status-dot ${open ? 'open' : 'closed'}" aria-hidden="true"></span>
@@ -595,24 +599,20 @@ function renderServicesPreview() {
 }
 
 const STARS = n => '&#9733;'.repeat(n) + '&#9734;'.repeat(5 - n);
+let landingFeedbackSummary=null,landingFeedbackLoading=false,landingFeedbackFetchedAt=0;
+async function refreshLandingFeedback(){
+ if(landingFeedbackLoading||Date.now()-landingFeedbackFetchedAt<30000)return;landingFeedbackLoading=true;
+ try{const response=await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/public-feedback',{headers:{Accept:"application/json"},signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error("Unavailable");landingFeedbackSummary=await response.json();landingFeedbackFetchedAt=Date.now();renderFeedbackSection();}
+ catch(_){const el=document.getElementById("feedbackBody");if(el&&!landingFeedbackSummary)el.innerHTML='<div class="fb-empty">Feedback is temporarily unavailable.</div>';}
+ finally{landingFeedbackLoading=false;}
+}
 function renderFeedbackSection() {
   const el = document.getElementById('feedbackBody');
   if (!el) return;
-  const db = loadDB();
-  const rows = db.queues.filter(q => q.feedback && q.feedback.rating);
-  if (!rows.length) {
-    el.innerHTML = `<div class="fb-empty">No feedback yet. Ratings from completed visits will appear here.</div>`;
-    return;
-  }
-  const n = rows.length;
-  const avg = rows.reduce((s, q) => s + q.feedback.rating, 0) / n;
-  const satisfied = Math.round(rows.filter(q => q.feedback.rating >= 4).length / n * 100);
-  const dist = [5, 4, 3, 2, 1].map(s => ({ s, count: rows.filter(q => q.feedback.rating === s).length }));
-  const when = q => new Date((q.feedback && q.feedback.submittedAt) || q.completedAt || 0);
-  const comments = rows
-    .filter(q => q.feedback.comment && !isConfidentialQueue(db, q))
-    .sort((a, b) => when(b) - when(a))
-    .slice(0, 6);
+  if(!landingFeedbackSummary){el.innerHTML='<div class="fb-empty">Loading feedback...</div>';refreshLandingFeedback();return;}
+  const n=landingFeedbackSummary.total;
+  if(!n){el.innerHTML='<div class="fb-empty">No feedback yet. Ratings from completed visits will appear here.</div>';return;}
+  const avg=landingFeedbackSummary.average,satisfied=landingFeedbackSummary.satisfied,dist=landingFeedbackSummary.distribution;
   el.innerHTML = `
     <div class="fb-wrap">
       <div class="fb-top">
@@ -625,12 +625,7 @@ function renderFeedbackSection() {
           <div class="fb-bar-row"><span class="fb-bar-lbl">${d.s} &#9733;</span><span class="fb-bar-track"><span class="fb-bar-fill" style="width:${Math.round(d.count / n * 100)}%"></span></span><span class="fb-bar-n">${d.count}</span></div>`).join('')}
         </div>
       </div>
-      ${comments.length ? `<ul class="fb-comments">${comments.map(q => `
-        <li class="fb-entry">
-          <span class="fb-entry-stars" aria-label="${q.feedback.rating} out of 5 stars">${STARS(q.feedback.rating)}</span>
-          <span class="fb-entry-text" title="${escapeHtml(q.feedback.comment)}">${escapeHtml(q.feedback.comment)}</span>
-          <span class="fb-entry-meta">${escapeHtml(serviceQueueLabel(db, q))} &middot; ${fmtDate(when(q))}</span>
-        </li>`).join('')}</ul>` : ''}
+
     </div>`;
 }
 
@@ -650,6 +645,7 @@ function renderLandingLive() {
   applyPortalAvailability();
   renderOfficeStatus();
   renderServicesPreview();
+  refreshLandingFeedback();
   renderFeedbackSection();
   renderLandingInfo();
 }
@@ -719,4 +715,34 @@ window.addEventListener('storage', e => { if (e.key === DB_KEY) renderLandingLiv
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('resize', onScroll);
   updateActive();
+})();
+
+window.addEventListener('office-calendar-change', () => { applyPortalAvailability(); renderOfficeStatus(); if (!document.getElementById('publicDisplay').hidden) renderPublicDisplay(); });
+
+function contactHoursHtml() {
+  const cfg = OfficeCalendar.get(), names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], groups = [];
+  for (const i of [1,2,3,4,5,6,0]) {
+    const day = cfg.weekly[i], key = day.open ? day.start + '-' + day.end : 'closed';
+    const last = groups[groups.length - 1];
+    if (last && last.key === key) last.days.push(names[i]);
+    else groups.push({key,days:[names[i]],day});
+  }
+  const rows = groups.map(g => {
+    const label = g.days.length > 1 ? g.days[0] + '\u2013' + g.days[g.days.length-1] : g.days[0];
+    const hours = g.day.open ? OfficeCalendar.clock(g.day.start).replace(':00', '') + ' \u2013 ' + OfficeCalendar.clock(g.day.end).replace(':00', '') : 'Closed';
+    return '<div class="office-hours-row"><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(hours)+'</dd></div>';
+  });
+  if (cfg.lunch.enabled) rows.push('<div class="office-hours-row office-hours-lunch"><dt>Lunch</dt><dd>'+escapeHtml(OfficeCalendar.clock(cfg.lunch.start).replace(':00', '')+' \u2013 '+OfficeCalendar.clock(cfg.lunch.end).replace(':00', ''))+'</dd></div>');
+  return '<dl>'+rows.join('')+'</dl>';
+}
+
+UniServeUX.install();
+
+// Keep the mobile menu control inside the hero even when notices appear.
+(function(){
+ const button=document.getElementById('navToggle'),hero=document.querySelector('#landing .hero');
+ if(!button||!hero)return;
+ const originalParent=button.parentNode,originalNext=button.nextSibling,media=matchMedia('(max-width:600px)');
+ function place(){if(media.matches)hero.prepend(button);else originalParent.insertBefore(button,originalNext);}
+ media.addEventListener('change',place);place();
 })();

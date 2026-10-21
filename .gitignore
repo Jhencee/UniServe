@@ -1,0 +1,4 @@
+# Local recovery copies and editor state
+/mysql-repair-backup-*/
+/.vscode/
+/.aws/
