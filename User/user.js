@@ -838,7 +838,7 @@ function renderVisitWalkinForm() {
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
     ${selectedBarHtml('ticket', 'Walk in today', svc)}
-    <div class="card card-pad visitor-page-wrap" onkeydown="uxEnter(event,'confirmWalkInPrompt')"><div class="chat-contact-head"><h3>Your details</h3><p>Complete your information, then review it before getting your queue number.</p></div>
+    <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmWalkInPrompt')"><div class="chat-contact-head"><h3>Your details</h3><p>Complete your information, then review it before getting your queue number.</p></div>
       <fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('q', isStudent)}
       ${disabilityPriorityHtml('q')}</fieldset>
       <fieldset class="visitor-form-section"><legend>Contact details</legend>
@@ -911,7 +911,7 @@ function renderVisitScheduleForm() {
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
     ${selectedBarHtml('calendar', 'Request an appointment', svc)}
-    <div class="card card-pad visitor-page-wrap" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose your preferred date and available time. Staff will approve or reschedule your request.</p></div>
+    <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose your preferred date and available time. Staff will approve or reschedule your request.</p></div>
       <fieldset class="visitor-form-section"><legend>Schedule</legend><input id="bkOffice" type="hidden" value="">
       <div class="form-row"><div class="field"><label for="bkDate">Preferred date *</label><input id="bkDate" type="date" min="${OfficeCalendar.parts().date}" onchange="refreshBookingSlots()" required></div><div class="field"><label for="bkTime">Available time slot *</label><select id="bkTime" required disabled><option value="">Choose a date first</option></select></div></div><p id="bkSlotStatus" class="field-hint" role="status" aria-live="polite"></p>
       </fieldset><fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('bk', isStudent)}
@@ -923,7 +923,6 @@ function renderVisitScheduleForm() {
       </div>
       </fieldset><fieldset class="visitor-form-section"><legend>Supporting documents <span class="opt">(optional)</span></legend>
       <div class="field">
-        <label for="bkFiles">Upload supporting documents <span class="opt">(optional, PDF or image)</span></label>
         ${templatesBoxHtml(svc)}
         ${reqs.length ? `<ul class="visitor-requirements">${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
         <label class="dropzone" for="bkFiles" ondragover="event.preventDefault(); this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="uxDropFiles(event)">

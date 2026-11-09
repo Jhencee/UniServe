@@ -20,7 +20,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261109-compact-login">
+    <link rel="stylesheet" href="landing.css?v=20261109-matched-header-spacing">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css">
@@ -37,7 +37,7 @@
                 <span class="crest" id="crestSlotA"><img src="pup.jpg" alt="PUP Sta. Maria"></span>
                 <span class="name">
                     <span class="brand-title">UniServe</span>
-                    <small>Office of Student Services &middot; PUP Santa Maria Campus</small>
+                    <small>Office of Student Services<span class="brand-separator"> &middot; </span><span class="brand-campus">PUP Santa Maria Campus</span></small>
                 </span>
             </div>
             <button class="nav-menu-btn" id="navToggle" type="button" onclick="toggleNav()" aria-label="Open menu"
@@ -49,7 +49,7 @@
                 <a href="#faq" class="nav-link">FAQ</a>
                 <a href="#contact" class="nav-link">Contact</a>
                 <button class="nav-link nav-link-btn nav-link-live" type="button" onclick="openPublicDisplay()">
-                    <span class="live-dot" aria-hidden="true"></span>Queue
+                    Queue
                 </button>
                 <button class="nav-link nav-link-btn" type="button" onclick="showLogin()">Staff login</button>
                 <span class="nav-sep" aria-hidden="true"></span>

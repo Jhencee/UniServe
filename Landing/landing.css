@@ -535,6 +535,24 @@ section[id] {
     margin-top: 3px;
 }
 
+.landing-nav .brandline .name {
+    justify-content: center;
+    gap: 2px;
+}
+
+.landing-nav .brandline .name .brand-title {
+    display: block;
+    margin: 0;
+    padding: 0;
+    line-height: 1.1;
+}
+
+.landing-nav .brandline .name small {
+    margin: 0;
+    padding: 0;
+    line-height: 1.15;
+}
+
 .nav-actions {
     display: flex;
     gap: 2px;
@@ -2778,13 +2796,13 @@ button.forgot-link { display:inline-flex; align-items:center; min-height:36px; m
 }
 
 @media screen and (max-width:600px) {
- .landing-nav { display:grid; grid-template-columns:minmax(0,1fr) 40px; gap:12px; padding:12px 20px; align-items:center; }
- .landing-nav .brandline { min-width:0; gap:10px; }
- .landing-nav .crest { width:40px; height:40px; flex-shrink:0; }
- .landing-nav .crest img { width:100%; height:100%; object-fit:contain; }
- .landing-nav .name { min-width:0; }
- .landing-nav .brand-title { font-size:1.35rem; }
- .landing-nav .name small { font-size:.68rem; line-height:1.35; }
+ .landing-nav { display:grid; grid-template-columns:minmax(0,1fr) 40px; gap:8px; padding:6px 12px; align-items:center; }
+ .landing-nav .brandline { min-width:0; gap:4px; }
+ .landing-nav .crest { width:30px; height:30px; flex-shrink:0; }
+ .landing-nav #crestSlotA img { width:30px; height:30px; object-fit:contain; }
+ .landing-nav .brandline .name { min-width:0; gap:1px; }
+ .landing-nav .brandline .name .brand-title { font-size:1.05rem; }
+ .landing-nav .name small { font-size:clamp(.45rem,2vw,.6rem); line-height:1.15; margin-top:0; white-space:nowrap; }
  .landing-nav .nav-menu-btn { width:40px; height:40px; margin:0; justify-self:end; }
  .landing-nav .nav-actions { grid-column:1 / -1; min-width:0; }
 }
