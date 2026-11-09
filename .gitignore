@@ -2,3 +2,4 @@
 /mysql-repair-backup-*/
 /.vscode/
 /.aws/
+/frontend-dist/
