@@ -553,6 +553,11 @@ section[id] {
     line-height: 1.15;
 }
 
+/* Service cards fit the available column, including narrow phones. */
+#landing .svc-preview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
 .nav-actions {
     display: flex;
     gap: 2px;
@@ -1708,7 +1713,7 @@ a.is-disabled:hover {
     }
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 960px) {
     .nav-menu-btn {
         display: inline-flex;
     }
@@ -2761,7 +2766,7 @@ html[data-theme="dark"] .qd-step-n {
   .qd-next-num, .qd-next li.first .qd-next-num { font-size:1.4rem; }
 }
 
-@media (max-width:1100px) {
+@media (max-width:960px) {
   html[data-theme="dark"] .landing-nav .nav-actions .nav-link-primary,
   html[data-theme="dark"] .landing-nav .nav-actions .nav-link-primary:hover {
     background:transparent;
@@ -3024,7 +3029,7 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
 
 html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border); }
 
-@media(max-width:1100px) {
+@media(max-width:960px) {
  .landing-nav > .nav-menu-btn { order:-1; margin-left:0; margin-right:8px; }
 }
 @media(max-width:600px) {
@@ -3034,3 +3039,22 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
 /* Center reset-code resend beneath the verification boxes. */
 .staff-reset-resend { display:flex; justify-content:center; margin:4px 0 0; }
 .staff-reset-resend .resend-text { min-height:36px; padding:6px 10px; }
+
+/* A phone's desktop-site viewport keeps the full desktop navigation. */
+@media screen and (min-width:961px) {
+ .landing-nav { flex-wrap:nowrap; }
+ .landing-nav .brandline, .landing-nav .nav-actions { flex-shrink:0; }
+ .landing-nav .nav-actions { flex-wrap:nowrap; }
+ .landing-nav .nav-link { white-space:nowrap; }
+}
+@media screen and (min-width:961px) and (max-width:1399px) {
+ .landing-nav { gap:12px; padding:12px 2vw; }
+ .landing-nav .brandline { gap:8px; }
+ .landing-nav #crestSlotA img { width:40px; height:40px; }
+ .landing-nav .brandline .name .brand-title { font-size:1.25rem; }
+ .landing-nav .brandline .name small { font-size:.62rem; }
+ .landing-nav .nav-actions { gap:0; }
+ .landing-nav .nav-link { padding:8px 4px; font-size:.7rem; }
+ .landing-nav .nav-link-primary { margin-left:4px; padding:9px 10px; }
+ .landing-nav .nav-sep { margin:0 4px; }
+}

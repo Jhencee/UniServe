@@ -109,3 +109,40 @@
 }
 /* Preserve the compact table menu button on mobile and desktop. */
 @media screen { .icon-btn.kebab-btn { width:32px; min-width:32px; height:32px; min-height:32px; } }
+
+/* Let content shrink inside grids without hiding wide tables or long labels. */
+@media screen {
+  .app-shell > .main-col, .content > *, .form-row > *, .stat-grid > * { min-width:0; }
+  .table-wrap, .rpt-table-wrap { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+  .field input:not([type=checkbox]):not([type=radio]), .field select, .field textarea { max-width:100%; box-sizing:border-box; }
+  .overlay { box-sizing:border-box; padding:16px; padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+  body .modal { max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); }
+  .modal-body { min-height:0; overflow-y:auto; overscroll-behavior-y:contain; }
+  .modal-head > *, .modal-foot > * { min-width:0; }
+  .modal-head h2, .modal-head h3 { overflow-wrap:anywhere; }
+  .modal-foot { flex-wrap:wrap; }
+}
+@media screen and (max-width:880px) {
+  /* Header actions stay beside the title as tablets rotate or the page is zoomed. */
+  body .app-shell > .main-col > .topbar { height:auto; min-height:60px; max-height:none; flex-wrap:nowrap; padding-left:max(12px,env(safe-area-inset-left)); padding-right:max(12px,env(safe-area-inset-right)); }
+  body .app-shell > .main-col > .topbar > div:first-child { flex:1 1 auto; min-width:0; }
+  body .app-shell > .main-col > .topbar > .topbar-right { flex:0 0 auto; width:auto; flex-wrap:nowrap; }
+  .sidebar { padding-bottom:env(safe-area-inset-bottom); box-sizing:border-box; }
+  .content { padding-bottom:max(32px,env(safe-area-inset-bottom)); }
+}
+@media screen and (max-width:600px) {
+  body .form-row { grid-template-columns:minmax(0,1fr); }
+  body .card-head { flex-wrap:wrap; }
+  body .card-head > div:first-child { flex:1 1 180px; }
+  .card-head .btn { max-width:100%; white-space:normal; }
+  .settings-block, .profile-card, .svc-card { min-width:0; }
+  .field input[type=date], .field input[type=time] { min-width:0; width:100%; }
+}
+@media screen and (min-width:881px) and (max-width:1200px) {
+  .app-shell:not(.collapsed) .stat-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .app-shell:not(.collapsed) .chat-shell { grid-template-columns:minmax(200px,.8fr) minmax(0,1.2fr); }
+}
+@media screen and (max-height:500px) {
+  .overlay { align-items:flex-start; overflow-y:auto; }
+  .sidebar-brand { padding-top:10px; padding-bottom:10px; }
+}
