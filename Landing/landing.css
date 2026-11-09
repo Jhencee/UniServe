@@ -842,7 +842,7 @@ a.is-disabled:hover {
     gap: 4px;
 }
 
-.status-bar:has(.status-dot.closed) .status-cell:not(.status-main) {
+.status-bar[data-office-open="false"] .status-cell:not(.status-main) {
     opacity: .55;
 }
 

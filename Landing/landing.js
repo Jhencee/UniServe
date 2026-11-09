@@ -567,10 +567,10 @@ function renderOfficeStatus() {
   const serving = servingQueueEntries(db);
   const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : '—';
   const title = open ? 'Open now' : 'Closed';
+  el.dataset.officeOpen = String(open);
   const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? 'Office hours follow the calendar' : OfficeCalendar.status().lunch ? escapeHtml(OfficeCalendar.status().message) : 'Next opening: <span class="status-next-opening">' + escapeHtml(OfficeCalendar.status().nextLabel) + '</span>');
   el.innerHTML = `
     <div class="status-cell status-main">
-      <span class="status-dot ${open ? 'open' : 'closed'}" aria-hidden="true"></span>
       <div><div class="status-title">${title}</div><div class="status-sub">${sub}</div></div>
     </div>
     <div class="status-cell"><div class="status-num">${waitingAll.length}</div><div class="status-lbl">Waiting now</div></div>
