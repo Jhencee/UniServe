@@ -777,7 +777,7 @@ function renderVisitChoose() {
     <section class="visit-choose-page" aria-label="Choose how to visit">
     ${stepperHtml(2)}
     <div class="svc-selected-bar">
-      <div class="lbl">${icon(svc.icon || 'home', 16)} &nbsp;${escapeHtml(svc.label)}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; Selected service</small></div>
+      <div class="lbl">${escapeHtml(svc.label)}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; Selected service</small></div>
       <button class="btn btn-ghost btn-sm" onclick="uxGoStep(1)">Change service</button>
     </div>
     ${serviceNoticeHtml(svc)}${requirementsBoxHtml(svc)}${templatesBoxHtml(svc)}
