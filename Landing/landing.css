@@ -157,8 +157,8 @@ a {
 }
 
 #crestSlotPD img {
-    height: 56px;
-    width: 56px;
+    height: 52px;
+    width: 52px;
 }
 
 .btn {
@@ -2061,7 +2061,7 @@ a.is-disabled:hover {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 18px 0;
+    padding: 14px 0;
     border-bottom: 2px solid var(--maroon-800);
     margin-bottom: 28px;
 }
@@ -2071,16 +2071,19 @@ a.is-disabled:hover {
     font-weight: 700;
     font-size: 1.5rem;
     color: var(--accent-strong);
+    line-height: 1.1;
+    gap: 2px;
 }
 
 .pd-top .brandline .name small {
     font-family: var(--font-body);
-    font-weight: 600;
+    font-weight: 500;
     font-size: .78rem;
-    letter-spacing: .12em;
+    letter-spacing: .06em;
     text-transform: uppercase;
     color: var(--text-soft);
-    margin-top: 3px;
+    margin-top: 0;
+    line-height: 1.15;
 }
 
 .pd-content {
@@ -3039,6 +3042,21 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
 /* Center reset-code resend beneath the verification boxes. */
 .staff-reset-resend { display:flex; justify-content:center; margin:4px 0 0; }
 .staff-reset-resend .resend-text { min-height:36px; padding:6px 10px; }
+
+@media screen and (max-width:600px) {
+ #publicDisplay .pd-top { flex-wrap:nowrap; gap:8px; padding:6px 0; }
+ #publicDisplay .pd-top .brandline { gap:4px; }
+ #publicDisplay #crestSlotPD img { width:30px; height:30px; }
+ #publicDisplay .pd-top .brandline .name { font-size:1.05rem; gap:1px; }
+ #publicDisplay .pd-top .brandline .name small { font-size:.6rem; }
+ #publicDisplay .pd-top > .btn { font-size:.72rem; padding:8px 10px; white-space:nowrap; flex-shrink:0; }
+}
+@media screen and (min-width:961px) and (max-width:1399px) {
+ #publicDisplay #crestSlotPD img { width:40px; height:40px; }
+ #publicDisplay .pd-top .brandline { gap:8px; }
+ #publicDisplay .pd-top .brandline .name { font-size:1.25rem; }
+ #publicDisplay .pd-top .brandline .name small { font-size:.62rem; }
+}
 
 /* A phone's desktop-site viewport keeps the full desktop navigation. */
 @media screen and (min-width:961px) {
