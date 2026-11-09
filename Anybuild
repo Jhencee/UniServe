@@ -1,0 +1,20 @@
+# The API lives below the repository root; the frontend deploys separately.
+load("//anybuild/tools:php.bzl", "php_build", "php_config", "php_serve")
+
+app_subdir = "backend"
+
+config = php_config(
+    schema = 1,
+    app_subdir = app_subdir,
+    php_framework = "laravel",
+    php_version = "8.3.29",
+    composer_enable = True,
+    php_public_dir = "public",
+    commands = {
+        "install": "composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction",
+        "build": "php artisan config:clear",
+    },
+)
+
+build = php_build(config)
+php_serve(config, build, name = "uniserve-api")
