@@ -566,7 +566,7 @@ function renderOfficeStatus() {
   const waitTxt = callable === 0 ? 'No wait' : Number.isFinite(estimate) ? fmtWaitDuration(estimate) : 'Unavailable';
   const serving = servingQueueEntries(db);
   const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : '—';
-  const title = maint ? 'Closed for maintenance' : (open ? 'Open now' : escapeHtml(OfficeCalendar.status().message));
+  const title = open ? 'Open now' : 'Closed';
   const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? 'Office hours follow the calendar' : escapeHtml(OfficeCalendar.status().lunch ? OfficeCalendar.status().message : 'Next opening: ' + OfficeCalendar.status().nextLabel));
   el.innerHTML = `
     <div class="status-cell status-main">

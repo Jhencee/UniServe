@@ -832,7 +832,7 @@ a.is-disabled:hover {
     display: flex;
     align-items: center;
     gap: 14px;
-    box-shadow: inset 4px 0 0 var(--line-accent);
+    box-shadow: none;
 }
 
 .status-cell:not(.status-main) {
