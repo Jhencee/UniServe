@@ -8,12 +8,12 @@ class WalkInCapacityController extends Controller {
  public function override(Request $r){
   $u=StaffAuth::user($r,'ADMIN');abort_unless($u->confidential_approver??false,403,'Head Admin permission required.');
   $d=$r->validate(['counters'=>'required|integer|min:1|max:20','mode'=>'sometimes|required|in:automatic,closed,scheduled,extra','cutoffTime'=>'required_if:mode,scheduled|nullable|date_format:H:i','enabled'=>'required_without:mode|boolean']);
-  \App\Support\Availability::requireOpen();
   $mode=$d['mode']??($d['enabled']?'extra':'automatic');$day=now('Asia/Manila')->toDateString();$expires=now('Asia/Manila')->endOfDay();
   $effectiveAt=\Carbon\CarbonImmutable::now('Asia/Manila');
   if($mode==='scheduled'){
    $effectiveAt=\Carbon\CarbonImmutable::parse($day.' '.$d['cutoffTime'],'Asia/Manila');
    $ranges=OfficeCalendar::intervals($day,OfficeCalendar::get());
+   abort_unless($ranges,422,'The office is closed today. Update Office Availability before scheduling an intake cutoff.');
    $closing=\Carbon\CarbonImmutable::parse($day.' '.end($ranges)[1],'Asia/Manila');
    abort_unless($effectiveAt->isFuture()&&$effectiveAt->lessThan($closing),422,'Choose a future cutoff time before office closing today.');
   }

@@ -32,7 +32,7 @@ async function page(){
  assert.equal(await visitor.run("document.getElementById('visitorSidebar')"),null);
  await visitor.run("document.querySelector('#visitorActions summary').click()");
  assert.equal(await visitor.run("document.getElementById('visitorActions').open"),true);
- assert.equal(await visitor.run("!!document.querySelector('.visitor-actions-panel .browser-alert-toggle')"),true);
+ assert.equal(await visitor.run("!!document.querySelector('.visitor-actions-panel .browser-alert-toggle')"),false);
  await visitor.run("document.getElementById('visitorThemeToggle').click()");
  assert.equal(await visitor.run("document.documentElement.dataset.theme"),'dark');
  assert.equal(await visitor.run("document.getElementById('visitorThemeToggle').getAttribute('aria-checked')"),'true');
@@ -59,8 +59,8 @@ async function page(){
  assert.equal(await visitor.run("document.getElementById('visitorHub').hidden"),true);
  await visitor.run("pickVisitService('good_moral')");
  assert.equal(await visitor.run("document.getElementById('bkSubmitBtn').disabled"),false);
- assert.ok(await visitor.run("document.querySelector('#visitorContent').textContent.includes('Submit anytime. OSS confirms appointments during office hours.')"));
- await visitor.screenshot('visitor-appointment-desktop');checks.push('After-hours appointment form is reachable with live services/calendar/settings APIs');
+ assert.equal(await visitor.run("document.getElementById('bkSubmitBtn').textContent.trim()"),'Review details');
+ await visitor.screenshot('visitor-appointment-desktop');checks.push('Appointment form is reachable with live services/calendar/settings APIs');
  await visitor.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
  await pause(400);
  await visitor.run("showVisitorHub()");await visitor.screenshot('visitor-mobile');
@@ -71,10 +71,10 @@ async function page(){
  await visitor.run("document.querySelector('#visitorSectionBar button').click()");
  assert.equal(await visitor.run("document.getElementById('visitorContent').textContent"),'');
  await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[2].click()");
- assert.ok(await visitor.run("document.getElementById('visitorContent').textContent.includes('Gmail')"));
+ await pause(250);assert.ok(await visitor.run("!!document.getElementById('appointmentEmail')"));await visitor.run('closeModal()');
  await visitor.run("showVisitorHub()");
  await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[3].click()");
- assert.ok(await visitor.run("document.getElementById('visitorContent').textContent.length>0"));
+ await pause(250);assert.ok(await visitor.run("!!document.getElementById('appointmentEmail')"));await visitor.run("closeModal()");
  await visitor.run("showVisitorHub()");
  await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[0].click()");
  checks.push('Welcome shows only separate service cards; all four open on click and Back to services returns to an empty home view');
@@ -92,9 +92,16 @@ async function page(){
   }
  }
  await visitor.goto(base+'/Landing/landing.html');
- assert.equal(await visitor.run("document.querySelectorAll('.hero-actions a').length"),1);
- assert.equal(await visitor.run("document.querySelector('.hero-actions a').textContent"),'Start a Visit');
- assert.equal(await visitor.run("document.querySelector('.hero-actions a').getAttribute('href')"),'../User/user.html');
+ assert.equal(await visitor.run("document.querySelectorAll('.hero-actions a').length"),2);
+ assert.deepEqual(await visitor.run("Array.from(document.querySelectorAll('#navActions a[href^=\"#\"]')).map(a=>a.getAttribute('href'))"),['#services','#how','#feedback','#faq','#contact']);
+ assert.equal(await visitor.run("document.querySelector('.hero-actions .btn-ghost').getAttribute('href')"),'../User/user.html?flow=checkvisit');
+ assert.ok(await visitor.run("document.getElementById('services').compareDocumentPosition(document.getElementById('how')) & Node.DOCUMENT_POSITION_FOLLOWING"));
+ assert.ok(await visitor.run("getComputedStyle(document.querySelector('.hero-actions .btn-primary')).backgroundColor!==getComputedStyle(document.querySelector('.hero-actions .btn-ghost')).backgroundColor"));
+ assert.ok(await visitor.run('document.documentElement.scrollWidth<=window.innerWidth+1'));
+
+ assert.equal(await visitor.run("document.querySelectorAll('.nav-link-primary').length"),1);
+ assert.equal(await visitor.run("document.querySelector('.nav-link-primary').textContent"),'Start a Visit');
+ assert.equal(await visitor.run("document.querySelector('.nav-link-primary').getAttribute('href')"),'../User/user.html');
  assert.ok(await visitor.run("Array.from(document.querySelectorAll('a[href*=\"user.html\"]')).every(a=>a.getAttribute('aria-disabled')!=='true')"));
  await visitor.screenshot('landing-mobile');checks.push('Landing links remain available outside office hours');
  if(process.argv.includes('--visual')){
@@ -107,6 +114,17 @@ async function page(){
  assert.equal(await visitor.run("window.UniServeRealtime?.connected"),true,'Live public WebSocket subscription failed');
  checks.push('Live landing frontend connects to the configured public realtime channel');
  const errors=visitor.events.filter(e=>e.method==='Runtime.exceptionThrown');assert.deepEqual(errors.map(e=>e.params.exceptionDetails.text),[]);
+ for(const width of [320,390,1280]){
+  await visitor.send('Emulation.setDeviceMetricsOverride',{width,height:width===320?640:844,deviceScaleFactor:1,mobile:width<600});
+  await visitor.goto(base+'/Landing/landing.html');
+  await visitor.run(`window.turnstile={render:(selector,options)=>{window.loginWidgetSize=options.size;const node=document.querySelector(selector);node.style.width=options.size==='compact'?'150px':'100%';node.style.minWidth=options.size==='compact'?'150px':'300px';node.style.height=options.size==='compact'?'140px':'65px';options.callback('fixture-token');return 'fixture-widget';},reset:()=>{}};showScreen('loginScreen');setTheme('light');LoginTurnstile.init()`);
+  assert.ok(await visitor.run('document.documentElement.scrollWidth<=window.innerWidth+1'),'Login overflows at '+width);
+  assert.equal(await visitor.run('window.loginWidgetSize'),width===320?'compact':'flexible');
+  assert.ok(await visitor.run('document.querySelector("#loginScreen .auth-card").getBoundingClientRect().width<=380'));
+  if(width<600)assert.ok(await visitor.run('document.getElementById("loginUser").getBoundingClientRect().height>=44'));
+  await pause(350);await visitor.screenshot('login-compact-'+width);
+ }
+ checks.push('Compact login fits 320px, 390px and desktop with mobile touch targets and correctly sized verification');
  await visitor.close();
  for(const role of ['ADMIN','HEAD_ADMIN','SUPER_ADMIN']){
   const p=await page();const user={id:'flow-fixture',username:'fixture',fullName:'Flow Test Admin',role:role==='HEAD_ADMIN'?'ADMIN':role,active:true,confidentialAccess:role==='HEAD_ADMIN',confidentialApprover:role==='HEAD_ADMIN'};
@@ -155,16 +173,11 @@ async function page(){
    assert.ok(await p.run('document.documentElement.scrollWidth<=window.innerWidth+1'));
    await p.screenshot('admin-calendar-mobile');
    await p.send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
-   assert.equal(await p.run("!!document.querySelector('.admin-actions')"),true);
-   await p.run("document.querySelector('.admin-actions summary').click()");
-   assert.equal(await p.run("document.querySelector('.admin-actions').open"),true);
-   assert.equal(await p.run("(()=>{const b=document.querySelector('.admin-actions-panel [role=switch]'),r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()"),true);
-   assert.equal(await p.run("!!document.querySelector('.admin-actions-panel .browser-alert-toggle')"),true);
-   await p.run("setTheme('light');document.querySelector('.admin-actions-panel [role=switch]').click()");
+   assert.equal(await p.run("!!document.querySelector('.theme-toggle')"),true);
+   await p.run("setTheme('light');document.querySelector('.theme-toggle [data-theme-btn=dark]').click()");
    assert.equal(await p.run("document.documentElement.dataset.theme"),'dark');
-   await p.screenshot('admin-actions');
-   await p.run("document.querySelector('.admin-actions-panel [role=switch]').click();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
-   assert.equal(await p.run("document.querySelector('.admin-actions').open"),false);
+   await p.run("document.querySelector('.theme-toggle [data-theme-btn=light]').click()");
+   assert.equal(await p.run("document.documentElement.dataset.theme"),'light');
    await p.run("navigate('appointments')");await pause(300);
    assert.ok(await p.run("document.getElementById('content').textContent.includes('Reschedule')"));
    await p.run("openApptDetail('fixture-a',true)");assert.ok(await p.run("!!document.getElementById('mApptDate')"));
@@ -172,16 +185,9 @@ async function page(){
    assert.ok(await p.run("document.getElementById('content').textContent.includes('Review remaining visits')"));await p.screenshot('admin-queue');
   }else{
    for(const endpoint of ['/reports','/services','/admins'])assert.ok(requests.some(url=>new URL(url).pathname==='/api'+endpoint),'Super Admin did not load '+endpoint);
-   assert.equal(await p.run("!!document.querySelector('.admin-actions')"),true);
-   await p.run("document.querySelector('.admin-actions summary').click()");
-   assert.equal(await p.run("document.querySelector('.admin-actions').open"),true);
-   assert.equal(await p.run("(()=>{const b=document.querySelector('.admin-actions-panel [role=switch]'),r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()"),true);
-   assert.equal(await p.run("!!document.querySelector('.admin-actions-panel .browser-alert-toggle')"),true);
-   await p.run("setTheme('light');document.querySelector('.admin-actions-panel [role=switch]').click()");
+   await p.run("setTheme('light');document.querySelector('.theme-toggle [data-theme-btn=dark]').click()");
    assert.equal(await p.run("document.documentElement.dataset.theme"),'dark');
-   await p.screenshot('super-admin-actions');
-   await p.run("document.querySelector('.admin-actions-panel [role=switch]').click();document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
-   assert.equal(await p.run("document.querySelector('.admin-actions').open"),false);
+   await p.run("document.querySelector('.theme-toggle [data-theme-btn=light]').click()");
    await p.run("navigate('settings')");await pause(300);
    assert.equal(await p.run("document.getElementById('stSlotCapacity').value"),'1');assert.equal(await p.run("document.getElementById('stParallel').checked"),false);
    await p.screenshot('super-admin-settings');
@@ -197,4 +203,4 @@ async function page(){
   const info=await(await fetch('http://127.0.0.1:9224/json/version')).json();const socket=new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((r,j)=>{socket.onopen=r;socket.onerror=j;});socket.send(JSON.stringify({id:1,method:'Browser.close'}));await pause(200);socket.close();
  }
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().catch(e=>{console.error(e);process.exit(1);});

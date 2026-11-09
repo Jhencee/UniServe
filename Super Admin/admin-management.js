@@ -23,6 +23,7 @@ async function renderUsers() {
   document.getElementById('content').innerHTML = `<div class="card">
     <div class="card-head"><div><h3>Admin Accounts</h3><div class="desc">Create and manage OSS Admin accounts</div><div class="desc" id="confSummary"></div></div>
     <button class="btn btn-primary btn-sm" onclick="openUserForm()">${icon('plus', 14)} Add Admin</button></div>
+    <details class="super-permissions-help"><summary>Roles and confidential access</summary><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></details>
     <div id="adminLoadError" class="err-box" hidden></div>
     <div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Confidential Access</th><th>Status</th><th>Action</th></tr></thead><tbody id="userBody"><tr><td colspan="7">Loading accounts...</td></tr></tbody></table></div></div>`;
   try { await refreshAdmins(); }
@@ -39,7 +40,7 @@ function renderUserTable() {
   document.getElementById('userBody').innerHTML = users.map(user => `<tr>
     <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.email || '—')}</td>
     <td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Head Admin' : 'Admin') : (ROLES[user.role]?.label || 'Admin')}</td><td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Approver' : user.confidentialAccess ? 'Authorized' : 'No access') : 'Not applicable'}</td>
-    <td>${user.active ? 'Active' : 'Disabled'}</td><td class="act-cell">${user.role === 'ADMIN' ? `<button class="icon-btn kebab-btn" title="Account actions" aria-haspopup="true" onclick="toggleKebab(event,'${user.id}')">${icon('dots', 16)}</button>
+    <td>${user.active ? 'Active' : 'Disabled'}</td><td class="act-cell super-account-actions">${user.role === 'ADMIN' ? `<button class="icon-btn kebab-btn" title="Account actions" aria-haspopup="true" onclick="toggleKebab(event,'${user.id}')">${icon('dots', 16)}</button>
     <div class="kebab-menu" id="kebab_${user.id}" hidden>
       <button class="kebab-item" onclick="closeKebabs();openEditUserModal('${user.id}')">Edit Account</button>
       <button class="kebab-item" onclick="closeKebabs();openConfAccessModal('${user.id}')">Confidential Access</button>
@@ -84,7 +85,7 @@ function openUserForm() { openAdminForm(null); }
 function openEditUserModal(id) { const user = accountById(id); if (user) openAdminForm(user); }
 function accountCapital(value) { return value.replace(/(^|[\s-])([\p{L}])/gu, (_,gap,letter)=>gap+letter.toLocaleUpperCase()); }
 function capitalizeAccountInput(input) { const start=input.selectionStart,end=input.selectionEnd; input.value=accountCapital(input.value); if(start!==null)input.setSelectionRange(start,end); }
-function toggleAccountPassword(id,button) { const input=document.getElementById(id),show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'Hide password':'Show password');button.innerHTML=icon(show?'eye-off':'eye',17); }
+function toggleAccountPassword(id,button) { const input=document.getElementById(id),show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'Hide password':'Show password');button.innerHTML=profilePasswordEye(!show); }
 function openAdminForm(user) {
   const parts=(user?.fullName||'').trim().split(/\s+/),first=parts.shift()||'',last=parts.join(' ');
   openModal(user ? 'Edit Admin Account' : 'Add Admin Account', `
@@ -93,7 +94,7 @@ function openAdminForm(user) {
       <div class="field"><label for="mUsUser">Username</label><input id="mUsUser" oninput="capitalizeAccountInput(this)" autocomplete="off" maxlength="50" value="${escapeHtml(user?.username || '')}"></div>
       <div class="field"><label for="mUsEmail">Email</label><input id="mUsEmail" type="email" autocomplete="email" maxlength="120" value="${escapeHtml(user?.email || '')}"></div>
     </div>
-    ${user ? '' : `<div class="field"><label for="mUsPass">Temporary Password</label><div class="account-password-input"><input id="mUsPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mUsPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mUsPass',this)">${icon("eye",17)}</button></div><div class="field-hint" id="mUsPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div><div class="field account-access"><label for="mUsConf"><input id="mUsConf" type="checkbox" aria-describedby="mUsConfHint"> Confidential access</label><div class="field-hint" id="mUsConfHint">Allow this Admin to open confidential records.</div></div>`}`, [
+    ${user ? '' : `<div class="field"><label for="mUsPass">Temporary Password</label><div class="account-password-input"><input id="mUsPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mUsPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mUsPass',this)">${profilePasswordEye(true)}</button></div><div class="field-hint" id="mUsPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div><div class="field account-access"><label for="mUsConf"><input id="mUsConf" type="checkbox" aria-describedby="mUsConfHint"> Confidential access</label><div class="field-hint" id="mUsConfHint">Allow this Admin to open confidential records.</div></div>`}`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: user ? 'Save changes' : 'Create admin account', cls: 'btn-primary', action: () => {
       const firstName=accountCapital(document.getElementById('mUsFirst').value.trim()),lastName=accountCapital(document.getElementById('mUsLast').value.trim());
@@ -145,7 +146,7 @@ function deleteUser(id) {
 }
 function openResetAdminPassword(id) {
   const user = accountById(id); if (!user) return;
-  openModal('Reset Admin Password', `<p>${escapeHtml(user.fullName)}</p><div class="field"><label>New Temporary Password</label><div class="account-password-input"><input id="mResetPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mResetPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mResetPass',this)">${icon("eye",17)}</button></div><div class="field-hint" id="mResetPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div>`, [
+  openModal('Reset Admin Password', `<p>${escapeHtml(user.fullName)}</p><div class="field"><label>New Temporary Password</label><div class="account-password-input"><input id="mResetPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mResetPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mResetPass',this)">${profilePasswordEye(true)}</button></div><div class="field-hint" id="mResetPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: 'Reset Password', cls: 'btn-primary', action: () => saveAdminAction(id, { password: document.getElementById('mResetPass').value }, `Reset password for ${user.username}`) }
   ]);

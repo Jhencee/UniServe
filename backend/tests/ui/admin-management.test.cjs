@@ -34,6 +34,8 @@ function setup() {
     }
   };
   vm.createContext(context);
+  const sharedUI=fs.readFileSync(path.resolve(__dirname,'../../../shared/ui-components.js'),'utf8');
+  vm.runInContext(sharedUI.slice(sharedUI.indexOf('function profilePasswordEye('),sharedUI.indexOf('function toggleProfilePassword(')),context);
   vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../../Super Admin/admin-management.js'), 'utf8'), context);
   return { context, elements, calls, notices, modal: () => modal, closed: () => closed };
 }

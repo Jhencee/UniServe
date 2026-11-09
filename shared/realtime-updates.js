@@ -8,10 +8,11 @@
     if(staff)return subscribed.has('private-office');
     if(typeof visitorView!=='undefined'&&visitorView==='chat'&&typeof currentPublicChatId!=='undefined'&&currentPublicChatId)return subscribed.has('private-chat-'+currentPublicChatId);
     if(typeof myActiveQueueId!=='undefined'&&myActiveQueueId){const queue=loadDB().queues.find(q=>q.id===myActiveQueueId);if(queue)return subscribed.has('private-visit-'+queue.visitId);}
-    if(typeof visitorView!=='undefined'&&['visit','checkvisit'].includes(visitorView)){const id=sessionStorage.getItem('oss_activeAppointmentId'),a=id&&loadDB().appointments.find(a=>a.id===id);if(a)return subscribed.has('private-visit-'+a.visitId);}
+    if(typeof visitorView!=='undefined'&&['visit','checkvisit'].includes(visitorView)){const id=sessionStorage.getItem('oss_activeAppointmentId'),a=id&&loadDB().appointments.find(a=>a.id===id);if(a)return subscribed.has('private-visit-'+(a.visitId||a.requestReference));}
     return subscribed.has('public-queue');
   }};
   async function subscribe(channel){
+    const visitorIdentity=window.visitorIdentityVersion||0;
     if(!socketId||socket?.readyState!==WebSocket.OPEN||subscribed.has(channel)||pending.has(channel))return;
     pending.add(channel);
     try{
@@ -29,13 +30,14 @@
         const response=await fetch(API+'/realtime/auth',{method:'POST',headers,signal:AbortSignal.timeout(8000),body:JSON.stringify({socket_id:socketId,channel_name:channel})});
         if(!response.ok){if(response.status===401||response.status===403)deniedCredentials.set(channel,credential);else authRetryAt.set(channel,Date.now()+(response.status===429?Math.max(1,Number(response.headers.get('Retry-After'))||60)*1000:30000));return;}deniedCredentials.delete(channel);authRetryAt.delete(channel);Object.assign(data,await response.json());
       }
+      if(!staff&&visitorIdentity!==(window.visitorIdentityVersion||0))return;
       if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify({event:'pusher:subscribe',data}));
     }catch(_){}finally{pending.delete(channel);}
   }
   function channels(){
-    if(staff){subscribe('private-office');return;}
+    if(staff){subscribe('private-office');if(typeof currentUser!=='undefined'&&currentUser?.role==='ADMIN')subscribe('private-admin-'+currentUser.id);if(typeof currentUser!=='undefined'&&currentUser?.confidentialApprover)subscribe('private-head-admin');return;}
     subscribe('public-queue');
-    if(typeof visitorView!=='undefined'&&['visit','checkvisit'].includes(visitorView)){const id=sessionStorage.getItem('oss_activeAppointmentId'),a=id&&loadDB().appointments.find(a=>a.id===id);if(a?.visitId)subscribe('private-visit-'+a.visitId);}
+    if(typeof visitorView!=='undefined'&&['visit','checkvisit'].includes(visitorView)){const id=sessionStorage.getItem('oss_activeAppointmentId'),a=id&&loadDB().appointments.find(a=>a.id===id);if(a?.visitId||a?.requestReference)subscribe('private-visit-'+(a.visitId||a.requestReference));}
     if(typeof currentPublicChatId!=='undefined'&&currentPublicChatId)subscribe('private-chat-'+currentPublicChatId);
     if(typeof myActiveQueueId!=='undefined'&&myActiveQueueId){const queue=loadDB().queues.find(q=>q.id===myActiveQueueId);if(queue?.visitId)subscribe('private-visit-'+queue.visitId);}
   }
@@ -49,7 +51,7 @@
         else if(message.event==='pusher_internal:subscription_succeeded')subscribed.add(message.channel);
         else if(message.event==='pusher:ping')socket.send(JSON.stringify({event:'pusher:pong',data:{}}));
         else if(message.event==='walk-in.intake.changed'&&staff&&message.channel==='private-office'&&subscribed.has(message.channel))window.dispatchEvent(new CustomEvent('uniserve:intake-notification',{detail:data}));
-        else if(message.event==='portal.changed'){if(subscribed.has(message.channel)&&message.channel.startsWith('private-'))window.dispatchEvent(new CustomEvent('uniserve:browser-update',{detail:data}));clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>window.dispatchEvent(new CustomEvent('uniserve:changed',{detail:data})),250);}
+        else if(message.event==='portal.changed'){clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>window.dispatchEvent(new CustomEvent('uniserve:changed',{detail:data})),250);}
       }catch(_){}
     };
     socket.onerror=()=>socket.close();
@@ -65,6 +67,13 @@
   loadConfig();
   document.addEventListener('visibilitychange',()=>{if(config?.enabled&&document.visibilityState==='visible'){if(!socket||socket.readyState===WebSocket.CLOSED)connect();else channels();}});
   window.addEventListener('uniserve:visit-selected',channels);
+  window.addEventListener('uniserve:visitor-identity-cleared',()=>{
+    if(staff)return;
+    clearTimeout(reconnectTimer);clearTimeout(refreshTimer);
+    if(socket){socket.onclose=null;socket.close();socket=null;}
+    socketId=null;subscribed.clear();pending.clear();deniedCredentials.clear();authRetryAt.clear();
+    if(config?.enabled)connect();
+  });
   function stopRealtime(){clearTimeout(reconnectTimer);clearTimeout(configTimer);clearInterval(channelTimer);if(socket){socket.onclose=null;socket.close();}}
   window.addEventListener('pagehide',stopRealtime);
   window.addEventListener('uniserve:session-ended',stopRealtime);

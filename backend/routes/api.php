@@ -16,7 +16,9 @@ Route::post('/realtime/auth',[\App\Http\Controllers\RealtimeController::class,'a
 Route::post('/import-browser',[\App\Http\Controllers\LegacyImportController::class,'store'])->middleware('throttle:5,1,api-route-1');
 Route::get('/public-queue',[SharedFlowController::class,'publicQueue'])->middleware('throttle:120,1,api-route-2');
 Route::get('/settings',[SharedFlowController::class,'settings']);
+Route::get('/attention',[\App\Http\Controllers\AttentionController::class,'index'])->middleware('throttle:60,1,attention');
 Route::get('/reports',[SharedFlowController::class,'reports'])->middleware('throttle:30,1,api-route-3');
+Route::post('/report-data',[\App\Http\Controllers\ReportDataController::class,'snapshot'])->middleware('throttle:30,1,report-output');
 Route::get('/backup',[SharedFlowController::class,'backup'])->middleware('throttle:5,1,api-route-4');
 Route::post('/backup/preview',[\App\Http\Controllers\BackupController::class,'preview'])->middleware('throttle:5,1');
 Route::post('/backup/restore',[\App\Http\Controllers\BackupController::class,'restore'])->middleware('throttle:5,1');
@@ -34,6 +36,8 @@ Route::put('/services/{key}', [AppointmentController::class,'saveService']);
 Route::delete('/services/{key}', [AppointmentController::class,'deleteService']);
 Route::get('/service-records', [\App\Http\Controllers\ServiceRecordController::class,'index']);
 Route::patch('/service-records/{id}', [\App\Http\Controllers\ServiceRecordController::class,'update'])->middleware('throttle:30,1,api-route-14');
+Route::get('/appointment-offices', [AppointmentController::class,'offices']);
+Route::get('/appointment-slots', [AppointmentController::class,'slots'])->middleware('throttle:60,1,appointment-slots');
 Route::get('/appointments', [AppointmentController::class,'index']);
 Route::post('/appointments', [AppointmentController::class,'store'])->middleware('throttle:10,1,api-route-15');
 Route::get('/appointments/visit/{visitId}', [AppointmentController::class,'show'])->middleware('throttle:30,1,api-route-16');
@@ -43,6 +47,8 @@ Route::post('/appointments/{id}/check-in', [AppointmentController::class,'checkI
 Route::post('/appointments/{id}/reschedule-request', [AppointmentController::class,'requestReschedule'])->middleware('throttle:10,1,reschedule-request');
 Route::post('/appointments/{id}/cancel', [AppointmentController::class,'cancel'])->middleware('throttle:20,1,api-route-19');
 Route::get('/confidential', [ConfidentialAccessController::class,'index']);
+Route::get('/confidential/notifications', [ConfidentialAccessController::class,'notifications'])->middleware('throttle:60,1,head-access-notifications');
+Route::get('/confidential/approvals', [ConfidentialAccessController::class,'approvals'])->middleware('throttle:60,1,admin-access-approvals');
 Route::get('/confidential/cases/{id}/status', [ConfidentialAccessController::class,'status']);
 Route::get('/confidential/cases/{id}/history', [ConfidentialAccessController::class,'history']);
 Route::post('/confidential/cases', [ConfidentialAccessController::class,'register'])->middleware('throttle:60,1,api-route-20');
@@ -78,10 +84,12 @@ Route::get('/visits/{visitId}', [QueueController::class, 'visit'])->middleware('
 Route::post('/visits/{visitId}/cancel', [QueueController::class, 'cancel'])->middleware('throttle:20,1,api-route-41');
 Route::get('/queue', [QueueController::class, 'index'])->middleware('throttle:120,1,api-route-42');
 Route::post('/queue/call-next', [QueueController::class,'callNext'])->middleware('throttle:30,1,api-route-43');
+Route::patch('/queue/{id}/requirements', [QueueController::class,'checkRequirement'])->middleware('throttle:60,1,queue-requirements');
 Route::post('/queue/{id}/follow-up', [QueueController::class,'followUp'])->middleware('throttle:20,1,queue-follow-up');
 Route::patch('/queue/{id}', [QueueController::class, 'update'])->middleware('throttle:120,1,api-route-44');
 
 Route::post('/password/reset-code', [\App\Http\Controllers\StaffPasswordResetController::class,'send'])->middleware('throttle:5,1,staff-reset-send');
+Route::post('/password/verify-reset-code', [\App\Http\Controllers\StaffPasswordResetController::class,'verify'])->middleware('throttle:10,1,staff-reset-verify');
 Route::post('/password/reset', [\App\Http\Controllers\StaffPasswordResetController::class,'reset'])->middleware('throttle:10,1,staff-reset-verify');
 
 Route::get('/public-feedback',[SharedFlowController::class,'publicFeedback'])->middleware('throttle:60,1,public-feedback');
@@ -99,3 +107,17 @@ Route::patch('/appointments/{id}/waitlist', [\App\Http\Controllers\VisitEnhancem
 Route::patch('/appointments/{id}/follow-up-task', [\App\Http\Controllers\VisitEnhancementController::class,'task'])->middleware('throttle:30,1,visit-task');
 
 Route::get('/history', [VisitorHistoryController::class,'records'])->middleware('throttle:30,1,visitor-history-records');
+
+Route::put('/appointments/{id}/documents/{index}', [AppointmentController::class,'replaceDocument'])->middleware('throttle:10,1,document-replacement');
+Route::get('/appointments/{id}/document-history', function(\Illuminate\Http\Request $request,string $id) {
+ \App\Support\StaffAuth::user($request,'ADMIN');
+ $row=\Illuminate\Support\Facades\DB::table('shared_appointments')->where('id',$id)->first();abort_unless($row,404);
+ (new AppointmentController)->access($request,$row);
+ $a=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($row->payload),true);
+ return response()->json(['versions'=>$a['documentVersions']??[]]);
+})->middleware('throttle:30,1,document-history');
+
+Route::get('/task-owners', function(\Illuminate\Http\Request $request) {
+ \App\Support\StaffAuth::user($request,'ADMIN');
+ return response()->json(['owners'=>\Illuminate\Support\Facades\DB::table('staff_users')->where('role','ADMIN')->where('is_active',true)->orderBy('full_name')->get(['id','full_name'])]);
+})->middleware('throttle:60,1,task-owners');

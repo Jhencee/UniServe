@@ -1,0 +1,103 @@
+/* Shared Admin and Super Admin sidebar presentation. */
+.sidebar { z-index:40; }
+.sidebar-brand .crest img { width:28px; height:28px; }
+.sidebar .nav-item.active { font-weight:500; }
+/* Keep navigation grouped with consistent spacing. */
+.sidebar .nav-list { display:flex; flex-direction:column; justify-content:flex-start; gap:4px; padding:14px; margin:0; }
+/* A quiet scrollbar for long menus, with the brand and account controls fixed. */
+.sidebar .sidebar-brand,
+.sidebar .sidebar-foot { flex-shrink:0; }
+.sidebar .nav-list {
+ min-height:0;
+ overflow-y:auto;
+ overflow-x:hidden;
+ scrollbar-width:thin;
+ scrollbar-color:rgba(255,255,255,.25) transparent;
+}
+.sidebar .nav-list:hover,
+.sidebar .nav-list:focus-within { scrollbar-color:rgba(255,255,255,.4) transparent; }
+.sidebar .nav-list::-webkit-scrollbar { display:block; width:5px; height:5px; }
+.sidebar .nav-list::-webkit-scrollbar-track { background:transparent; }
+.sidebar .nav-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,.25); border-radius:999px; }
+.sidebar .nav-list::-webkit-scrollbar-thumb:hover { background:rgba(255,255,255,.4); }
+.sidebar .nav-list::-webkit-scrollbar-button { display:none; }
+.sidebar .nav-list > li { flex:0 0 auto; }
+.sidebar .nav-list > .nav-category { padding:14px 14px 3px; color:rgba(255,255,255,.55); font-family:var(--font-body); font-size:.62rem; font-weight:600; line-height:1.4; letter-spacing:.08em; text-transform:uppercase; }
+.sidebar .nav-list > .nav-category:first-child { padding-top:2px; }
+@media(min-width:881px) {
+ .app-shell.collapsed .sidebar .nav-list > .nav-category { height:1px; padding:0; margin:7px 4px; overflow:hidden; font-size:0; background:rgba(255,255,255,.14); }
+ .app-shell.collapsed .sidebar .nav-list > .nav-category:first-child { display:none; }
+}
+.sidebar .nav-item,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle { min-height:40px; padding:10px 14px; margin:0; font-size:.87rem; line-height:20px; }
+.sidebar .nav-item > svg,
+.sidebar .dashboard-notifications-toggle > svg { width:18px; height:18px; }
+.sidebar .sidebar-foot { padding:14px 16px; }
+.sidebar .user-chip { margin-bottom:10px; }
+.sidebar .user-chip-btn { padding:4px; }
+@media(max-height:700px) {
+ .sidebar .nav-list { gap:2px; padding-top:10px; padding-bottom:10px; }
+ .sidebar .nav-item,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle { min-height:36px; padding-top:8px; padding-bottom:8px; font-size:.84rem; }
+ .sidebar .sidebar-foot { padding:10px 16px; }
+ .sidebar .avatar { width:32px; height:32px; }
+ .sidebar .sidebar-foot .btn-block { min-height:32px; padding-top:6px; padding-bottom:6px; }
+}
+@media(min-width:881px) {
+ .app-shell.collapsed .nav-list { padding:14px 10px; }
+ .app-shell.collapsed .nav-item,
+ .app-shell.collapsed .sidebar-notifications .dashboard-notifications-toggle { padding:10px 0; }
+}
+
+.sidebar .nav-badge { display:inline-flex; align-items:center; justify-content:center; min-width:17px; height:17px; padding:0 4px; border-radius:5px; background:transparent; color:rgba(255,255,255,.7); font-size:.7rem; font-weight:500; line-height:1; }
+.app-shell.collapsed .sidebar .nav-badge { min-width:15px; height:15px; padding:0 3px; font-size:.58rem; }
+
+.sidebar-brand { gap:8px; }
+.sidebar-brand > .sidebar-toggle { order:-1; margin:0; }
+
+@media(min-width:881px) {
+ .app-shell.collapsed .sidebar-brand { display:grid; grid-template-columns:40px; justify-content:center; align-items:center; gap:0; padding:14px 0; }
+ .app-shell.collapsed .sidebar-brand > .sidebar-toggle { width:40px; height:40px; padding:0; margin:0; }
+ .app-shell.collapsed .sidebar .nav-list { width:72px; box-sizing:border-box; padding:14px 16px; }
+ .app-shell.collapsed .sidebar .nav-item,
+ .app-shell.collapsed .sidebar .sidebar-notifications .dashboard-notifications-toggle { display:flex; align-items:center; justify-content:center; width:40px; min-width:40px; height:40px; padding:0; margin:0; gap:0; box-sizing:border-box; }
+ .app-shell.collapsed .sidebar .nav-item > svg,
+ .app-shell.collapsed .sidebar-brand > .sidebar-toggle > svg,
+ .app-shell.collapsed .sidebar .dashboard-notifications-toggle > svg { width:18px; height:18px; flex-shrink:0; margin:0; }
+}
+
+/* Expanded menu control shares the navigation icons' horizontal center. */
+.app-shell:not(.collapsed) .sidebar-brand { padding-left:19px; gap:8px; }
+.app-shell:not(.collapsed) .sidebar-brand > .sidebar-toggle { width:36px; min-width:36px; padding:0; margin:0; }
+/* Fit the full staff menu on laptop screens without clipping any links. */
+@media(max-height:900px) {
+ .sidebar .sidebar-brand { padding-top:12px; padding-bottom:12px; }
+ .sidebar .nav-list { gap:3px; padding-top:8px; padding-bottom:8px; }
+ .sidebar .nav-list > .nav-category { padding-top:8px; padding-bottom:2px; }
+ .sidebar .nav-item,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle {
+  min-height:32px; padding-top:6px; padding-bottom:6px; font-size:.82rem;
+ }
+ .sidebar .sidebar-foot { padding-top:8px; padding-bottom:8px; }
+ .sidebar .user-chip { margin-bottom:6px; }
+ .sidebar .avatar { width:32px; height:32px; }
+ .sidebar .sidebar-foot .btn-block { min-height:30px; padding-top:5px; padding-bottom:5px; }
+}
+@media(max-height:700px) {
+ .sidebar .nav-list { gap:2px; padding-top:4px; padding-bottom:4px; }
+ .sidebar .nav-list > .nav-category { padding-top:5px; padding-bottom:1px; font-size:.58rem; }
+ .sidebar .nav-item,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle {
+  min-height:30px; padding-top:5px; padding-bottom:5px;
+ }
+}
+@media(min-width:881px) and (max-height:900px) {
+ .app-shell.collapsed .sidebar .nav-list { padding-top:8px; padding-bottom:8px; }
+ .app-shell.collapsed .sidebar .nav-item,
+ .app-shell.collapsed .sidebar .sidebar-notifications .dashboard-notifications-toggle { height:32px; min-height:32px; }
+ .app-shell.collapsed .sidebar .nav-list > .nav-category { margin-top:4px; margin-bottom:4px; }
+}
+@media(max-width:880px) {
+ .app-shell .sidebar-brand { padding-left:19px; gap:8px; }
+ .app-shell .sidebar-brand > .sidebar-toggle { width:36px; min-width:36px; padding:0; margin:0; }
+}

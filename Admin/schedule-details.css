@@ -1,0 +1,159 @@
+/* Appointment views and detail dialogs share a quiet, consistent hierarchy. */
+body .visitor-schedule-toolbar .calendar-month-controls,
+body .calendar-page .calendar-month-controls { display:flex; align-items:center; gap:4px; }
+body .visitor-schedule-toolbar .calendar-month-controls > .btn,
+body .calendar-page .calendar-month-controls > .btn { display:inline-flex; align-items:center; justify-content:center; min-width:32px; min-height:32px; height:32px; padding:0 10px; border:0; border-radius:5px; background:transparent; color:var(--text-soft); font-family:var(--font-body); font-size:.74rem; font-weight:500; line-height:1; box-shadow:none; }
+body .visitor-schedule-toolbar .calendar-month-controls > .btn[aria-label],
+body .calendar-page .calendar-month-controls > .btn[aria-label] { width:32px; padding:0; }
+body .visitor-schedule-toolbar .calendar-month-controls > .btn:not([aria-label]),
+body .calendar-page .calendar-month-controls > .btn:not([aria-label]) { background:var(--surface-2); color:var(--text); padding:0 13px; }
+body .visitor-schedule-toolbar .calendar-month-controls > .btn:hover,
+body .calendar-page .calendar-month-controls > .btn:hover { background:color-mix(in srgb,var(--text) 8%,var(--surface)); color:var(--text); }
+body .calendar-month-controls > .btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+body .calendar-page { gap:20px; }
+body .calendar-page > .card { border:1px solid var(--border); border-radius:8px; box-shadow:none; }
+body .calendar-page .calendar-layout { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(290px,1fr); gap:0; padding:24px; border:1px solid var(--border); border-radius:8px; background:var(--surface); align-items:start; }
+body .calendar-page .calendar-layout > .card { border:0; border-radius:0; box-shadow:none; overflow:visible; background:transparent; }
+body .calendar-page .calendar-layout > .card:first-child { padding-right:28px; }
+body .calendar-page .calendar-layout .card-head { padding:0 0 20px; border:0; }
+body .calendar-page .card-head h3 { font-size:.95rem; font-weight:600; }
+body .calendar-page .card-head .desc { font-size:.76rem; font-weight:400; }
+body .calendar-page .toolbar .btn { min-height:34px; min-width:34px; padding:6px 10px; border:1px solid var(--border); border-radius:5px; background:transparent; color:var(--text); font-size:.75rem; }
+body .calendar-page .toolbar .btn:hover { background:var(--surface-2); }
+body .calendar-page .calendar-legend { padding:0 0 16px; gap:10px 16px; }
+body .calendar-page .calendar-legend .pill { font-size:.67rem; }
+body .calendar-page .calendar-grid { gap:4px; padding:0; grid-template-rows:auto; grid-auto-rows:auto; }
+body .calendar-page .calendar-heading { padding:8px 0 12px; font-size:.67rem; font-weight:500; }
+body .calendar-page .calendar-empty { min-height:76px; }
+body .calendar-page .calendar-day { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; height:auto; min-height:76px; padding:9px; gap:5px; border:1px solid transparent; border-radius:6px; box-shadow:none; }
+body .calendar-page .calendar-day-number { display:grid; place-items:center; width:23px; height:23px; font-size:.73rem; border-radius:5px; }
+body .calendar-page .calendar-day-label { font-size:.63rem; line-height:1.4; text-align:left; }
+body .calendar-page .calendar-day-dot { top:18px; right:8px; width:5px; height:5px; }
+body .calendar-page .cal-open { background:transparent; }
+body .calendar-page .cal-closed { background:color-mix(in srgb,var(--cal-closed) 7%,var(--surface)); }
+body .calendar-page .cal-holiday { background:color-mix(in srgb,var(--cal-holiday) 9%,var(--surface)); }
+body .calendar-page .cal-special { background:color-mix(in srgb,var(--cal-special) 9%,var(--surface)); }
+body .calendar-page .cal-closed .calendar-day-label { color:var(--cal-closed); }
+body .calendar-page .cal-holiday .calendar-day-label { color:var(--cal-holiday); }
+body .calendar-page .cal-special .calendar-day-label { color:var(--cal-special); }
+body .calendar-page .calendar-day:hover { border-color:var(--border); box-shadow:none; }
+body .calendar-page .cal-today { box-shadow:none; }
+body .calendar-page .cal-today .calendar-day-number { border-radius:5px; background:var(--accent); color:#fff; }
+body .calendar-page .calendar-day:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+body .calendar-page .calendar-upcoming { border-left:1px solid var(--border) !important; padding-left:24px; }
+body .calendar-page .calendar-upcoming .card-head h3 { font-size:.84rem; }
+body .calendar-page .calendar-upcoming .card-pad { padding:0; }
+body .calendar-page .calendar-upcoming-item { padding-top:16px; }
+body .calendar-page .calendar-week { gap:10px; }
+body .calendar-page .calendar-weekday { min-width:0; background:transparent; border:1px solid var(--border); border-radius:6px; padding:14px 12px; text-align:left; }
+body .calendar-page .calendar-weekday-name { margin-bottom:14px; font-size:.75rem; font-weight:600; color:var(--text); }
+body .calendar-page .calendar-weekday-hours { display:grid; gap:8px; font-size:.72rem; line-height:1.5; }
+body .calendar-page .calendar-hours-pair { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:2px 8px; }
+body .calendar-page .calendar-hours-pair > span { font-size:.65rem; color:var(--text-soft); }
+body .calendar-page .calendar-hours-pair time { color:var(--text); white-space:nowrap; font-variant-numeric:tabular-nums; }
+body .calendar-page .calendar-weekday.is-closed { background:var(--surface-2); }
+body .calendar-page .is-closed .calendar-weekday-name { color:var(--text-soft); }
+body .calendar-page .calendar-closed-label { color:var(--text-soft); }
+body .calendar-page .calendar-lunch { gap:6px 16px; margin-top:16px; padding-top:16px; font-size:.75rem; line-height:1.5; }
+body .calendar-page .calendar-lunch > span:first-child { gap:8px; font-size:.75rem; font-weight:500; color:var(--text-soft); }
+body .calendar-page .calendar-lunch > span:last-child { padding:0; border:0; border-radius:0; background:transparent; font-size:.75rem; font-weight:500; color:var(--text); }
+@media(max-width:900px) {
+  body .calendar-page .calendar-layout { grid-template-columns:1fr; gap:24px; }
+  body .calendar-page .calendar-layout > .card:first-child { padding-right:0; }
+  body .calendar-page .calendar-upcoming { padding:20px 0 0; border-left:0 !important; border-top:1px solid var(--border) !important; }
+}
+@media(max-width:520px) {
+  body .calendar-page .calendar-layout { padding:16px; }
+  body .calendar-page .calendar-grid { gap:2px; }
+  body .calendar-page .calendar-day, body .calendar-page .calendar-empty { min-height:66px; padding:5px 3px; }
+  body .calendar-page .calendar-day-label { font-size:.56rem; }
+  body .calendar-page .calendar-day-dot { right:3px; top:9px; width:4px; height:4px; }
+}
+body .schedule-view-switch { display:inline-flex; align-items:center; gap:3px; padding:0 0 0 10px; margin-left:2px; border:0; border-left:1px solid var(--border); border-radius:0; background:transparent; }
+body .schedule-view-switch .btn { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; min-height:34px; padding:0; border:1px solid transparent; border-radius:5px; background:transparent; color:var(--text-soft); box-shadow:none; }
+body .schedule-view-switch .btn[aria-pressed="true"] { background:var(--surface-2); border-color:var(--border); color:var(--text); }
+body .schedule-view-switch .btn:hover { background:color-mix(in srgb,var(--text) 5%,var(--surface)); color:var(--text); }
+body .schedule-view-switch .btn:focus-visible,
+body .visitor-calendar-day:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+body .visitor-schedule-toolbar { margin-bottom:24px; }
+body .visitor-schedule-toolbar h3 { font-size:.95rem; font-weight:600; color:var(--text); }
+body .visitor-schedule-toolbar p { font-size:.76rem; line-height:1.6; }
+body .visitor-schedule-layout { gap:28px; grid-template-columns:minmax(0,1.3fr) minmax(290px,1fr); }
+body .visitor-calendar { gap:4px; padding:0; }
+body .visitor-calendar .calendar-heading { padding:8px 0 12px; font-size:.67rem; font-weight:500; }
+body .visitor-calendar-day { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; min-height:76px; padding:9px; gap:5px; border:1px solid transparent; border-radius:6px; background:transparent; color:var(--text); box-shadow:none; }
+body .visitor-calendar-day .calendar-day-number { display:grid; place-items:center; width:23px; height:23px; font-size:.73rem; border-radius:5px; }
+body .visitor-calendar-day:hover { background:color-mix(in srgb,var(--text) 4%,var(--surface)); }
+body .visitor-calendar-day.visitor-day-selected { outline:0; border-color:var(--border); background:color-mix(in srgb,var(--text) 5%,var(--surface)); }
+body .visitor-calendar-day.cal-today .calendar-day-number { background:var(--accent); color:#fff; }
+body .visitor-day-count { font-size:.65rem; color:var(--text-soft); font-weight:500; }
+body .visitor-calendar-day small { font-size:.6rem; color:var(--text-soft); }
+body .visitor-day-agenda { border-left:1px solid var(--border); padding-left:24px; }
+body .visitor-day-agenda > h3 { font-size:.84rem; font-weight:600; line-height:1.6; }
+body .visitor-day-agenda > p { margin:4px 0 18px; font-size:.73rem; }
+body .visitor-day-agenda .arrival-visitor { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; padding:18px 0; width:100%; box-sizing:border-box; }
+body .visitor-day-agenda .arrival-visitor-details { display:grid; grid-template-columns:minmax(0,1fr); gap:5px; }
+body .visitor-day-agenda .arrival-visitor-details strong { font-size:.84rem; }
+body .visitor-day-agenda .arrival-visitor-details > span { font-size:.74rem; }
+body .visitor-day-agenda .arrival-visitor-details > .mono { font-size:.66rem; }
+body .visitor-day-agenda .arrival-visitor-details small { margin-top:4px; font-size:.69rem; }
+body .visitor-day-agenda .arrival-visitor-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-width:0; }
+body .visitor-day-agenda .arrival-visitor-actions .btn { min-height:32px; font-size:.73rem; padding:5px 12px; }
+body .modal:has(.appointment-detail-panel) { width:min(680px,calc(100vw - 32px)); max-width:680px; }
+body .modal:has(.appointment-detail-panel) .modal-head { padding:18px 24px; z-index:3; }
+body .modal:has(.appointment-detail-panel) .modal-body { padding:0 24px 24px; }
+body .modal:has(.appointment-detail-panel) .modal-foot { padding:14px 24px; z-index:3; }
+body .appointment-detail-panel { display:block; font-size:.8rem; line-height:1.6; }
+body .appointment-detail-identity { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:22px 0; border-bottom:1px solid var(--border); }
+body .appointment-detail-identity > div:first-child { display:grid; gap:4px; }
+body .appointment-detail-identity strong { font-size:1rem; font-weight:600; color:var(--text); }
+body .appointment-detail-identity .mono { font-size:.7rem; color:var(--text-soft); }
+body .appointment-detail-status { display:flex; flex-wrap:wrap; gap:6px; }
+body .appointment-detail-panel .appointment-summary { margin:0; padding:20px 0; border:0; border-bottom:1px solid var(--border); background:transparent; border-radius:0; box-shadow:none; }
+body .appointment-detail-panel .appointment-summary h4,
+body .appointment-detail-panel .staff-detail-heading { margin:0 0 14px; padding:0; border:0; font-size:.8rem; font-weight:600; color:var(--text); }
+body .appointment-detail-panel .appointment-summary-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:0; }
+body .appointment-detail-panel .appointment-summary-grid .kv { display:grid; grid-template-columns:132px minmax(0,1fr); align-items:baseline; gap:16px; padding:7px 0; margin:0; border:0; min-width:0; }
+body .appointment-detail-panel .appointment-summary-grid .kv > span:first-child { font-size:.69rem; font-weight:400; color:var(--text-soft); }
+body .appointment-detail-panel .appointment-summary-grid .kv > span:last-child { text-align:left; font-size:.79rem; font-weight:400; overflow-wrap:anywhere; max-width:100%; }
+body .appointment-detail-panel > .staff-detail-heading { margin-top:22px; }
+body .appointment-detail-panel > .field-hint { margin:16px 0 0; font-size:.73rem; line-height:1.6; }
+body .appointment-detail-panel .appointment-detail-extras { margin-top:0; padding-top:0; border:0; gap:12px; }
+body .appointment-detail-panel .alert-banner,
+body .appointment-detail-panel .info-banner { margin:16px 0; font-size:.76rem; line-height:1.6; }
+body .arrival-visitor-actions .btn-ghost { display:inline-flex; align-items:center; gap:7px; min-height:32px; padding:4px 0; border:0; border-radius:0; background:transparent; color:var(--text); font-size:.74rem; font-weight:500; box-shadow:none; }
+body .arrival-visitor-actions .btn-ghost::after { content:none; }
+body .arrival-visitor-actions .btn-ghost:hover { background:transparent; color:var(--accent); text-decoration:underline; text-underline-offset:4px; }
+body .visitor-day-agenda .arrival-visitor-details small { display:none; }
+body .visitor-day-agenda .arrival-visitor-details > .mono { order:5; font-family:var(--font-body); font-size:.65rem; }
+body .visitor-day-agenda .arrival-visitor-actions .pill { padding:0; border-radius:0; background:transparent; color:var(--text-soft); font-size:.68rem; }
+body .visitor-day-agenda .arrival-visitor-actions .pill::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
+body .visitor-day-agenda .arrival-visitor-actions .btn-ghost { margin-left:auto; padding:4px 0; }
+body .modal:has(.appointment-detail-panel) .modal-head h3 { font-size:.88rem; font-weight:500; }
+body .modal:has(.appointment-detail-panel) .modal-foot .btn,
+body .modal:has(.reschedule-editor) .modal-foot .btn { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:7px 16px; border-radius:5px; font-family:var(--font-body); font-size:.76rem; font-weight:500; line-height:1.4; box-shadow:none; }
+body .modal:has(.appointment-detail-panel) .modal-foot .btn-ghost { border:1px solid var(--border); background:var(--surface); color:var(--text); }
+body .modal:has(.appointment-detail-panel) .modal-foot .btn-ghost:hover { background:var(--surface-2); }
+body .appointment-detail-panel .document-review { padding:0; margin:0; border:0; background:transparent; }
+body .appointment-detail-panel .document-review-title { display:none; }
+body .appointment-detail-panel .document-review-summary { margin:0 0 14px; padding:0; border:0; background:transparent; font-size:.73rem; }
+body .appointment-detail-panel .document-review-item { padding:14px 0; margin:0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; }
+body .appointment-detail-panel .document-review-heading { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+body .appointment-detail-panel .schedule-history,
+body .appointment-detail-panel .follow-up-disclosure { margin:0; border:0; border-radius:0; border-top:1px solid var(--border); background:transparent; box-shadow:none; }
+body .appointment-detail-panel .schedule-history > summary,
+body .appointment-detail-panel .follow-up-disclosure > summary { padding:13px 0; font-size:.75rem; font-weight:500; background:transparent; }
+body .appointment-detail-panel .follow-up-card { border:0; padding:12px 0; background:transparent; box-shadow:none; }
+@media(max-width:900px) {
+  body .visitor-schedule-layout { grid-template-columns:1fr; }
+  body .visitor-day-agenda { border-left:0; border-top:1px solid var(--border); padding:20px 0 0; }
+}
+@media(max-width:520px) {
+  body .visitor-calendar { gap:2px; }
+  body .visitor-calendar-day { min-height:66px; padding:5px 3px; }
+  body .visitor-day-count, body .visitor-calendar-day small { font-size:.56rem; }
+  body .appointment-detail-panel .appointment-summary-grid .kv { grid-template-columns:100px minmax(0,1fr); gap:12px; }
+  body .modal:has(.appointment-detail-panel) .modal-head,
+  body .modal:has(.appointment-detail-panel) .modal-body,
+  body .modal:has(.appointment-detail-panel) .modal-foot { padding-left:18px; padding-right:18px; }
+}

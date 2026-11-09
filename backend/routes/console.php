@@ -13,3 +13,5 @@ Schedule::command('queue:close-previous-day')->everyMinute()->withoutOverlapping
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+Schedule::command('appointments:review-pending')->everyMinute()->withoutOverlapping();

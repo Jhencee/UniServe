@@ -2,6 +2,8 @@
 
 Laravel API and static portals for visitors, Admin and Super Admin. Portal entry points are Landing/landing.html, User/user.html, Admin/admin.html and Super Admin/superadmin.html in the parent directory.
 
+New installations create their first account with `php artisan portal:create-super-admin`; migrations do not install default credentials.
+
 ## Setup and services
 
 Keep runtime settings in .env; use .env.example as the configuration reference. Preserve the original APP_KEY: encrypted records, backups, tokens and email indexes depend on it. Never commit credentials or regenerate an existing key.
@@ -27,9 +29,11 @@ After configuration changes, clear/rebuild the deployment config cache as approp
 
 The backend is the source of truth for shared records. Visitor access requires verified Gmail or an applicable visit-scoped token; a Visit ID alone does not grant access. Staff permissions and confidential access are enforced server-side. Head Admin is an Admin with confidential-approver permission; Super Admin manages system/accounts and receives restricted operational data.
 
+Confidential appointment intake before service uses the staff confidential-access permission. Once linked to a completed case, appointment details and notification actions require the same case permission and active unlock as queue and transaction records. Restricted queue responses use a safe-field list. Super Admin feedback is aggregate-only, including rating distribution and comment counts; visitor identities and comment text are excluded.
+
 Private payloads and uploads are encrypted. Browser caches retain sanitized metadata; private records stay in tab memory. Keep shared privacy/cache/realtime scripts and their HTML loading order. API/UI helpers load before page scripts, and synchronization wrappers load after them. Asset changes require a query-string version update.
 
-Appointment requests await staff scheduling. Staff check visitors in at the counter, then call, start and complete service. Document reviews, optional earlier-slot waitlists and dated follow-up tasks use the same encrypted appointment record. Waitlist changes require staff confirmation. Old active visits become Unfinished, not Completed.
+Visitors choose a service (purpose), preferred office, date and an available 30-minute slot before submitting. Requested slots reserve capacity immediately; staff approve the chosen schedule or reschedule through live availability. Requested, Booked and Checked-in appointments count toward per-office capacity. Submission and staff scheduling share the office calendar lock to prevent concurrent double-booking. Cancellations and rescheduling release the previous slot. Super Admin settings manage office names and slot capacity; all offices use the shared calendar. Existing requests without a slot can still be scheduled by staff. Staff check visitors in at the counter, then call, start and complete service. Document reviews, optional earlier-slot waitlists and dated follow-up tasks use the same encrypted appointment record. Waitlist changes require staff confirmation. Old active visits become Unfinished, not Completed.
 
 ## Backups and recovery
 
@@ -60,12 +64,35 @@ For the local Windows PHP installation:
 
 Frontend tests are tests/ui/*.test.cjs; run each with Node. Browser checks in tests/browser require a static server on port 8765 and isolated Chrome CDP on port 9224; the system smoke also uses the API on port 8000 and live Reverb. Browser mutation checks use API fixtures. scripts/smoke-flow.php is a separate rollback-only MySQL diagnostic that verifies InnoDB before exercising flows.
 
-## Railway deployment
+## Visit process checks
 
-The repository-root Dockerfile serves the portals and API from one HTTPS domain. Supervisor runs Apache, the mail worker, scheduler and Reverb. Use one app replica and a separate MySQL service. railway.json defines the Docker build and /up health check.
+Open the portals through your existing local HTTP server. Refresh the Admin and Visitor tabs after updating assets.
 
-Set APP_KEY, APP_URL, DB_CONNECTION=mysql, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, CACHE_STORE=database, SESSION_DRIVER=database, QUEUE_CONNECTION=database, BROADCAST_CONNECTION=reverb, REVERB_APP_ID, REVERB_APP_KEY and REVERB_APP_SECRET. Reference the MySQL service variables for connection details. Set REVERB_ALLOWED_ORIGINS and FRONTEND_ORIGINS to the public deployment host/origin. Reverb runs internally behind Apache; clients use HTTPS/WSS port 443.
+| Change | Where to check | What to try |
+| --- | --- | --- |
+| Corrected documents | Admin → Appointments → review uploaded requirements; Visitor → My Visit → Uploaded requirements | Mark a file **Needs correction** with a reason. The verified visitor can choose a corrected PDF/PNG/JPEG and **Submit replacement**. It becomes **Pending review**. Staff can open **Previous document versions**; earlier files remain encrypted on the server. |
+| Pending request deadline | Visitor → My Visit; Admin → Notifications | A request shows its staff review deadline: 24 hours after submission or the requested slot, whichever comes first. Overdue review appears in staff notifications. When an unconfirmed slot passes, the scheduler releases it and marks the request **Needs rescheduling** without recording a no-show. Staff can confirm a new slot using the existing request. |
+| Arrival window | Admin → Appointments → Check in | Normal check-in opens 30 minutes before the appointment and ends at the configured no-show threshold. Outside that window, staff must enter an override reason, which is audited. Early check-in does not permit calling a scheduled visitor before their appointment. A booking already marked No-show must be rescheduled. |
+| Case ownership and resolution | Admin → Transactions → incident/concern detail | Set **Responsible Admin**, **Next action due**, **Next action**, and escalation. Resolving or reopening requires notes. **Case activity** retains changes; concurrent stale saves are rejected. The completed visit and the open/resolved case retain separate statuses. Confidential ownership must also be authorized through the existing Head Admin assignment/access process. |
+| Other email providers | Visitor → appointment, walk-in, chat, or Visit History | Use a valid institutional, Outlook, Yahoo, or other email address. Inbox verification remains required. |
+| Assisted intake | Admin → Queue → **Assisted walk-in** | Leave email blank, enter visitor details and an identity-check note, then **Issue ticket**. Use **Print ticket**. Existing opening hours, capacity, and priority rules still apply. Explain that updates and recovery are handled at the OSS counter after checking identity. A Visit ID alone does not grant online record access. |
+| Multiple follow-ups | Admin → Appointments → detail → **Follow-up tasks** | Add two tasks, assign responsible Admins, and set due dates. Edit one without overwriting the other. Completing requires notes. Staff can expand task history. Visitors see their actions in My Visit. Overdue tasks appear in Notifications; tasks more than two days overdue also appear for the Head Admin when access permits. |
 
-INITIAL_ADMIN_PASSWORD must be a unique strong password of at least 16 characters; INITIAL_ADMIN_EMAIL sets the initial administrator email. Startup replaces the fresh database default password before opening the server. Changed existing passwords are preserved. Preserve APP_KEY and the initial-password variable across redeployments. Configure SMTP and Turnstile through environment variables. Local .env files and database backups are excluded from the image. Fresh deployment does not copy local visitor records.
+### Services and verification
 
-Docker image validation requires Docker or a Railway build. Persistent application backups require a mounted volume or external storage; container-local files are ephemeral.
+The scheduler must be running for automatic request expiry, no-shows, and email delivery. The existing worker and SMTP setup are still required for verification emails and other queued mail. No database migration is needed for these changes.
+
+From `backend`, run `php artisan schedule:work` for the local scheduler. To process elapsed unconfirmed slots immediately, run `php artisan appointments:review-pending`. This updates real records; use only when you intend to apply the expiry rule.
+
+Automated checks use SQLite in memory and mocked browser API responses, without changing live records:
+
+```powershell
+cd backend
+php -d extension=pdo_sqlite -d extension=sqlite3 vendor/bin/pest
+node --test tests/ui/*.test.cjs
+node tests/browser/run-process-preview.cjs
+```
+
+The browser runner needs Chrome at its existing Windows install location and free localhost ports 8765/9224. It saves mobile screenshots under `backend/storage/app/private/flow-checks`.
+
+SMTP inbox receipt and physical printing need a manual check in the configured deployment; the automated browser check verifies the ticket and print action without opening a print dialog.

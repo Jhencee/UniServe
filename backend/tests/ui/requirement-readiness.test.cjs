@@ -1,0 +1,5 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+for(const portal of ['Admin/admin.js','User/user.js'])test(portal+' readiness reflects document reviews',()=>{
+ const source=fs.readFileSync(path.resolve(__dirname,'../../../',portal),'utf8'),c={};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function computeReadiness('),source.indexOf('function readinessPillHtml(')),c);
+ const svc={requirements:['ID']};assert.equal(c.computeReadiness(svc,[]).status,'INCOMPLETE');assert.equal(c.computeReadiness(svc,[{}]).status,'FOR_REVIEW');assert.equal(c.computeReadiness(svc,[{review:{status:'Accepted'}}]).status,'READY');assert.equal(c.computeReadiness(svc,[{review:{status:'Needs correction'}}]).status,'INCOMPLETE');assert.equal(c.computeReadiness({requirements:[]},[]).status,'READY');assert.equal(c.computeReadiness({requirements:['A','B']},[{review:{status:'Accepted'}}]).status,'INCOMPLETE');
+});

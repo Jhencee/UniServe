@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const source = fs.readFileSync(path.resolve(__dirname, '../../../shared/appointment-api.js'), 'utf8');
 
-test('verification validates Gmail and restores Send Code after a request failure', async () => {
+test('verification validates email and restores Send Code after a request failure', async () => {
   let modal, requests=0;
   const input={value:'',setAttribute(){},removeAttribute(){},focus(){},addEventListener(){}};
   const status={textContent:''};
@@ -23,8 +23,8 @@ test('verification validates Gmail and restores Send Code after a request failur
   context.verify(()=>{});
   await modal.buttons[1].action();
   assert.equal(requests,0);
-  assert.match(status.textContent,/valid Gmail/);
-  input.value='visitor@gmail.com';
+  assert.match(status.textContent,/valid email/);
+  input.value='visitor@university.edu.ph';
   await modal.buttons[1].action();
   assert.equal(requests,1);
   assert.match(status.textContent,/wait one minute/);

@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light">
 
 <head>
-    <script src="../shared/api-config.js?v=1.1.0"></script>
+    <link rel="icon" type="image/jpeg" href="../Landing/pup.jpg">
+    <script src="../shared/api-config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UniServe &mdash; Admin</title>
@@ -11,15 +12,20 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="admin.css?v=20261021.16">
-    <link rel="stylesheet" href="../shared/staff-actions.css?v=1.0.0">
-    <link rel="stylesheet" href="calendar.css?v=1.1.0">
-    <link rel="stylesheet" href="../shared/ui-components.css?v=20261020.10">
-    <link rel="stylesheet" href="../shared/form-controls.css?v=20261020.13">
-    <link rel="stylesheet" href="../shared/staff-tables.css?v=1.1.0">
-    <script src="../shared/staff-reports.js?v=1.1.0" defer></script>
-    <link rel="stylesheet" href="../shared/responsive.css?v=1.1.0">
-    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261020.8">
+    <link rel="stylesheet" href="admin.css?v=20261109-requirement-readiness">
+    <link rel="stylesheet" href="../shared/staff-actions.css?v=20261109-bell-sync-2">
+    <link rel="stylesheet" href="calendar.css?v=20261108-lunch">
+    <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
+    <link rel="stylesheet" href="../shared/form-controls.css">
+    <link rel="stylesheet" href="../shared/staff-tables.css">
+    <script src="../shared/staff-reports.js" defer></script>
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261109-clean-calendar">
+    <link rel="stylesheet" href="../shared/staff-sidebar.css">
+    <link rel="stylesheet" href="../shared/sidebar-selection.css">
+    <link rel="stylesheet" href="../shared/dashboard.css?v=20261109-code-cleanup">
+    <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261109-card-hover">
+    <link rel="stylesheet" href="schedule-details.css?v=20261108-lunch-refined">
 </head>
 
 <body>
@@ -28,14 +34,15 @@
     <div id="app" class="app-shell">
         <aside class="sidebar" id="sidebar" aria-label="Admin">
             <div class="sidebar-brand">
-                <span class="crest"><img src="pup.jpg" alt="PUP logo"></span>
-                <span class="name" style="margin-right:auto;">UniServe<small>Student Services</small></span>
                 <button type="button" class="sidebar-toggle" aria-label="Toggle menu" title="Toggle menu" onclick="toggleSidebar()">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
-                        <path d="M4 6h16M4 12h10M4 18h16" />
+                        <path d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
+                <span class="crest"><img src="pup.jpg" alt="PUP logo"></span>
+                <span class="name" style="margin-right:auto;">UniServe<small>Student Services</small></span>
+
             </div>
             <nav aria-label="Main" style="flex:1; display:flex; min-height:0;">
                 <ul class="nav-list" id="navList" style="flex:1;"></ul>
@@ -58,7 +65,7 @@
                     <button class="menu-btn" aria-label="Open menu" onclick="toggleSidebar()">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
-                            <path d="M4 6h16M4 12h10M4 18h16" />
+                            <path d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
                     <div>
@@ -92,22 +99,24 @@
 
     <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
 
-    <script src="../shared/office-calendar.js?v=20261020.40"></script>
-    <script src="../shared/ui-components.js?v=20261020.40"></script>
-    <script src="calendar.js?v=20261020.40"></script>
-    <script src="../shared/spreadsheet-export.js?v=20261020.24"></script>
-    <script src="../shared/visit-enhancements.js?v=20261021.17"></script>
-    <script src="admin.js?v=20261021.3"></script>
-    <script src="confidential-access.js?v=1.1.0"></script>
-    <script src="../shared/visitor-turnstile.js?v=20261020.1"></script>
-    <script src="../shared/appointment-api.js?v=20261020.15"></script>
-    <script src="../shared/private-record-cache.js?v=1.1.0"></script>
-    <script src="../shared/code-boxes.js?v=1.0.0"></script>
-    <script src="../shared/responsive.js?v=1.1.0"></script>
-    <script src="../shared/portal-api.js?v=20261021.11"></script>
-    <script src="../shared/browser-notifications.js?v=20261020.40"></script>
-    <script src="../shared/realtime-updates.js?v=1.1.3"></script>
-    <script src="../shared/staff-actions.js?v=1.0.0"></script>
+    <script src="../shared/office-calendar.js"></script>
+    <script src="../shared/ui-components.js?v=20261109-in-app-notifications"></script>
+    <script src="calendar.js?v=20261109-consistency-pass"></script>
+    <script src="../shared/spreadsheet-export.js"></script>
+    <script src="../shared/visit-enhancements.js?v=20261109-detail-cleanup"></script>
+    <script src="../shared/dashboard-analytics.js"></script>
+    <script src="admin.js?v=20261109-requirement-readiness"></script>
+    <script src="confidential-access.js"></script>
+    <script src="../shared/visitor-turnstile.js"></script>
+    <script src="../shared/appointment-api.js?v=20261109-requirement-readiness"></script>
+
+    <script src="../shared/private-record-cache.js"></script>
+    <script src="../shared/code-boxes.js"></script>
+    <script src="../shared/responsive.js"></script>
+    <script src="../shared/portal-api.js?v=20261109-consistency-pass"></script>
+    <script src="../shared/realtime-updates.js?v=20261109-consistency-pass"></script>
+    <script src="../shared/staff-actions.js?v=20261109-bell-sync-2"></script>
+    <script src="../shared/important-notifications.js?v=20261109-in-app-notifications"></script>
 </body>
 
 </html>

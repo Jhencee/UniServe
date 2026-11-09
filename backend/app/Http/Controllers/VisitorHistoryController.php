@@ -12,7 +12,7 @@ class VisitorHistoryController extends Controller
 {
     public function send(Request $request)
     {
-        $data=$request->validate(['email'=>['required','email','max:120','regex:/@gmail\.com$/i']]);
+        $data=$request->validate(['email'=>['required','email','max:120']]);
         \App\Support\VisitorChallenge::validate($request);
         $email=strtolower($data['email']);
         abort_unless(config('mail.default')==='smtp' && config('mail.mailers.smtp.username') && config('mail.mailers.smtp.password'),503,'Email verification is unavailable until office email delivery is configured.');

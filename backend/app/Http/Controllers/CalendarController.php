@@ -55,7 +55,7 @@ class CalendarController extends Controller
             abort_unless($calendar['revision'] === $before['revision'], 409, 'Another Admin changed the calendar. Reload it and try again.');
             if(\Illuminate\Support\Facades\Schema::hasTable('shared_appointments')){
                 $affected=0;$affectedRows=[];
-                foreach(DB::table('shared_appointments')->where('status','Booked')->whereNotNull('date')->get() as $appointment){
+                foreach(DB::table('shared_appointments')->whereIn('status',['Requested','Booked'])->whereNotNull('date')->get() as $appointment){
                     $at=\Carbon\CarbonImmutable::parse($appointment->date.' '.$appointment->time,'Asia/Manila');
                     if($at->isPast())continue;
                     if(OfficeCalendar::status($at,$before)['open']&&!OfficeCalendar::status($at,$calendar)['open']){$affected++;$affectedRows[]=$appointment;}

@@ -5,7 +5,15 @@ use Illuminate\Support\Facades\DB;
 
 uses(DatabaseTransactions::class);
 
-beforeEach(function(){\Tests\Support\LegacySchema::create(); DB::table('staff_users')->where('role','SUPER_ADMIN')->update(['password_hash'=>\Illuminate\Support\Facades\Hash::make('FixturePassword123')]);});
+beforeEach(function(){
+    \Tests\Support\LegacySchema::create();
+    DB::table('staff_users')->insert([
+        'id'=>'u1', 'username'=>'admin', 'email'=>'admin@example.com',
+        'full_name'=>'Fixture Administrator', 'role'=>'SUPER_ADMIN',
+        'password_hash'=>\Illuminate\Support\Facades\Hash::make('FixturePassword123!'),
+        'is_active'=>true, 'confidential_access'=>false,
+    ]);
+});
 
 
 function superAdminHeaders(): array

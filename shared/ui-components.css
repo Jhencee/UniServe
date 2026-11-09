@@ -49,10 +49,25 @@
 @media(max-width:600px) { .hero-actions .btn { flex:1 1 100%; } .modal-foot { flex-wrap:wrap; } .modal-foot .btn { min-height:44px; } .ux-hour-row { grid-template-columns:65px minmax(0,1fr) 28px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
 .modal { max-width:600px; scrollbar-width:none; }
+.modal:has(.logout-confirm-copy) { max-width:400px; }
+.modal:has(.logout-confirm-copy) .modal-head { padding:16px 20px; }
+.modal:has(.logout-confirm-copy) .modal-body { padding:12px 20px; }
+.modal:has(.logout-confirm-copy) .modal-foot { gap:8px; padding:12px 20px; }
+.modal:has(.logout-confirm-copy) .modal-foot .btn { min-height:36px; padding:8px 14px; }
 .modal::-webkit-scrollbar,.modal-body::-webkit-scrollbar { display:none; width:0; height:0; }
 .modal-body { scrollbar-width:none; }
 .office-calendar-modal .modal-body { padding:18px 26px 20px; }
 .modal-head { position:sticky; top:0; z-index:1; background:var(--surface); }
+#activeModal > .modal { display:flex; flex-direction:column; overflow:hidden; }
+#activeModal > .modal > .modal-head { position:relative; flex-shrink:0; z-index:5; background:var(--surface); }
+#activeModal > .modal > .modal-head .close-x { flex-shrink:0; }
+#activeModal > .modal > .modal-body { min-height:0; overflow-y:auto; }
+#activeModal > .modal > .modal-foot { flex-shrink:0; }
+/* Text actions stay plain; icon-only controls retain their accessible symbols. */
+#activeModal .modal .btn:not([aria-label]) > svg,
+#activeModal .modal .btn:not([aria-label]) > .icon,
+#activeModal .modal .btn:not([aria-label]) > .btn-icon,
+#activeModal .modal .follow-up-add > span[aria-hidden="true"] { display:none; }
 .modal-foot { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
 .toast { display:flex; align-items:center; gap:10px; width:320px; max-width:100%; box-sizing:border-box; padding:12px 14px; border-radius:8px; border-left-width:2px; box-shadow:0 2px 8px rgba(0,0,0,.06); font-size:.82rem; font-weight:400; }
 .toast .toast-ic { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; flex-shrink:0; }
@@ -122,10 +137,6 @@
 .flow-review-row .toolbar { flex-wrap: wrap; margin-top: 8px; }
 .flow-next-action { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 @media (max-width: 700px) { .flow-entry-options { grid-template-columns: 1fr; } }
-.browser-alert-toggle { width:40px; height:40px; padding:0; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; border:0; border-radius:8px; background:transparent; color:var(--text-soft); }
-.browser-alert-toggle[aria-pressed="true"] { color:var(--accent); }
-.browser-alert-toggle:hover { background:var(--surface-2); }
-.browser-alert-status { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 
 .flow-history > h3 { margin:0 0 16px; font-family:var(--font-body,Arial,sans-serif); font-size:.88rem; font-weight:600; }
 .flow-history-item { padding:0 0 16px 12px; margin-top:16px; border-left:2px solid var(--border); }
@@ -208,3 +219,256 @@
 .follow-up-due { margin: 5px 0 0; color: var(--text-soft); font-size: .71rem; line-height: 1.6; }
 .follow-up-card .follow-up-action { flex-shrink: 0; min-height: 32px; margin: 0; padding: 6px 0 6px 8px; border: 0; border-radius: 0; background: transparent; color: var(--accent-strong); font-size: .74rem; font-weight: 500; box-shadow: none; }
 .follow-up-card .follow-up-action:hover { background: transparent; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Shared password controls for profiles, resets, and confidential access. */
+.profile-password-input { position: relative; }
+.profile-password-input input { padding-right: 46px; }
+.profile-password-input .profile-pass-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--text-soft); cursor: pointer; }
+.profile-pass-toggle:hover { color: var(--accent); }
+.profile-pass-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Resend actions appear as text links while retaining button semantics. */
+button.resend-text,
+button.resend-text:hover,
+button.resend-text:active,
+button.resend-text:disabled {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--accent-strong, #800000) !important;
+    padding: 6px 2px;
+    min-height: 32px;
+    font-size: .8rem;
+    font-weight: 600;
+    transform: none;
+}
+button.resend-text:not(:disabled):hover { text-decoration: underline; text-underline-offset: 3px; }
+button.resend-text:disabled { opacity: .5; cursor: default; }
+button.resend-text:focus-visible { outline: 2px solid var(--accent-strong, #800000); outline-offset: 3px; }
+
+/* Staff file review keeps the document and its editing controls in one card. */
+.document-review { margin-top: 20px; }
+.document-review-title { margin: 0 0 12px; font-family: var(--font-body); font-size: .84rem; font-weight: 600; color: var(--text); }
+.document-review .document-review-item { margin-bottom: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.document-review .document-review-heading { margin-bottom: 0; flex-wrap: nowrap; }
+.document-review-file { flex: 1; min-width: 0; }
+.document-review-file .attach-chip { margin: 0; padding: 0; border: 0; background: transparent; }
+.document-review-heading > .pill { flex-shrink: 0; }
+.document-review-form { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.document-review-form .field { margin-bottom: 14px; }
+.document-review-form textarea { min-height: 76px; }
+.document-review-form > button { display: block; margin-left: auto; }
+.document-review > .field-hint { margin: 10px 0 0; font-size: .73rem; line-height: 1.6; }
+@media (max-width: 520px) { .document-review .document-review-heading { flex-wrap: wrap; } .document-review-file { flex-basis: 100%; } }
+
+/* Appointment details and scheduling use one consistent section layout. */
+.appointment-detail-panel { display: flex; flex-direction: column; gap: 20px; }
+.appointment-detail-panel h4 { margin: 0 0 14px; font-family: var(--font-body); font-size: .85rem; font-weight: 600; color: var(--text); }
+.appointment-summary, .appointment-schedule-section { padding: 18px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.appointment-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.appointment-summary-grid .kv { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.appointment-summary-grid .kv > span:first-child { font-size: .72rem; color: var(--text-soft); font-weight: 400; }
+.appointment-summary-grid .kv > span:last-child { font-size: .82rem; color: var(--text); overflow-wrap: anywhere; max-width: 100%; }
+.appointment-schedule-section h4 { margin-bottom: 6px; }
+.appointment-schedule-section > .field-hint { margin: 0 0 16px; line-height: 1.6; font-size: .76rem; }
+.appointment-schedule-section .form-row { gap: 16px; }
+.appointment-schedule-section .field { margin-bottom: 0; }
+.appointment-schedule-section #calendarApptWarning:empty { display: none; }
+.appointment-schedule-section #calendarApptWarning { margin: 10px 0; }
+.appointment-schedule-section > .field-hint:last-child { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.appointment-detail-panel .document-review { margin-top: 0; }
+.appointment-detail-panel .appointment-detail-extras:empty { display: none; }
+@media (max-width: 520px) { .appointment-summary-grid { grid-template-columns: 1fr; gap: 14px; } .appointment-summary, .appointment-schedule-section { padding: 15px; } }
+
+/* Follow-up disclosure matches the scheduling sections. */
+.appointment-detail-panel .appointment-detail-extras { margin: 0; padding: 0; border: 0; }
+.appointment-detail-panel .follow-up-disclosure { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.appointment-detail-panel .follow-up-disclosure > summary { padding: 15px 18px; gap: 10px; font-size: .82rem; }
+.appointment-detail-panel .follow-up-disclosure[open] > summary { border-bottom: 1px solid var(--border); }
+.appointment-detail-panel .follow-up-disclosure .schedule-history-count { margin-left: auto; font-size: .72rem; font-weight: 400; color: var(--text-soft); }
+.appointment-detail-panel .follow-up-disclosure .follow-up-card { margin: 0; padding: 16px 18px; gap: 14px; }
+.appointment-detail-panel .follow-up-heading-copy p { margin: 0; font-size: .76rem; }
+.appointment-detail-panel .follow-up-card .follow-up-action { padding: 7px 12px; min-height: 34px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text); font-weight: 600; font-size: .75rem; }
+.appointment-detail-panel .follow-up-card .follow-up-action:hover { background: var(--surface-2); border-color: var(--accent); color: var(--accent); text-decoration: none; }
+.appointment-detail-panel .follow-up-card .follow-up-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.appointment-detail-panel .follow-up-content { margin-top: 0; }
+
+/* Match both appointment disclosures. */
+.appointment-detail-panel .appointment-detail-extras { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.appointment-detail-panel .schedule-history,
+.appointment-detail-panel .follow-up-disclosure { margin: 0; padding: 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.appointment-detail-panel .schedule-history > summary,
+.appointment-detail-panel .follow-up-disclosure > summary { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 14px 18px; font-family: var(--font-body); font-size: .82rem; font-weight: 600; line-height: 1.5; color: var(--text); cursor: pointer; list-style: none; }
+.appointment-detail-panel .schedule-history > summary::-webkit-details-marker,
+.appointment-detail-panel .follow-up-disclosure > summary::-webkit-details-marker { display: none; }
+.appointment-detail-panel .schedule-history > summary svg,
+.appointment-detail-panel .follow-up-disclosure > summary svg { order: -1; width: 14px; height: 14px; flex: 0 0 14px; color: var(--text-soft); }
+.appointment-detail-panel .schedule-history-count { margin-left: auto; padding: 2px 7px; min-width: 24px; border-radius: 6px; background: var(--surface-2); color: var(--text-soft); font-size: .7rem; font-weight: 500; text-align: center; }
+.appointment-detail-panel .schedule-history-count::before,
+.appointment-detail-panel .schedule-history-count::after { content: none; }
+.appointment-detail-panel .schedule-history[open] > summary,
+.appointment-detail-panel .follow-up-disclosure[open] > summary { border-bottom: 1px solid var(--border); }
+.appointment-detail-panel .schedule-history ol { margin: 16px 20px 18px 25px; padding-left: 18px; }
+.appointment-detail-panel .schedule-history > summary:hover,
+.appointment-detail-panel .follow-up-disclosure > summary:hover { background: var(--surface-2); }
+
+/* Consistent sizing for schedule and document-review controls. */
+.appointment-detail-panel .field > label,
+.document-review-form .field > label { font-family: var(--font-body); font-size: .76rem; font-weight: 600; line-height: 1.5; margin-bottom: 6px; }
+.appointment-detail-panel .field input,
+.appointment-detail-panel .field select,
+.appointment-detail-panel .field textarea,
+.document-review-form .field select,
+.document-review-form .field textarea { font-family: var(--font-body); font-size: .8rem; font-weight: 400; line-height: 1.5; }
+.appointment-detail-panel .field input,
+.appointment-detail-panel .field select,
+.document-review-form .field select { min-height: 40px; height: 40px; padding-top: 9px; padding-bottom: 9px; }
+.document-review-form select option { font-family: var(--font-body); font-size: .8rem; font-weight: 400; }
+.document-review-form > button { font-family: var(--font-body); font-size: .76rem; line-height: 1.5; }
+body .document-review-form button[data-review-id] { display:flex; align-items:center; justify-content:center; gap:6px; min-height:34px; margin:4px 0 0 auto; padding:7px 12px; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:#fff; font-size:.75rem; font-weight:500; box-shadow:none; }
+body .document-review-form button[data-review-id]:hover { background:var(--accent-strong,var(--accent)); border-color:var(--accent-strong,var(--accent)); color:#fff; }
+body .document-review-form button[data-review-id]:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+body .document-review .document-history-action { display:inline-flex; align-items:center; justify-content:center; gap:7px; margin-top:4px; min-height:34px; padding:7px 0; border:0; border-radius:4px; background:transparent; color:var(--accent); font-size:.75rem; font-weight:500; box-shadow:none; }
+body .document-review .document-history-action svg { flex-shrink:0; }
+body .document-review .document-history-action:hover { background:transparent; color:var(--accent-strong,var(--accent)); }
+body .document-review-form button[data-review-id] svg { flex-shrink:0; }
+body .document-review .document-history-action:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:600px) { body .document-review-form button[data-review-id], body .document-review .document-history-action { min-height:44px; } }
+
+/* Consistent category and period tabs across staff interfaces. */
+html .subnav { display:flex; flex-wrap:nowrap; gap:24px; overflow-x:auto; border-bottom:1px solid var(--border); }
+html .subnav button { flex:0 0 auto; position:relative; min-height:40px; padding:12px 2px; border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; color:var(--text-soft); font-family:var(--font-body); font-size:.82rem; font-weight:500; box-shadow:none; white-space:nowrap; transition:color .15s,border-color .15s; }
+html .subnav button:hover { color:var(--text); border-color:transparent; background:transparent; }
+html[data-theme] .subnav button.active,
+html[data-theme] .notification-tab[aria-selected="true"] { border:0; border-bottom:2px solid currentColor; border-radius:0; background:transparent; color:var(--accent-strong); font-weight:600; box-shadow:none; }
+html .subnav button:focus-visible { outline:2px solid var(--accent); outline-offset:-4px; border-radius:4px; }
+html .subnav button .cnt { font-size:.7rem; font-weight:500; color:inherit; opacity:.75; }
+
+/* Keep task content beside one compact edit action in staff records. */
+.appointment-detail-panel .follow-up-disclosure .follow-up-card {
+  display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start;
+  gap:5px 16px; padding:14px 16px;
+}
+.appointment-detail-panel .follow-up-disclosure .follow-up-heading {
+  grid-column:1; grid-row:1; min-width:0; gap:0; flex:none;
+}
+.appointment-detail-panel .follow-up-disclosure .follow-up-heading-copy { flex:none; min-width:0; }
+.appointment-detail-panel .follow-up-disclosure .follow-up-heading .pill { margin:0; font-size:.7rem; line-height:1.5; }
+.appointment-detail-panel .follow-up-disclosure .follow-up-content {
+  grid-column:1; grid-row:2; order:initial; min-width:0; margin:0; padding:0; border:0;
+}
+.appointment-detail-panel .follow-up-disclosure .follow-up-content::before { display:none; }
+.appointment-detail-panel .follow-up-disclosure .visit-task-text { font-size:.8rem; line-height:1.5; overflow-wrap:anywhere; }
+.appointment-detail-panel .follow-up-disclosure .follow-up-due { margin-top:4px; font-size:.71rem; }
+.appointment-detail-panel .follow-up-disclosure .follow-up-action {
+  grid-column:2; grid-row:1 / 3; align-self:center; min-height:36px;
+  margin:0; padding:7px 0 7px 8px; border:0;
+  border-radius:0; background:transparent; color:var(--accent-strong);
+  font-size:.74rem; font-weight:500; line-height:1.4; white-space:nowrap; box-shadow:none;
+}
+.appointment-detail-panel .follow-up-disclosure .follow-up-action:hover {
+  background:transparent; border-color:transparent; color:var(--accent-strong); text-decoration:underline; text-underline-offset:3px;
+}
+.appointment-detail-panel .follow-up-disclosure .follow-up-action:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:600px) {
+ .appointment-detail-panel .follow-up-disclosure .follow-up-card { gap:6px 12px; padding:12px 14px; }
+ .appointment-detail-panel .follow-up-disclosure .follow-up-action { min-height:44px; }
+}
+
+/* Compact follow-up list, shared by staff and visitor details. */
+body .follow-up-card.follow-up-tasks { display:flex; flex-direction:column; align-items:stretch; gap:0; margin:16px 0; padding:0; background:var(--surface); }
+body .follow-up-tasks .follow-up-heading { display:flex; flex:none; justify-content:space-between; align-items:center; gap:12px; min-width:0; padding:0 0 12px; border-bottom:1px solid var(--border); }
+body .follow-up-tasks .follow-up-heading h4 { margin:0; font-size:.82rem; font-weight:600; }
+body .follow-up-tasks .follow-up-heading .follow-up-add { display:inline-flex; align-items:center; gap:6px; min-height:34px; padding:7px 12px; border:1px solid var(--accent); border-radius:6px; background:var(--accent); color:#fff; font-size:.75rem; font-weight:500; text-decoration:none; }
+body .follow-up-tasks .follow-up-heading .follow-up-add:hover { background:var(--accent-strong,var(--accent)); border-color:var(--accent-strong,var(--accent)); color:#fff; text-decoration:none; }
+body .follow-up-tasks .follow-up-empty { margin:0; padding:14px 0 2px; color:var(--text-soft); font-size:.78rem; line-height:1.5; }
+body .follow-up-tasks .follow-up-content { flex:none; order:initial; margin:0; padding:14px 0; border:0; border-bottom:1px solid var(--border); min-width:0; overflow-wrap:anywhere; }
+body .follow-up-tasks .follow-up-content:last-child { border-bottom:0; padding-bottom:0; }
+body .follow-up-tasks .follow-up-content::before { display:none; }
+body .follow-up-tasks .follow-up-content > .pill { display:inline-flex; margin:8px 8px 0 0; }
+body .follow-up-tasks .follow-up-content > .follow-up-action { min-height:32px; margin-top:6px; padding:6px 8px; }
+@media(max-width:600px) { body .follow-up-tasks .follow-up-heading .follow-up-add { min-height:44px; } }
+.important-updates { white-space:nowrap; min-height:36px; }
+.admin-actions-panel .important-updates::before {
+  content:''; width:20px; height:20px; flex:0 0 20px;
+  background:var(--text-soft);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v16H4zM4 14h4l2 3h4l2-3h4M8 8h8M8 11h5'/%3E%3C/svg%3E") center/20px 20px no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 4h16v16H4zM4 14h4l2 3h4l2-3h4M8 8h8M8 11h5'/%3E%3C/svg%3E") center/20px 20px no-repeat;
+}
+.topbar-right .admin-actions-panel .important-updates { font-weight:500; line-height:1.4; transform:none; }
+.important-update { padding:14px 0; border-bottom:1px solid var(--border); }
+.important-update:last-child { border-bottom:0; }
+.important-update strong { font-size:.84rem; }
+.important-update .field-hint { margin:6px 0; }
+
+.document-review-actions { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:4px; }
+.issued-walkin-ticket { border:1px solid var(--border); border-radius:8px; padding:22px; background:var(--surface); }
+.issued-ticket-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.issued-ticket-label { margin:0; font-size:.82rem; font-weight:500; color:var(--text); }
+.issued-ticket-status { padding:4px 8px; border-radius:4px; background:var(--ok-bg); color:var(--ok); font-size:.7rem; font-weight:500; }
+.issued-ticket-number { margin:20px 0 2px; color:var(--accent); text-align:center; font-size:2.6rem; font-weight:600; line-height:1.2; letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+.issued-ticket-caption { margin:0 0 22px; text-align:center; color:var(--text-soft); font-size:.75rem; }
+.issued-ticket-details { margin:0; padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.issued-ticket-details > div { display:grid; grid-template-columns:90px minmax(0,1fr); align-items:baseline; gap:16px; padding:6px 0; font-size:.8rem; line-height:1.5; }
+.issued-ticket-details dt { color:var(--text-soft); }
+.issued-ticket-details dd { margin:0; color:var(--text); overflow-wrap:anywhere; }
+.issued-ticket-id { font-weight:600; }
+.transaction-detail .staff-record-context { position:static; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 16px; padding:0 0 16px; margin:0 0 18px; border-bottom:1px solid var(--border); }
+.transaction-detail .staff-record-context > strong { font-size:1rem; font-weight:600; }
+.transaction-detail .staff-record-context > .mono { grid-column:1; font-size:.74rem; }
+.transaction-detail .staff-record-context > span:last-child { grid-column:2; grid-row:1 / 3; align-self:center; }
+.transaction-detail .staff-detail-heading { margin:20px 0 10px; padding-top:18px; border-top:1px solid var(--border); font-size:.8rem; font-weight:600; }
+.transaction-detail .staff-record-context + .staff-detail-heading { margin-top:0; padding-top:0; border-top:0; }
+.transaction-detail .kv { display:grid; grid-template-columns:130px minmax(0,1fr); gap:16px; align-items:baseline; margin:0; padding:7px 0; border:0; font-size:.8rem; line-height:1.6; }
+.transaction-detail .kv > span:first-child { color:var(--text-soft); }
+.transaction-detail .kv > span:last-child { min-width:0; max-width:none !important; text-align:left !important; overflow-wrap:anywhere; }
+.transaction-detail .field > label { font-size:.76rem; }
+.record-detail-clean .staff-record-context { position:static; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 16px; padding:0 0 16px; margin:0 0 18px; }
+.record-detail-clean .staff-record-context > strong { font-size:1rem; font-weight:600; }
+.record-detail-clean .staff-record-context > .mono { grid-column:1; }
+.record-detail-clean .staff-record-context > span:last-child { grid-column:2; grid-row:1 / 3; align-self:center; }
+.record-detail-clean .kv { display:grid; grid-template-columns:130px minmax(0,1fr); align-items:baseline; gap:16px; margin:0; padding:7px 0; border:0; font-size:.8rem; line-height:1.6; }
+.record-detail-clean .kv > span:last-child { min-width:0; max-width:none; text-align:left; overflow-wrap:anywhere; }
+.record-detail-clean .staff-detail-section { margin:0; }
+.record-detail-clean .staff-detail-section h4,
+.record-detail-clean .staff-detail-heading { margin:20px 0 10px; padding-top:18px; border-top:1px solid var(--border); font-size:.8rem; }
+.record-detail-clean .staff-record-context + .staff-detail-section h4 { margin-top:0; padding-top:0; border-top:0; }
+.record-detail-clean .appointment-summary { margin:0; padding:16px 0; }
+.record-detail-clean .appointment-summary h4 { margin:0 0 10px; font-size:.8rem; }
+.record-detail-clean .appointment-summary-grid { display:block; }
+.record-history > .flow-history { padding:16px 0 0; margin:16px 0 0; border:0; border-top:1px solid var(--border); border-radius:0; box-shadow:none; background:transparent; }
+.record-history > .visit-journey { margin:16px 0; }
+.record-history > .flow-history h3 { font-size:.8rem; }
+.record-subheading { margin:14px 0 8px; font-size:.78rem; font-weight:600; color:var(--text); }
+.record-history > .divider { margin:16px 0; }
+.document-version-item, .task-history-entry { padding:14px 0; border-bottom:1px solid var(--border); }
+.document-version-item:last-child, .task-history-entry:last-child { border-bottom:0; }
+.document-version-item .attach-chip { max-width:100%; margin:0 0 8px; overflow-wrap:anywhere; }
+.document-version-item dl, .task-history-entry dl { margin:8px 0 0; }
+.document-version-item dl > div, .task-history-entry dl > div { display:grid; grid-template-columns:110px minmax(0,1fr); gap:12px; padding:4px 0; font-size:.76rem; line-height:1.6; }
+.document-version-item dt, .task-history-entry dt { color:var(--text-soft); }
+.document-version-item dd, .task-history-entry dd { min-width:0; margin:0; overflow-wrap:anywhere; }
+.task-history-meta { display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; color:var(--text-soft); font-size:.72rem; }
+.task-history-entry > p { margin:8px 0; font-size:.78rem; line-height:1.6; overflow-wrap:anywhere; }
+.case-followup-section { margin-top:20px; padding-top:18px; border-top:1px solid var(--border); }
+.case-followup-section > h4 { margin:0 0 14px; font-size:.8rem; font-weight:600; }
+.case-followup-section .field { margin-bottom:14px; }
+@media(max-width:480px) { .record-detail-clean .kv { grid-template-columns:96px minmax(0,1fr); gap:12px; } }
+@media(max-width:480px) { .transaction-detail .kv { grid-template-columns:96px minmax(0,1fr); gap:12px; } }
+.issued-ticket-note { margin:14px 0 0; color:var(--text-soft); font-size:.76rem; line-height:1.7; }
+@media(max-width:480px) { .issued-walkin-ticket { padding:18px; } .issued-ticket-details > div { grid-template-columns:72px minmax(0,1fr); gap:10px; } }
+body .document-review-actions button[data-review-id] { margin:0 0 0 auto; }
+body .document-review-actions .document-history-action { margin:0; }
+
+/* Shared action rhythm for staff dialogs and visitor passes. */
+body .modal-foot .btn, body .document-review-form button[data-review-id], body .document-review .document-history-action { min-height:40px; font-size:.78rem; line-height:1.4; }
+body .modal-foot { align-items:center; gap:8px; }
+:is(.record-detail-clean,.transaction-detail) .kv > span:first-child { color:var(--text-soft); }
+:is(.record-detail-clean,.transaction-detail) .staff-record-context > .mono { font-size:.74rem; }
+.helper-empty p, .staff-chat-empty p { line-height:1.65; max-width:36rem; margin-left:auto; margin-right:auto; }
+@media(max-width:600px) { body .modal-foot .btn, body .document-review-form button[data-review-id], body .document-review .document-history-action { min-height:44px; } }
+
+@media screen {
+ body #content .empty-row td { padding:28px 20px; text-align:center; color:var(--text-soft); font-size:.8rem; line-height:1.65; background:var(--surface); }
+ .analytics-dashboard .helper-empty p { font-size:.82rem; line-height:1.65; }
+}

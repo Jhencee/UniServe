@@ -22,6 +22,8 @@ class QueueController extends Controller
     public function create(Request $request)
     {
         $request->merge(['contact'=>\App\Support\PhilippineContact::normalize($request->input('contact','')),'email'=>strtolower(trim((string)$request->input('email','')))]);
+        $assisted=$request->boolean('assisted');
+        $actor=$assisted?StaffAuth::user($request,'ADMIN'):null;
         $data = $request->validate([
             'visitorType' => ['required', 'in:Student,Guest'],
             'serviceKey' => ['required', 'string', 'max:50'],
@@ -31,10 +33,11 @@ class QueueController extends Controller
             'idType' => ['nullable', 'string', 'max:100'],
             'guestClass' => ['nullable', 'string', 'max:100'],
             'contact' => ['required', 'regex:/^09[0-9]{9}$/'],
-            'email' => ['required', 'email', 'max:120', 'regex:/@gmail\.com$/i'],
+            'email' => [$assisted?'nullable':'required', 'email', 'max:120'],
             'isSenior' => ['boolean'], 'isPWD' => ['boolean'], 'possibleDuplicate' => ['boolean'],
         ]);
-        \App\Support\VisitorAccess::requireEmail($request,$data['email']);
+        if($assisted){$d=$request->validate(['identityCheck'=>'required|string|min:5|max:500']);$data['email']=$data['email']??'';$data['assisted']=true;$data['assistedBy']=$actor->id;$data['identityCheck']=$d['identityCheck'];}
+        else \App\Support\VisitorAccess::requireEmail($request,$data['email']);
         if(\Illuminate\Support\Facades\Schema::hasTable('service_catalog')){ $service=DB::table('service_catalog')->where('key',$data['serviceKey'])->first();abort_unless($service,422,'Unknown service.');$data['serviceLabel']=$service->label;}
         $queue = DB::transaction(function () use ($data) {
             $calendar = DB::table('office_calendar')->where('id', 1)->lockForUpdate()->first();
@@ -43,6 +46,19 @@ class QueueController extends Controller
                 throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json(['message' => $availability['reason'], 'availability' => $availability], 409));
             }
             \App\Support\Availability::requireOpen();
+            // Derive the warning from authoritative records, never the submitted flag.
+            $identity = strtolower(trim($data['idNumber'] ?? ''));
+            $data['possibleDuplicate'] = DB::table('queues')->whereIn('status', ['Waiting','Called','Serving','Skipped','Unfinished'])->get()
+                ->contains(function ($row) use ($data, $identity) {
+                    $existing = \App\Support\QueueData::read($row->portal_payload);
+                    return ($existing['serviceKey'] ?? '') === $data['serviceKey'] &&
+                        (strtolower(trim($existing['email'] ?? '')) === $data['email'] ||
+                        ($identity !== '' && strtolower(trim($existing['idNumber'] ?? '')) === $identity));
+                });
+            if (!$data['possibleDuplicate'] && \Illuminate\Support\Facades\Schema::hasTable('shared_appointments')) {
+                $data['possibleDuplicate'] = DB::table('shared_appointments')->where('email', \App\Support\EmailIndex::key($data['email']))
+                    ->where('service_key', $data['serviceKey'])->whereIn('status', ['Requested','Booked','Checked-in'])->exists();
+            }
             $capacity=\App\Support\WalkInCapacity::status();abort_unless($capacity['accepting'],409,$capacity['message']);
             $settings=\Illuminate\Support\Facades\Schema::hasTable('shared_system_settings')?json_decode(DB::table('shared_system_settings')->where('id',1)->value('payload'),true):[];
             $prefix = $data['visitorType'] === 'Student' ? ($settings['queuePrefixStudent']??'A') : ($settings['queuePrefixGuest']??'G');
@@ -68,11 +84,12 @@ class QueueController extends Controller
                 'visitor_name' => null, 'id_number' => null, 'contact' => null,
                 'source' => 'Walk-in', 'status' => 'Waiting', 'portal_payload' => \App\Support\QueueData::write($queue),
             ]);
-            \App\Jobs\SendVisitTicket::dispatch($queue);
+
             return $queue;
         });
+        if($assisted)\App\Support\SystemAudit::record($actor,'Queue','Assisted walk-in identity checked',$queue['visitId']);
         $token=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$queue['visitId'],'expires'=>time()+3600]));
-        return response()->json(['queue' => $queue,'visitToken'=>$token], 201);
+        return response()->json(['queue' => $queue]+($assisted?[]:['visitToken'=>$token]), 201);
     }
 
     public function index(Request $request)
@@ -99,6 +116,46 @@ class QueueController extends Controller
         $appointment=!empty($queue['appointmentId'])?DB::table('shared_appointments')->where('id',$queue['appointmentId'])->first():null;
         if($appointment){$a=AppointmentController::present($appointment);$queue['appointmentProgress']=array_intersect_key($a,array_flip(['createdAt','scheduledConfirmedAt']));$queue['followUpTask']=$a['followUpTask']??null;}
         return response()->json(['queue' => $queue]);
+    }
+
+    public function checkRequirement(Request $request, string $id)
+    {
+        $actor = StaffAuth::user($request, 'ADMIN');
+        \App\Support\QueueDayClosure::run();
+        $data = $request->validate([
+            'serviceKey' => 'required|string|max:50',
+            'requirement' => 'required|string|max:200',
+            'checked' => 'required|boolean',
+        ]);
+        $queue = DB::transaction(function () use ($id, $actor, $data) {
+            $row = DB::table('queues')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($row && $row->portal_payload, 404, 'Queue entry not found.');
+            abort_unless($row->status === 'Serving', 409, 'Requirements can only be checked while serving this visit.');
+            abort_unless($row->assigned_admin_id === $actor->id, 403, 'Only the Admin serving this visit can check its requirements.');
+            $queue = \App\Support\QueueData::read($row->portal_payload);
+            abort_if(\App\Support\QueueData::forStaff($queue, $actor)['restricted'] ?? false, 403, 'Confidential access required to check these requirements.');
+            abort_unless(($queue['serviceKey'] ?? '') === $data['serviceKey'], 409, 'The visit service changed. Refresh the checklist.');
+            $service = DB::table('service_catalog')->where('key', $queue['serviceKey'])->first();
+            $requirements = array_values(array_unique(array_filter(array_map('trim', json_decode($service->payload ?? '{}', true)['requirements'] ?? []))));
+            abort_unless(in_array($data['requirement'], $requirements, true), 422, 'This requirement is no longer listed for this service. Refresh the checklist.');
+            $checks = $queue['requirementChecks'] ?? [];
+            $index = null;
+            foreach ($checks as $i => $check) {
+                if (($check['serviceKey'] ?? '') === $data['serviceKey'] && ($check['requirement'] ?? '') === $data['requirement']) {$index = $i; break;}
+            }
+            $previous = $index === null ? false : (bool) $checks[$index]['checked'];
+            $checked = (bool) $data['checked'];
+            if ($previous !== $checked) {
+                $entry = ['serviceKey' => $data['serviceKey'], 'requirement' => $data['requirement'], 'checked' => $checked, 'checkedAt' => now()->toIso8601String()];
+                if ($index === null) $checks[] = $entry; else $checks[$index] = $entry;
+                $queue['requirementChecks'] = array_values($checks);
+                DB::table('queues')->where('id', $id)->update(['portal_payload' => \App\Support\QueueData::write($queue)]);
+                \App\Support\SystemAudit::record($actor, 'Queue', 'Requirement checklist updated', $queue['visitId'], [['field' => $data['requirement'], 'from' => $previous ? 'Checked' : 'Unchecked', 'to' => $checked ? 'Checked' : 'Unchecked']]);
+            }
+            request()->attributes->set('system_audit_recorded', true);
+            return $queue;
+        });
+        return response()->json(['queue' => \App\Support\QueueData::forStaff($queue, $actor)]);
     }
 
     public function update(Request $request, string $id)
@@ -129,6 +186,7 @@ class QueueController extends Controller
                 abort_if($appointment&&in_array($appointment->status,['Requested','Booked']),409,'Another visit is already being arranged. Use the appointment to schedule or check in this visitor.');
             }
             if(\App\Support\ServicePrivacy::confidential($stored['serviceKey']??''))abort_unless($actor->confidential_access??false,403,'Confidential access required to handle the original visit.');
+            if(!empty($stored['transactionId'])&&\App\Support\ServicePrivacy::confidential($stored['serviceKey']??''))abort_unless(\App\Support\CaseAccess::canView($actor,$stored['transactionId']),403,'Confidential case access and an active unlock are required.');
             if(in_array($row->status,['Completed','Cancelled'])){
                 abort_if(isset($data['serviceKey'])&&$data['serviceKey']!==($stored['serviceKey']??null),409,'An ended visit cannot change service.');
                 request()->attributes->set('system_audit_recorded',true);
@@ -175,6 +233,10 @@ class QueueController extends Controller
             if (in_array($row->status,['Completed','Cancelled']) && $data['status']!==$row->status) abort(409,'This visit has already ended.');
             if ($data['status']==='Serving' && !in_array($row->status,['Called','Serving'])) abort(409,'Call the visitor before beginning service.');
             if ($data['status']==='Completed' && !in_array($row->status,['Serving','Completed'])) abort(409,'Begin service before completing this visit.');
+            if ($data['status']==='Completed') {
+                $requirements=\App\Support\QueueData::requirements($queue);
+                abort_unless($requirements['ready'],409,'Complete the requirements checklist before completing this visit ('.$requirements['checked'].' of '.$requirements['required'].' checked).');
+            }
             if ($data['status']==='Serving' && $row->status!=='Serving') $queue['servingAt']=now()->toIso8601String();
             if ($data['status']==='Completed' && $row->status!=='Completed') $queue['completedAt']=now()->toIso8601String();
             \App\Support\ServiceOutcome::save($queue,$actor);
@@ -201,7 +263,7 @@ class QueueController extends Controller
             request()->attributes->set('system_audit_recorded',true);
             return $queue;
         });
-        return response()->json(['queue' => $queue]);
+        return response()->json(['queue' => \App\Support\QueueData::forStaff($queue,$actor)]);
     }
 
     public function cancel(Request $request,string $visitId)

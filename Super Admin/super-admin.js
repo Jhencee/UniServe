@@ -1,3 +1,5 @@
+// Use the shared modal, toast and status controls before page initialization.
+UniServeUX.install();
 const DB_KEY = 'ossuniserve_db_v1';
 const ROLES = { SUPER_ADMIN: { label: 'Super Admin' }, ADMIN: { label: 'Admin' }, SYSTEM: { label: 'System' }, VISITOR: { label: 'Visitor' } };
 const SYSTEM_ACTOR = { fullName: 'System', role: 'SYSTEM' };
@@ -72,7 +74,7 @@ function fmtMinutes(m) {
  if(m==null)return '&mdash;';
  const seconds=Math.max(0,Math.round(Number(m)*60));
  const h=Math.floor(seconds/3600),n=Math.floor(seconds%3600/60),sec=seconds%60;
- return [h?h+' '+(h===1?'hour':'hours'):'',n?n+' '+(n===1?'minute':'minutes'):'',sec?sec+' '+(sec===1?'second':'seconds'):''].filter(Boolean).join(' ')||'0 seconds';
+ return [h?h+' '+'hrs':'',n?n+' '+'mins':'',sec?sec+' '+'secs':''].filter(Boolean).join(' ')||'0 secs';
 }
 function actionText(s) { return String(s == null ? '' : s).replace(/&mdash;/g, '—').replace(/&middot;/g, '·').replace(/&ndash;/g, '–'); }
 function diffFields(before, after, labels) {
@@ -104,7 +106,7 @@ function migrateLegacyVisitIds(db) {
 }
 function migrateVisitIds(db) {
   let changed = false;
-  (db.appointments || []).forEach(a => { if (!a.visitId) { a.visitId = nextVisitId(db); changed = true; } });
+  (db.appointments || []).forEach(a => { if (!a.visitId && !a.shared) { a.visitId = nextVisitId(db); changed = true; } });
   (db.queues || []).forEach(q => {
     if (!q.visitId) {
       const a = q.appointmentId ? (db.appointments || []).find(x => x.id === q.appointmentId) : null;
@@ -137,8 +139,6 @@ function freshState() {
     systemSettings: { orgName: 'Office of Student Services', supportEmail: 'oss@university.edu.ph', supportPhone: '0917-000-0000', timezone: 'Asia/Manila', maintenanceMode: false, autoCloseChats: false, sessionTimeout: 30, queuePrefixStudent: 'A', queuePrefixGuest: 'G', gracePeriodMinutes: DEFAULT_GRACE_MINUTES, noShowThresholdMinutes: DEFAULT_NOSHOW_MINUTES },
   };
 }
-function mkTxn(o) { return { id: uid('T'), code: randCode('OSS'), status: 'Pending', escalation: null, ...o, updatedAt: o.createdAt || new Date() }; }
-function mkAppt(o) { return { id: uid('A'), code: randCode('APT'), visitId: null, queueId: null, queueNumber: null, isSenior: false, isPWD: false, attachments: [], readiness: null, arrivalStatus: null, lateMinutes: null, possibleDuplicate: false, ...o }; }
 function mkLog(user, role, action, ts) { return { id: uid('L'), user, role, action, ts: ts || new Date() }; }
 function mkChat(o) { return { id: uid('C'), status: 'Open', messages: [], staffUnread: 0, visitorUnread: 0, createdAt: new Date(), updatedAt: new Date(), ...o }; }
 function mkQueue(o) {
@@ -171,7 +171,7 @@ function saveDB(s) { localStorage.setItem(DB_KEY, JSON.stringify(s)); }
 function loadSession() { try { return JSON.parse(sessionStorage.getItem('ossuniserve_session') || '{}'); } catch (e) { return {}; } }
 function saveSession(o) { sessionStorage.setItem('ossuniserve_session', JSON.stringify(o)); }
 
-function queueRef(q) { return q.number || q.visitId; }
+function queueRef(q) { return q.number || q.visitId || '\u2014'; }
 function isDue(q, now = new Date()) { return q.source !== 'Appointment' || !q.scheduledAt || new Date(q.scheduledAt) <= now; }
 function queueRank(q, now) {
   if (q.source === 'Appointment') return isDue(q, now) ? ((q.isSenior || q.isPWD) ? -1 : 1) : 3;
@@ -214,50 +214,26 @@ function fmtHourRange(h) {
 
 const STARS = n => '&#9733;'.repeat(n) + '&#9734;'.repeat(5 - n);
 function feedbackStats(db) {
-  const rows = db.queues.filter(q => q.feedback), n = rows.length, completed = db.queues.filter(q => q.status === 'Completed').length;
-  const satisfied = rows.filter(q => q.feedback.rating >= 4).length;
+  const summary = db.feedbackSummary;
   return {
-    rows, n, completed, satisfied,
-    avg: n ? rows.reduce((s, q) => s + q.feedback.rating, 0) / n : null,
-    satPct: n ? Math.round(satisfied / n * 100) : null,
-    rate: completed ? Math.round(n / completed * 100) : null,
-    dist: [5, 4, 3, 2, 1].map(s => ({ label: `${s} star${s === 1 ? '' : 's'}`, count: rows.filter(q => q.feedback.rating === s).length })),
+    n: summary?.responses ?? 0,
+    completed: summary?.completed ?? 0,
+    avg: summary?.average ?? null,
+    satPct: summary?.satisfactionPercent ?? null,
+    rate: summary?.responseRate ?? null,
+    withComment: summary?.withComment ?? 0,
+    dist: (summary?.distribution || []).map(item => ({label: item.rating + ' star' + (item.rating === 1 ? '' : 's'), count: item.count})),
   };
-}
-function feedbackCommentHtml(id, text) {
-  const t = escapeHtml(text);
-  return `<div class="fb-comment" title="Click to read the full comment" onclick="openFeedbackComment('${id}')">${t}</div>`;
-}
-function openFeedbackComment(id) {
-  const db = loadDB(), q = db.queues.find(x => x.id === id);
-  if (!q || !q.feedback) { toast('Feedback not found.', 'err'); return; }
-  const t = q.transactionId ? db.transactions.find(x => x.id === q.transactionId) : null;
-  if (t && isTxnLocked(t)) { toast('This feedback belongs to a confidential record.', 'err'); return; }
-  const when = q.feedback.submittedAt || q.completedAt || q.createdAt;
-  openModal('Visitor Feedback', `
-    <div class="kv"><span>Visit</span><span class="mono">${escapeHtml(q.visitId || q.number || '—')}</span></div>
-    <div class="kv"><span>Visitor</span><span>${escapeHtml(q.name || '—')}</span></div>
-    <div class="kv"><span>Service</span><span>${escapeHtml(serviceQueueLabel(db, q))}</span></div>
-    <div class="kv"><span>Rating</span><span class="fb-readout"><span class="stars">${STARS(q.feedback.rating)}</span></span></div>
-    <div class="kv"><span>Date</span><span class="mono">${fmtDateTime(when)}</span></div>
-    <div class="divider"></div>
-    <div class="fb-full">${escapeHtml(q.feedback.comment || '')}</div>`, []);
 }
 function feedbackDashboardHtml(db) {
   const fs = feedbackStats(db);
-  const when = q => new Date((q.feedback && q.feedback.submittedAt) || q.completedAt || 0);
-  const recent = fs.rows.filter(q => q.feedback.comment).sort((a, b) => when(b) - when(a)).slice(0, 5);
-  const cell = q => { const t = q.transactionId ? db.transactions.find(x => x.id === q.transactionId) : null; return t && isTxnLocked(t) ? { name: maskName(q.name), text: null } : { name: q.name || '—', text: q.feedback.comment }; };
   return `<div class="stat-grid">
-        <div class="stat-card"><div class="lbl">Responses</div><div class="val">${fs.n}</div></div>
-        <div class="stat-card"><div class="lbl">Average Rating</div><div class="val">${fs.avg == null ? '&mdash;' : fs.avg.toFixed(1)}</div></div>
-        <div class="stat-card"><div class="lbl">Satisfied (4&ndash;5 stars)</div><div class="val">${fs.satPct == null ? '&mdash;' : fs.satPct + '%'}</div></div>
-        <div class="stat-card"><div class="lbl">Response Rate</div><div class="val">${fs.rate == null ? '&mdash;' : fs.rate + '%'}</div></div></div>
-    <div class="grid-2 grid-even">
-    <div class="card"><div class="card-head"><div><h3>Ratings</h3><div class="desc">Stars given after completed visits</div></div></div>
-      <div class="card-pad">${fs.n ? svgBarChart(fs.dist) : emptyChart('No feedback received yet.')}</div></div>
-    <div class="card"><div class="card-head"><div><h3>Recent Comments</h3><div class="desc">Latest written feedback</div></div></div>
-      <div class="table-wrap"><table><thead><tr><th>Visitor</th><th>Rating</th><th>Comment</th></tr></thead><tbody>${recent.length ? recent.map(q => { const c = cell(q); return `<tr><td>${escapeHtml(c.name)}</td><td><span class="fb-readout"><span class="stars">${STARS(q.feedback.rating)}</span></span></td><td class="fb-comment-cell">${c.text ? feedbackCommentHtml(q.id, c.text) : '<span class="muted">Hidden</span>'}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="3">No comments yet.</td></tr>`}</tbody></table></div></div></div>`;
+    <div class="stat-card"><div class="lbl">Responses</div><div class="val">${fs.n}</div></div>
+    <div class="stat-card"><div class="lbl">Average Rating</div><div class="val">${fs.avg == null ? '&mdash;' : fs.avg.toFixed(1)}</div></div>
+    <div class="stat-card"><div class="lbl">Satisfied (4&ndash;5 stars)</div><div class="val">${fs.satPct == null ? '&mdash;' : fs.satPct + '%'}</div></div>
+    <div class="stat-card"><div class="lbl">Response Rate</div><div class="val">${fs.rate == null ? '&mdash;' : fs.rate + '%'}</div></div></div>
+    <div class="grid-2 grid-even"><div class="card"><div class="card-head"><div><h3>Ratings</h3><div class="desc">Stars given after completed visits</div></div></div><div class="card-pad">${fs.n ? svgBarChart(fs.dist) : emptyChart('No feedback received yet.')}</div></div>
+    <div class="card"><div class="card-head"><div><h3>Written feedback</h3><div class="desc">Responses that include a comment</div></div></div><div class="card-pad"><div class="stat-card"><div class="lbl">Comments received</div><div class="val">${fs.withComment}</div></div><p class="field-hint">Comment details are available to authorized OSS Admins.</p></div></div></div>`;
 }
 
 function inferCategory(action) {
@@ -357,10 +333,10 @@ function buildTrendBuckets(items, start) {
   return { labels: buckets.map(b => fmtDate(b.start).slice(5)), values: buckets.map(b => b.count), unit };
 }
 function truncateLabel(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
-function svgLineChart(trend, label) {
+function svgLineChart(trend, label, unit = 'transactions') {
   const { labels, values } = trend;
   const gradientId = `trend-fill-${svgLineChart.gradientSequence = (svgLineChart.gradientSequence || 0) + 1}`;
-  const w = 760, h = 220, padL = 34, padR = 20, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
+  const w = 1200, h = 220, padL = 42, padR = 24, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
   const max = Math.max(1, ...values), stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
   const pts = values.map((v, i) => ({ x: padL + (values.length > 1 ? i * stepX : innerW / 2), y: padT + innerH - (v / max) * innerH, v }));
   const line = pts.map((p, i) => {
@@ -369,13 +345,14 @@ function svgLineChart(trend, label) {
     return `C${middle.toFixed(1)},${previous.y.toFixed(1)} ${middle.toFixed(1)},${p.y.toFixed(1)} ${p.x.toFixed(1)},${p.y.toFixed(1)}`;
   }).join(' ');
   const area = pts.length > 1 ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : '';
-  const grid = [0, .25, .5, .75, 1].map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
+  const tickCount = Math.min(5, max) + 1;
+  const grid = Array.from({length:tickCount},(_,i)=>i/(tickCount-1)).map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
   const xl = pts.map((p, i) => `<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`).join('');
   const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="2"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
   const total = values.reduce((sum, value) => sum + value, 0);
   const average = values.length ? (total / values.length).toFixed(1) : '0';
   const peak = values.length ? Math.max(...values) : 0;
-  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} transactions</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="${escapeHtml(label || 'Trend chart')}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #8b5cf6)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--trend-color, #8b5cf6)" stop-opacity="0.015"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
+  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} ${escapeHtml(unit)}</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="${escapeHtml(label || 'Trend chart')}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.015"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
 }
 function svgBarChart(rows, opts) {
   opts = opts || {};
@@ -394,7 +371,7 @@ const emptyChart = msg => `<div class="helper-empty" style="padding:20px 10px;">
 function icon(name, size = 17) {
   const p = {
     eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z',
-    'eye-off': 'M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.5 21.5 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.5 21.5 0 01-2.61 3.68M14.12 14.12a3 3 0 11-4.24-4.24M1 1l22 22',
+    'eye-off': 'M3 9c2 4 5 6 9 6s7-2 9-6M5 12l-2 3M9 14.5l-1 3.5M15 14.5l1 3.5M19 12l2 3',
     dashboard: 'M4 13h6V4H4v9zm0 7h6v-5H4v5zm10 0h6V11h-6v9zm0-16v5h6V4h-6z',
     calendar: 'M8 2v4M16 2v4M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z',
     alert: 'M12 3l9 16H3l9-16zM12 10v4M12 17.5v.01',
@@ -418,26 +395,6 @@ function icon(name, size = 17) {
   }[name] || 'M12 2v20';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p.split('M').filter(Boolean).map(seg => `<path d="M${seg}"/>`).join('')}</svg>`;
 }
-function toast(msg, type = 'ok') {
-  const wrap = document.getElementById('toastWrap'), el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<span class="toast-ic">${icon(type === 'err' ? 'x' : 'check', 14)}</span><span class="toast-msg">${msg}</span>`;
-  wrap.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
-}
-function openModal(title, bodyHtml, buttons) {
-  closeModal();
-  buttons = (buttons || []).filter(b => b.label !== 'Close');
-  const wrap = document.createElement('div');
-  wrap.className = 'overlay'; wrap.id = 'activeModal';
-  wrap.innerHTML = `<div class="modal" role="dialog" aria-modal="true"><div class="modal-head"><h3>${title}</h3><button class="close-x" id="modalCloseX" aria-label="Close">${icon('x', 18)}</button></div><div class="modal-body">${bodyHtml}</div>${buttons.length ? `<div class="modal-foot">${buttons.map((b, i) => `<button class="btn ${b.cls} btn-sm" id="modalBtn${i}">${b.label}</button>`).join('')}</div>` : ''}</div>`;
-  document.body.appendChild(wrap);
-  buttons.forEach((b, i) => document.getElementById(`modalBtn${i}`).onclick = b.action);
-  document.getElementById('modalCloseX').onclick = closeModal;
-  wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
-}
-function closeModal() { const m = document.getElementById('activeModal'); if (m) m.remove(); }
-
 function setTheme(t) { localStorage.setItem('ossuniserve_theme', t); document.documentElement.setAttribute('data-theme', t); document.querySelectorAll('[data-theme-btn]').forEach(b => b.classList.toggle('active', b.dataset.themeBtn === t)); }
 setTheme(localStorage.getItem('ossuniserve_theme') || 'light');
 
@@ -457,7 +414,7 @@ function endSession(reason) {
   location.href = '../Landing/landing.html';
 }
 function doLogout() {
-  openModal('Log Out?', '<p>Are you sure you want to log out?</p>', [
+  openModal('Log Out?', '<p class="logout-confirm-copy">Are you sure you want to log out?</p>', [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: 'Log Out', cls: 'btn-primary', action: () => {
       const db = loadDB();
@@ -493,10 +450,6 @@ function maskName(name) {
   const p = String(name || '').trim().split(/\s+/).filter(Boolean);
   return p.length < 2 ? (p[0] || '—') : `${p[0]} ${p[p.length - 1][0].toUpperCase()}.`;
 }
-function redactConfidentialTxn(t) {
-  return { id: t.id, code: t.code, service: t.service, status: t.status, escalation: t.escalation || null, visitId: t.visitId || null, createdAt: t.createdAt, completedAt: t.completedAt || null, confidential: true };
-}
-
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
   { key: 'reports', label: 'Reports', ic: 'chart' },
@@ -508,7 +461,7 @@ const NAV = [
 ];
 const TITLES = {
   dashboard: ['Dashboard', "Overview of today's activity &mdash; view only"],
-  reports: ['Reports', 'Printable system reports: audit activity, access and configuration'],
+  reports: ['Reports', 'System oversight, accounts, security and configuration summaries'],
   activitylog: ['Audit Trail', 'Tracks user actions and changes'],
   users: ['Admin Management', 'Create and manage OSS Admin accounts &mdash; Super Admin only'],
   settings: ['System Settings', 'Office details, defaults & maintenance mode &mdash; Super Admin only'],
@@ -532,7 +485,18 @@ document.getElementById('app').classList.toggle('collapsed', localStorage.getIte
 
 let state_view = 'dashboard';
 function renderSidebar() {
-  document.getElementById('navList').innerHTML = NAV.map(n => `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span></button></li>`).join('');
+  const groups = [
+    { label: 'Overview', keys: ['dashboard'] },
+    { label: 'Monitoring', keys: ['reports', 'activitylog'] },
+    { label: 'Administration', keys: ['users', 'settings', 'backup'] },
+    { label: 'Account', keys: ['profile'] }
+  ];
+  document.getElementById('navList').innerHTML = groups.map(group =>
+    `<li class="nav-category" role="presentation">${group.label}</li>` + group.keys.map(key => {
+      const n = NAV.find(item => item.key === key);
+      return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span></button></li>`;
+    }).join('')
+  ).join('');
 }
 function navigate(key) {
   if (!TITLES[key]) key = 'dashboard';
@@ -543,78 +507,49 @@ function navigate(key) {
   document.getElementById('sidebar').classList.remove('open');
   ({ dashboard: renderDashboard, reports: renderReports, activitylog: renderActivityLog, users: renderUsers, settings: renderSettings, backup: renderBackup, profile: renderProfile })[key]();
 }
-function statusPill(status) {
-  const map = { Pending: 'pill-warn', Processing: 'pill-info', Approved: 'pill-ok', Completed: 'pill-ok', Rejected: 'pill-danger', Resolved: 'pill-ok', Open: 'pill-info', Closed: 'pill-danger' };
-  return `<span class="pill ${map[status] || 'pill-info'}">${status}</span>`;
-}
 function escalationPill(status) {
   if (!status || status === 'Normal') return '';
   return `<span class="pill ${{ 'For Review': 'pill-warn', Escalated: 'pill-danger', Resolved: 'pill-ok' }[status] || 'pill-info'}">${escapeHtml(status)}</span>`;
 }
 
 function renderDashboard() {
-  const db = loadDB();
-  if (sweepNoShows(db)) saveDB(db);
-  const t = today(), qs = queueStats(db);
-  const todaysTxn = db.transactions.filter(x => fmtDate(x.createdAt) === t);
-  const pending = db.transactions.filter(x => x.status === 'Pending').length;
-  const recent = [...db.transactions].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
-  const lateToday = db.appointments.filter(a => a.date === t && a.arrivalStatus === 'Late').length;
-  const noShowToday = db.appointments.filter(a => a.date === t && a.status === 'No-show').length;
-  const openEsc = db.transactions.filter(x => x.escalation === 'Escalated' || x.escalation === 'For Review').length;
-  const awaiting = db.appointments.filter(a => ['Booked', 'Requested'].includes(a.status)).length;
-  const peaks = peakHourWindows(db);
-  const admins = db.users.filter(u => u.role === 'ADMIN');
-  const trendStart = daysAgo(13), trendTxns = db.transactions.filter(x => x.createdAt >= trendStart), trend = buildTrendBuckets(trendTxns, trendStart);
-  const svcCounts = {}; db.services.forEach(s => svcCounts[s.key] = 0);
-  db.transactions.forEach(x => { svcCounts[x.service] = (svcCounts[x.service] || 0) + 1; });
-  const topServices = db.services.map(s => ({ label: s.label, count: svcCounts[s.key] || 0 })).sort((a, b) => b.count - a.count).slice(0, 6);
-  const ORDER = ['Completed', 'Approved', 'Processing', 'Pending', 'Rejected'], sc = {}; ORDER.forEach(s => sc[s] = 0);
-  db.transactions.forEach(x => { if (sc[x.status] !== undefined) sc[x.status]++; });
-
-  document.getElementById('content').innerHTML = `
-    <section class="dash-section"><h2 class="dash-h">Today at a glance</h2>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="lbl">Today's Transactions</div><div class="val">${todaysTxn.length}</div></div>
-        <div class="stat-card"><div class="lbl">Pending Requests</div><div class="val">${pending}</div></div>
-        <div class="stat-card"><div class="lbl">Today's Appointments</div><div class="val">${db.appointments.filter(x => x.date === t).length}</div></div>
-        <div class="stat-card"><div class="lbl">Open Escalations</div><div class="val">${openEsc}</div></div>
-        <div class="stat-card"><div class="lbl">Late Appointments Today</div><div class="val">${lateToday}</div></div>
-        <div class="stat-card"><div class="lbl">No-Shows Today</div><div class="val">${noShowToday}</div></div>
-        <div class="stat-card"><div class="lbl">Completed Today</div><div class="val">${qs.completedToday}</div></div>
-        <div class="stat-card"><div class="lbl">Peak Hour</div><div class="val val-list">${peaks.length ? `<span>${peaks[0]}</span>` : '&mdash;'}</div></div>
-      </div></section>
-    <section class="dash-section"><h2 class="dash-h">System</h2>
-      <div class="stat-grid">
-        <div class="stat-card"><div class="lbl">Admin Accounts</div><div class="val">${admins.filter(u => u.active).length}<span class="muted" style="font-size:1rem; font-weight:600;"> / ${admins.length}</span></div></div>
-        <div class="stat-card"><div class="lbl">Confidential Access</div><div class="val">${admins.filter(u => u.confidentialAccess).length}<span class="muted" style="font-size:1rem; font-weight:600;"> / ${admins.length}</span></div></div>
-        <div class="stat-card"><div class="lbl">Audit Entries</div><div class="val">${db.activityLog.length}</div></div>
-        <div class="stat-card"><div class="lbl">Maintenance Mode</div><div class="val val-sm">${db.systemSettings.maintenanceMode ? 'On' : 'Off'}</div></div>
-      </div></section>
-    <section class="dash-section"><h2 class="dash-h">Live queue</h2>
-      <div class="card"><div class="card-head"><div><h3>Queue Status</h3><div class="desc">Read-only &mdash; the queue is managed by OSS Admin</div></div></div>
-        <div class="card-pad"><div class="stat-grid" style="margin-bottom:0;">
-          <div class="stat-card"><div class="lbl">Currently Waiting</div><div class="val">${qs.waiting}</div></div>
-          <div class="stat-card"><div class="lbl">Currently Serving</div><div class="val">${qs.serving}</div></div>
-          <div class="stat-card"><div class="lbl">Next To Call</div><div class="val val-sm">${qs.next ? escapeHtml(queueRef(qs.next)) : '&mdash;'}</div></div>
-          <div class="stat-card"><div class="lbl">Awaiting Check-In</div><div class="val">${awaiting}</div></div>
-        </div></div></div></section>
-    <section class="dash-section"><h2 class="dash-h">Activity</h2>
-      <div class="grid-2">
-        <div class="card"><div class="card-head"><div><h3>14-Day Transaction Trend</h3><div class="desc">Transactions logged per day, most recent two weeks</div></div></div>
-          <div class="card-pad">${trendTxns.length ? svgLineChart({ labels: trend.labels, values: trend.values }, 'Transaction trend chart') : emptyChart('No transactions logged in the last 14 days.')}</div></div>
-        <div class="card"><div class="card-head"><div><h3>Top Services</h3><div class="desc">All-time transaction volume</div></div></div>
-          <div class="card-pad">${topServices.some(r => r.count) ? svgBarChart(topServices, { height: topServices.length * 30 + 20 }) : emptyChart('No transactions logged yet.')}</div></div>
-      </div></section>
-    <section class="dash-section"><h2 class="dash-h">Records</h2>
-    <div class="grid-2">
-      <div class="card"><div class="card-head"><div><h3>Recent Transactions</h3><div class="desc">View only &mdash; managed by OSS Admin</div></div></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Code</th><th>Requestor</th><th>Service</th><th>Status</th><th>Logged</th></tr></thead>
-          <tbody>${recent.length ? recent.map((r, i) => { const conf = isConfidentialTxn(r); return `<tr><td class="row-num">${i + 1}</td><td class="mono">${r.code}${conf ? ` <span class="tag-lock">${icon('lock', 10)}</span>` : ''}</td><td>${escapeHtml(conf ? maskName(r.name) : r.name)}</td><td>${serviceLabel(db, r.service)}</td><td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td class="muted">${fmtDate(r.createdAt)}<br>${fmtTime(r.createdAt)}</td></tr>`; }).join('') : `<tr class="empty-row"><td colspan="6">No transactions yet.</td></tr>`}</tbody></table></div></div>
-      <div class="card"><div class="card-head"><div><h3>Status Mix</h3><div class="desc">All-time transaction status breakdown</div></div></div>
-        <div class="card-pad">${db.transactions.length ? svgBarChart(ORDER.map(s => ({ label: s, count: sc[s] })), { height: ORDER.length * 30 + 20 }) : emptyChart('No transactions logged yet.')}</div></div>
-    </div></section>
-    <section class="dash-section"><h2 class="dash-h">Visitor feedback</h2>${feedbackDashboardHtml(db)}</section>`;
+  const db = loadDB(), users = db.users || [], logs = db.activityLog || [];
+  const now = new Date(), start = new Date(); start.setHours(0,0,0,0); start.setDate(start.getDate()-13);
+  const entries = logs.filter(e => new Date(e.ts) >= start && new Date(e.ts) <= now);
+  const dates = Array.from({length:14},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return fmtDate(d);});
+  const trend = {labels:dates.map(d=>d.slice(5)),values:dates.map(d=>entries.filter(e=>fmtDate(e.ts)===d).length)};
+  const category = e => e.category || inferCategory(e.action);
+  const failed = entries.filter(e=>/failed|blocked|wrong password|incorrect/i.test(auditActionLabel(e.action)));
+  const settings = entries.filter(e=>category(e)==='Settings');
+  const rows = (labels, count) => labels.map(label=>({label,count:count(label)}));
+  const accounts = rows(['Active','Disabled'],label=>users.filter(u=>label==='Active'?u.active:!u.active).length);
+  const roles = [{label:'Super Admin',count:users.filter(u=>u.role==='SUPER_ADMIN').length},{label:'Head Admin',count:users.filter(u=>u.role==='ADMIN'&&u.confidentialApprover).length},{label:'OSS Admin',count:users.filter(u=>u.role==='ADMIN'&&!u.confidentialApprover).length}];
+  const admins = users.filter(u=>u.role==='ADMIN'&&u.active);
+  const access = [{label:'Head / approver',count:admins.filter(u=>u.confidentialApprover).length},{label:'Intake access',count:admins.filter(u=>!u.confidentialApprover&&u.confidentialAccess).length},{label:'Standard access',count:admins.filter(u=>!u.confidentialApprover&&!u.confidentialAccess).length}];
+  const categories = [...new Set(entries.map(category))].map(label=>({label,count:entries.filter(e=>category(e)===label).length})).sort((a,b)=>b.count-a.count).slice(0,6);
+  const security = [{label:'Failed / blocked',count:failed.length},{label:'Authentication',count:entries.filter(e=>category(e)==='Authentication').length},{label:'Confidential access',count:entries.filter(e=>category(e)==='Confidential').length},{label:'Data / exports',count:entries.filter(e=>category(e)==='Data').length}];
+  const changes = {};
+  settings.forEach(e=>(e.changes||[]).forEach(c=>{const label=String(c.field||'Other setting');changes[label]=(changes[label]||0)+1;}));
+  const configuration = Object.entries(changes).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count).slice(0,5);
+  const metricIcons=['users','users','check','calendar'];let metricIndex=0;
+  const metric=(label,value,note)=>'<div class="stat-card"><span class="metric-icon" aria-hidden="true">'+icon(metricIcons[metricIndex++],16)+'</span><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
+  const card=(title,desc,body,footer='')=>'<div class="card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+desc+'</div></div></div><div class="card-pad">'+body+'</div>'+(footer?'<div class="analytics-footer">'+footer+'</div>':'')+'</div>';
+  const chart=(data,type,label)=>data.some(r=>r.count)?dashboardChart(data,type,label):emptyChart('No recorded data for this summary.');
+  document.getElementById('content').innerHTML='<div class="analytics-dashboard system-overview"><div class="analytics-heading"><div><h2>System overview</h2><p>Accounts, permissions and recent system activity.</p></div></div>'+
+    '<section class="dash-section" aria-label="System metrics"><div class="stat-grid analytics-metrics">'+
+    metric('Active staff accounts',users.filter(u=>u.active).length,'Current account snapshot')+
+    metric('Disabled accounts',users.filter(u=>!u.active).length,'Current account snapshot')+
+    metric('Failed / blocked attempts',failed.length,'Recorded events &middot; Last 14 days')+
+    metric('Configuration updates',settings.length,'Settings events &middot; Last 14 days')+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="accountOverviewHeading">'+
+    '<h3 class="super-dashboard-group" id="accountOverviewHeading">Accounts and permissions</h3><div class="analytics-chart-grid dashboard-summary-grid">'+card('Account status','All staff accounts &middot; Current snapshot',chart(accounts,'donut','Active and disabled staff accounts'))+
+    card('Staff roles','All staff accounts &middot; Current snapshot',chart(roles,'donut','Staff account role distribution'))+
+    card('Confidential access','Active OSS and Head Admin accounts',chart(access,'donut','Confidential access permissions'),admins.length+' active service administrators')+
+    '</div></section>'+
+'<section class="dash-section dashboard-trend-section" aria-label="System activity"><h3 class="super-dashboard-group">Recent system activity</h3><div class="analytics-primary">'+card('System activity','Recorded audit events per day &middot; Last 14 days',entries.length?svgLineChart(trend,'System audit activity','events'):emptyChart('No audit events in the last 14 days.'))+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="securityOverviewHeading"><h3 class="super-dashboard-group" id="securityOverviewHeading">Security and system activity</h3><div class="analytics-chart-grid dashboard-summary-grid">'+card('Security and sensitive activity','Recorded events &middot; Last 14 days',chart(security,'columns','Security and sensitive activity counts'),'Categories may overlap; these are recorded events, not a security health score')+
+    card('Audit activity by category','Top 6 categories &middot; Last 14 days',categories.length?dashboardBarChart(categories):emptyChart('No audit events in this period.'),entries.length+' recorded events in this period')+
+    card('Configuration changes','Most changed fields &middot; Last 14 days',configuration.length?dashboardBarChart(configuration):emptyChart('No field-level setting changes recorded.'),'Maintenance mode: '+(db.systemSettings?.maintenanceMode?'On':'Off')+' &middot; Current setting')+'</div></section></div>';
 }
 
 let reportPeriod = 'Daily';
@@ -627,137 +562,67 @@ function reportChangesHtml(entry) {
   return '<table class="report-diff-table"><colgroup><col style="width:34%"><col style="width:33%"><col style="width:33%"></colgroup><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>'+changes.map(change=>`<tr><th scope="row">${escapeHtml(change.field)}</th><td>${value(change.from)}</td><td>${value(change.to)}</td></tr>`).join('')+'</tbody></table>';
 }
 const changesText = e => (e.changes || []).map(c => `${c.field}: ${c.from === '' || c.from == null ? '(empty)' : c.from} → ${c.to === '' || c.to == null ? '(empty)' : c.to}`).join('; ');
-function systemReportData(db) {
-  const start = periodStart(reportPeriod);
-  const entries = db.activityLog.filter(e => new Date(e.ts) >= start);
-  const txt = e => auditActionLabel(e.action).toLowerCase();
-  const byCat = AUDIT_CATEGORIES.map(c => ({ label: c, count: entries.filter(e => categoryOf(e) === c).length }));
-  const logins = entries.filter(e => /^logged in/.test(txt(e)));
-  const failed = entries.filter(e => /failed|blocked|wrong password|incorrect/.test(txt(e)));
-  const accountEvents = entries.filter(e => ['Accounts', 'Confidential'].includes(categoryOf(e)));
-  const confEvents = entries.filter(e => categoryOf(e) === 'Confidential');
-  const settingsEvents = entries.filter(e => categoryOf(e) === 'Settings');
-  const dataEvents = entries.filter(e => categoryOf(e) === 'Data');
-  const configEvents = entries.filter(e => ['Settings', 'Data'].includes(categoryOf(e)));
-  const sessions = {};
-  entries.filter(e => categoryOf(e) === 'Authentication').forEach(e => {
-    const rec = sessions[e.user] || (sessions[e.user] = { user: e.user, role: e.role, logins: 0, logouts: 0, timeouts: 0, last: null });
-    if (/^logged in/.test(txt(e))) { rec.logins++; if (!rec.last) rec.last = e.ts; }
-    else if (/^logged out/.test(txt(e))) rec.logouts++;
-    else if (/timed out/.test(txt(e))) rec.timeouts++;
-  });
-  return { start, entries, byCat, logins, failed, accountEvents, confEvents, settingsEvents, dataEvents, configEvents, sessions: Object.values(sessions).sort((a, b) => b.logins - a.logins), integrity: auditIntegrity(db) };
+const SYSTEM_REPORT_TYPES = {overview:'System overview',accounts:'Accounts and access',security:'Security and audit',configuration:'Configuration changes'};
+let systemReportType='overview', systemReportRange={from:'',to:''};
+function reportDateKey(value){
+ const date=new Date(value);if(Number.isNaN(+date))return '';
+ return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
 }
-function renderReports() {
-  document.getElementById('content').innerHTML = `
-    <div class="card card-pad no-print">
-      <div class="subnav">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map((p, i) => `<button class="${i ? '' : 'active'}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
-    <div class="card card-pad" id="reportSheet" style="margin-top:16px;">${reportLetterhead()}
-      <div class="report-title-block"><h2 id="repTitle">Daily System Report</h2><div class="report-meta"><span id="repPeriodLbl"></span><span id="repGenLbl"></span></div></div>
-      <div id="repBody"></div></div>`;
-  reportPeriod = 'Daily';
-  buildReport();
+function setSystemReportDate(key,value){
+ if(key==='today')systemReportRange={from:today(),to:today()};
+ else if(key==='all')systemReportRange={from:'',to:''};
+ else {systemReportRange[key]=value;if(systemReportRange.from&&systemReportRange.to&&systemReportRange.from>systemReportRange.to)systemReportRange[key==='from'?'to':'from']=value;}
+ renderReports();
 }
-function setReportPeriod(p, el) { reportPeriod = p; document.querySelectorAll('.subnav button').forEach(b => b.classList.remove('active')); el.classList.add('active'); buildReport(); }
-function printReport() {
-  const sheet = document.getElementById('reportSheet');
-  if (!sheet) return;
-  printInjected(sheet.innerHTML);
-  const db = loadDB();
-  logActivity(db, currentUser, `Printed ${reportPeriod} system report`, { category: 'System' });
-  saveDB(db);
+function selectSystemReport(value){if(!SYSTEM_REPORT_TYPES[value])return;systemReportType=value;renderReports();}
+function systemReportModel(db){
+ const entries=(db.activityLog||[]).filter(e=>{const day=reportDateKey(e.ts);return day&&(!systemReportRange.from||day>=systemReportRange.from)&&(!systemReportRange.to||day<=systemReportRange.to);});
+ const count=category=>entries.filter(e=>categoryOf(e)===category).length;
+ const groups=list=>{const counts=new Map();for(const e of list){const label=auditActionLabel(e.action);counts.set(label,(counts.get(label)||0)+1);}return [...counts].sort((a,b)=>b[1]-a[1]);};
+ const users=db.users||[],settings=db.systemSettings||{},sections=[];
+ const add=(title,headers,rows,note='')=>sections.push({title,headers,rows,note});
+ if(systemReportType==='overview'){
+  add('Period summary',['Measure','Total'],[['Audit events',entries.length],['Sign-ins',entries.filter(e=>/^logged in/i.test(auditActionLabel(e.action))).length],['Account changes',count('Accounts')],['Access events',count('Confidential')],['Configuration changes',count('Settings')]]);
+  add('Activity by category',['Category','Events'],AUDIT_CATEGORIES.map(c=>[c,count(c)]).filter(row=>row[1]));
+  const daily=new Map();for(const e of entries){const key=reportDateKey(e.ts);daily.set(key,(daily.get(key)||0)+1);}
+  add('Daily activity trend',['Date','Events'],[...daily].sort((a,b)=>a[0].localeCompare(b[0])),'Counts represent recorded system activity, not completed visits.');
+ }else if(systemReportType==='accounts'){
+  add('Account snapshot',['Measure','Total'],[['Accounts',users.length],['Active',users.filter(u=>u.active).length],['Disabled',users.filter(u=>!u.active).length],['Head Admins',users.filter(u=>u.confidentialApprover).length]],'Current accounts at generation time; date filters apply to activity summaries below.');
+  add('Staff accounts',['Name','Role','Status','Access'],users.map(u=>[u.fullName,u.confidentialApprover?'Head Admin':ROLES[u.role]?.label||u.role,u.active?'Active':'Disabled',u.role==='ADMIN'?(u.confidentialApprover?'Approver':u.confidentialAccess?'Intake access':'No confidential access'):'System administration']));
+  add('Account and access activity',['Action','Events'],groups(entries.filter(e=>['Accounts','Confidential'].includes(categoryOf(e)))),'Includes recorded access grants, requests and unlocks; case contents are excluded.');
+ }else if(systemReportType==='security'){
+  const failed=entries.filter(e=>/failed|blocked|wrong password|incorrect/i.test(auditActionLabel(e.action))),integrity=auditIntegrity(db);
+  add('Security summary',['Measure','Total'],[['Failed or blocked attempts',failed.length],['Authentication events',count('Authentication')],['Confidential access events',count('Confidential')],['Export and data events',count('Data')]]);
+  add('Sensitive activity summary',['Action','Events'],groups(entries.filter(e=>['Confidential','Data'].includes(categoryOf(e))||failed.includes(e))));
+  add('Audit integrity',['Measure','Result'],[['Total available entries',integrity.total],['Sealed entries checked',integrity.total-integrity.unsealed],['Unsealed entries',integrity.unsealed],['Problems detected',integrity.bad.length]],'Integrity checks cover all available audit entries, regardless of date filters. Unsealed entries are not verified.');
+ }else{
+  const changes=new Map();
+  for(const e of entries.filter(e=>categoryOf(e)==='Settings'))for(const c of e.changes||[]){const key=String(c.field);const existing=changes.get(key);if(!existing||new Date(e.ts)>new Date(existing.ts))changes.set(key,{...c,ts:e.ts,user:e.user});}
+  add('Configuration activity',['Action','Events'],groups(entries.filter(e=>categoryOf(e)==='Settings')));
+  add('Latest change by field',['Field','Before','After','Changed by','Date'],[...changes.values()].map(c=>[c.field,c.from??'Not set',c.to??'Not set',c.user,reportDateKey(c.ts)]),'Latest recorded change per field within the selected dates. Full history is available in Activity Log.');
+  add('Current configuration',['Setting','Value'],[['Organization',settings.orgName||'Not set'],['Session timeout',`${settings.sessionTimeout||30} mins`],['Maintenance mode',settings.maintenanceMode?'On':'Off'],['Parallel service',settings.allowParallelService?'Enabled':'Disabled'],['Student queue prefix',settings.queuePrefixStudent||'A'],['Guest queue prefix',settings.queuePrefixGuest||'G']],'Current settings at generation time; these are not historical snapshots.');
+ }
+ return {title:SYSTEM_REPORT_TYPES[systemReportType],period:!systemReportRange.from&&!systemReportRange.to?'All recorded dates':`${systemReportRange.from||'Start'} to ${systemReportRange.to||'Today'}`,sections};
 }
-function buildReport() {
-  const db = loadDB(), d = systemReportData(db), s = db.systemSettings;
-  document.getElementById('repTitle').textContent = `${reportPeriod} System Report`;
-  document.getElementById('repPeriodLbl').textContent = `Period: ${fmtDate(d.start)} to ${today()}`;
-  document.getElementById('repGenLbl').textContent = `Generated: ${actionText(fmtDateTime(new Date()))} by ${currentUser.fullName}`;
-  const total = d.entries.length, pct = n => total ? Math.round(n / total * 100) : 0;
-  const trend = buildTrendBuckets(d.entries.map(e => ({ createdAt: new Date(e.ts) })), d.start);
-  const activeCats = d.byCat.filter(c => c.count).length;
-  const admins = db.users.filter(u => u.role === 'ADMIN');
-  const integrityTxt = d.integrity.bad.length ? `${d.integrity.bad.length} problem${d.integrity.bad.length === 1 ? '' : 's'} found` : 'Passed';
-  const eventRows = list => list.map(e => `<article class="report-event"><div class="report-event-heading"><h4>${escapeHtml(auditActionLabel(e.action))}</h4><p>${escapeHtml(fmtDate(e.ts))} at ${escapeHtml(fmtTime(e.ts))} &middot; ${escapeHtml(e.user)}${e.target?' &middot; Record: '+escapeHtml(e.target):''}</p></div>${reportChangesHtml(e)}</article>`).join('');
-  const eventTable=(list,emptyMsg)=>list.length ? '<div class="report-event-list">'+eventRows(list)+'</div>' : '<p class="rpt-desc">'+escapeHtml(emptyMsg)+'</p>';
+function renderReports(){
+ document.getElementById('content').innerHTML=`<section class="card system-report-controls no-print"><div class="card-head"><div><h3>System reports</h3><p class="desc">Accounts, security and configuration summaries.</p></div><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print',14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download',14)} Download Excel</button></div></div><div class="filter-bar"><select class="filter-select" aria-label="Report type" onchange="selectSystemReport(this.value)">${Object.entries(SYSTEM_REPORT_TYPES).map(([key,label])=>`<option value="${key}" ${key===systemReportType?'selected':''}>${label}</option>`).join('')}</select><div class="date-range" role="group" aria-label="Report dates"><span class="dr-ic">${icon('calendar',15)}</span><label class="dr-field">From<input class="date-in" type="date" aria-label="Report start date" value="${systemReportRange.from}" onchange="setSystemReportDate('from',this.value)"></label><span class="dr-sep">–</span><label class="dr-field">To<input class="date-in" type="date" aria-label="Report end date" value="${systemReportRange.to}" onchange="setSystemReportDate('to',this.value)"></label><span class="dr-actions"><button class="dr-btn" onclick="setSystemReportDate('today')">Today</button><button class="dr-btn" onclick="setSystemReportDate('all')">All dates</button></span></div><button class="btn btn-ghost btn-sm report-activity-link" onclick="navigate('activitylog')">Activity Log</button></div></section><div class="card card-pad system-report-sheet" id="reportSheet"></div>`;
+ buildReport();
+}
+function buildReport(){
+ const model=systemReportModel(loadDB());
+ document.getElementById('reportSheet').innerHTML=reportLetterhead()+`<div class="report-title-block"><h2>${escapeHtml(model.title)}</h2><div class="report-meta"><span>Period: ${escapeHtml(model.period)}</span><span>Generated: ${escapeHtml(actionText(fmtDateTime(new Date())))} by ${escapeHtml(currentUser.fullName)}</span></div></div>`+model.sections.map(s=>`<section class="rpt-section"><h3 class="rpt-h">${escapeHtml(s.title)}</h3>${s.note?`<p class="rpt-desc">${escapeHtml(s.note)}</p>`:''}<div class="rpt-table-wrap"><table class="rpt-table"><thead><tr>${s.headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${s.rows.length?s.rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${s.headers.length}">No recorded activity for these dates.</td></tr>`}</tbody></table></div></section>`).join('')+reportSignatureBlock();
+}
+function printReport(){
+ const sheet=document.getElementById('reportSheet');if(!sheet)return;
+ printInjected(sheet.innerHTML);const db=loadDB();logActivity(db,currentUser,`Printed ${SYSTEM_REPORT_TYPES[systemReportType]} report`,{category:'System'});saveDB(db);
+}
+function downloadReportExcel(){
+ const db=loadDB(),model=systemReportModel(db),rows=[['Office of Student Services'],[model.title],['Period',model.period],['Generated',actionText(fmtDateTime(new Date()))],['Generated by',currentUser.fullName],[]],headingRows=[0,1];
+ for(const section of model.sections){headingRows.push(rows.length);rows.push([section.title]);if(section.note)rows.push([section.note]);headingRows.push(rows.length);rows.push(section.headers,...(section.rows.length?section.rows:[['No recorded activity for these dates.']]),[]);}
+ SpreadsheetExport.download(`OSS_${systemReportType}_Report_${today()}.xlsx`,rows,[38,32,32,28,24],{sheetName:'System Report',headingRows,filter:false});
+ logActivity(db,currentUser,`Downloaded ${model.title} report`,{category:'Data'});saveDB(db);toast('Report downloaded.','ok');
+}
 
-  document.getElementById('repBody').innerHTML = `
-    <div class="rpt-section"><h3 class="rpt-h">Executive Summary</h3>
-      <div class="stat-grid rpt-stat-grid">
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Audit Entries</div><div class="rpt-stat-val">${total}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Sign-ins</div><div class="rpt-stat-val">${d.logins.length}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Failed / Blocked</div><div class="rpt-stat-val">${d.failed.length}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Account Changes</div><div class="rpt-stat-val">${d.accountEvents.length}</div></div></div>
-      <div class="stat-grid rpt-stat-grid">
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Confidential Events</div><div class="rpt-stat-val">${d.confEvents.length}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Settings Changes</div><div class="rpt-stat-val">${d.settingsEvents.length}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Exports &amp; Resets</div><div class="rpt-stat-val">${d.dataEvents.length}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Audit Integrity</div><div class="rpt-stat-val" style="font-size:1.1rem;">${integrityTxt}</div></div></div>
-      <p class="rpt-narrative">During the period ${fmtDate(d.start)} to ${today()}, the system recorded <strong>${total}</strong> audit entr${total === 1 ? 'y' : 'ies'} across ${activeCats} categor${activeCats === 1 ? 'y' : 'ies'}. There ${d.logins.length === 1 ? 'was' : 'were'} <strong>${d.logins.length}</strong> sign-in${d.logins.length === 1 ? '' : 's'} by ${d.sessions.length} account${d.sessions.length === 1 ? '' : 's'} and <strong>${d.failed.length}</strong> failed or blocked attempt${d.failed.length === 1 ? '' : 's'}. <strong>${d.accountEvents.length}</strong> account or access change${d.accountEvents.length === 1 ? ' was' : 's were'} recorded, including ${d.confEvents.length} Confidential-access event${d.confEvents.length === 1 ? '' : 's'}, and <strong>${d.settingsEvents.length}</strong> settings change${d.settingsEvents.length === 1 ? '' : 's'}. The audit trail integrity check ${d.integrity.bad.length ? `found ${d.integrity.bad.length} problem${d.integrity.bad.length === 1 ? '' : 's'}` : 'passed with no tampering detected'}.</p></div>
-    <div class="rpt-section"><h3 class="rpt-h">Audit Activity Trend</h3><div class="rpt-desc">Audit entries recorded per ${trend.unit} over the reporting period</div>${svgLineChart(trend, 'Audit activity trend chart')}</div>
-    <div class="rpt-section"><h3 class="rpt-h">Activity by Category</h3><div class="rpt-grid-2"><div>${svgBarChart(d.byCat, { height: d.byCat.length * 26 + 20 })}</div>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:60%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th>Category</th><th>Count</th><th>%</th></tr></thead>
-        <tbody>${d.byCat.map(r => `<tr><td>${r.label}</td><td>${r.count}</td><td>${pct(r.count)}%</td></tr>`).join('')}<tr class="rpt-total-row"><td>Total</td><td>${total}</td><td>${total ? '100%' : '0%'}</td></tr></tbody></table></div></div></div>
-    <div class="rpt-section"><h3 class="rpt-h">Sign-in Activity by Account</h3>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:28%"><col style="width:16%"><col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:22%"></colgroup>
-        <thead><tr><th>Account</th><th>Role</th><th>Sign-ins</th><th>Sign-outs</th><th>Idle timeouts</th><th>Last sign-in</th></tr></thead>
-        <tbody>${d.sessions.length ? d.sessions.map(r => `<tr><td>${escapeHtml(r.user)}</td><td>${escapeHtml(ROLES[r.role]?.label || r.role)}</td><td>${r.logins}</td><td>${r.logouts}</td><td>${r.timeouts}</td><td class="mono nw">${r.last ? `${fmtDate(r.last)}<br>${fmtTime(r.last)}` : '—'}</td></tr>`).join('') : '<tr class="empty-row"><td colspan="6">No sign-in activity in this period.</td></tr>'}</tbody></table></div></div>
-    <div class="rpt-section"><h3 class="rpt-h">Account &amp; Access Changes</h3><div class="rpt-desc">${d.accountEvents.length} event${d.accountEvents.length === 1 ? '' : 's'} &mdash; account changes and Confidential-access grants, removals and unlocks</div>${eventTable(d.accountEvents, 'No account or access changes in this period.')}</div>
-    <div class="rpt-section"><h3 class="rpt-h">Settings, Exports &amp; Resets</h3><div class="rpt-desc">${d.configEvents.length} event${d.configEvents.length === 1 ? '' : 's'}</div>${eventTable(d.configEvents, 'No settings changes, exports or resets in this period.')}</div>
-    <div class="rpt-section"><h3 class="rpt-h">Other Audit Activity</h3><div class="rpt-desc">Sign-ins, queue, appointment, messaging, and other events within the selected period.</div>${eventTable(d.entries.filter(e=>!['Accounts','Confidential','Settings','Data'].includes(categoryOf(e))), 'No other activity in this period.')}</div>
-    <div class="rpt-section"><h3 class="rpt-h">Admin Accounts</h3><div class="rpt-desc">Current accounts at the time of printing</div>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:22%"><col style="width:16%"><col style="width:26%"><col style="width:12%"><col style="width:12%"><col style="width:12%"></colgroup>
-        <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Confidential</th></tr></thead>
-        <tbody>${db.users.map(u => `<tr><td>${escapeHtml(u.fullName)}</td><td class="mono">${escapeHtml(u.username)}</td><td>${escapeHtml(u.email || '—')}</td><td>${ROLES[u.role].label}</td><td>${u.active ? 'Active' : 'Disabled'}</td><td>${u.role === 'ADMIN' ? (u.confidentialAccess ? 'Authorized' : 'No access') : 'N/A'}</td></tr>`).join('')}</tbody></table></div>
-      <p class="rpt-desc" style="margin-top:8px;">${admins.filter(u => u.confidentialAccess).length} of ${admins.length} Admin${admins.length === 1 ? '' : 's'} authorized to open confidential records.</p></div>
-    <div class="rpt-section"><h3 class="rpt-h">System Configuration</h3><div class="rpt-desc">Current settings at the time of printing</div>
-      <table class="doc-form-table"><colgroup><col style="width:34%"><col style="width:66%"></colgroup>
-        <tr><th>Organization</th><td>${escapeHtml(s.orgName)}</td></tr>
-        <tr><th>Support email / phone</th><td>${escapeHtml(s.supportEmail || '—')} / ${escapeHtml(s.supportPhone || '—')}</td></tr>
-        <tr><th>Queue prefixes</th><td>Student ${escapeHtml(s.queuePrefixStudent)}, Guest ${escapeHtml(s.queuePrefixGuest)}</td></tr>
-        <tr><th>Grace period / No-show threshold</th><td>${graceMinutes(db)} min / ${noShowMinutes(db)} min</td></tr>
-        <tr><th>Session timeout</th><td>${Number(s.sessionTimeout) || 30} min</td></tr>
-        <tr><th>Maintenance mode</th><td>${s.maintenanceMode ? 'On' : 'Off'}</td></tr></table></div>
-    <div class="rpt-section"><h3 class="rpt-h">Audit Trail Integrity</h3>
-      <table class="doc-form-table"><colgroup><col style="width:34%"><col style="width:66%"></colgroup>
-        <tr><th>Entries checked</th><td>${d.integrity.total - d.integrity.unsealed} of ${d.integrity.total}</td></tr>
-        <tr><th>Not yet sealed</th><td>${d.integrity.unsealed}</td></tr>
-        <tr><th>Result</th><td>${d.integrity.bad.length ? `${d.integrity.bad.length} problem${d.integrity.bad.length === 1 ? '' : 's'} found` : 'No tampering detected'}</td></tr></table></div>
-    ${reportSignatureBlock()}`;
-}
-function downloadReportExcel() {
-  const db = loadDB(), d = systemReportData(db), s = db.systemSettings;
-  const trend=buildTrendBuckets(d.entries.map(e=>({createdAt:new Date(e.ts)})),d.start);
-  const display=value=>value===''||value==null?'Not set':String(value);
-  const events=d.entries.flatMap(e=>{
-    const changes=e.changes?.length?e.changes:[null];
-    return changes.map(change=>[e.id||'',fmtDate(e.ts),fmtTime(e.ts),e.user,ROLES[e.role]?.label||e.role,categoryOf(e),auditActionLabel(e.action),e.target||'',change?.field||'',change?display(change.from):'',change?display(change.to):'']);
-  });
-  const exportReport=(filename,rows)=>{
-    {
-      const headers=new Set(['Summary','Audit Activity Trend','Activity by Category','Sign-in Activity by Account','Detailed Audit Events','Admin Accounts','System Configuration','Audit Trail Integrity','Event ID','Name','Account','Category','Period']);
-      const headingRows=rows.flatMap((row,index)=>index===0||headers.has(row[0])?[index]:[]);
-      SpreadsheetExport.download(filename,rows,[36,24,22,26,18,22,36,26,28,38,38],{sheetName:'System Report',headingRows,filter:false});
-    }
-  };
-  exportReport(`OSS_${reportPeriod}_System_Report_${today()}.xlsx`, [
-    ['Polytechnic University of the Philippines - Santa Maria Campus'], ['Office of Student Services'], [`${reportPeriod} System Report`], [`Period: ${fmtDate(d.start)} to ${today()}`],
-    [`Generated: ${actionText(fmtDateTime(new Date()))} by ${currentUser.fullName}`], [],
-    ['Summary'], ['Audit entries', d.entries.length], ['Sign-ins', d.logins.length], ['Failed or blocked attempts', d.failed.length], ['Account and access changes', d.accountEvents.length],
-    ['Confidential events', d.confEvents.length], ['Settings changes', d.settingsEvents.length], ['Exports and resets', d.dataEvents.length], ['Audit integrity', d.integrity.bad.length ? `${d.integrity.bad.length} problem(s)` : 'Passed'], [],
-    ['Audit Activity Trend'], ['Period', 'Audit entries'], ...trend.labels.map((label,i)=>[label,trend.values[i]]), [],
-    ['Activity by Category'], ['Category', 'Count', 'Percentage'], ...d.byCat.map(c => [c.label, c.count, d.entries.length?Math.round(c.count/d.entries.length*100)+'%':'0%']), [],
-    ['Sign-in Activity by Account'], ['Account','Role','Sign-ins','Sign-outs','Idle timeouts','Last sign-in'], ...d.sessions.map(account=>[account.user,ROLES[account.role]?.label||account.role,account.logins,account.logouts,account.timeouts,account.last?fmtDateTime(account.last):'']), [],
-    ['Detailed Audit Events'], ['Event ID','Date','Time','Account','Role','Category','Action','Record','Field','Before','After'], ...events, [],
-    ['Admin Accounts'], ['Name', 'Username', 'Email', 'Role', 'Status', 'Confidential access'],
-    ...db.users.map(u => [u.fullName, u.username, u.email || '', ROLES[u.role].label, u.active ? 'Active' : 'Disabled', u.role === 'ADMIN' ? (u.confidentialAccess ? 'Authorized' : 'No access') : 'N/A']), [],
-    ['System Configuration'], ['Organization', s.orgName], ['Support email',s.supportEmail||''], ['Support phone',s.supportPhone||''], ['Student queue prefix',s.queuePrefixStudent], ['Guest queue prefix',s.queuePrefixGuest], ['Grace period (min)', graceMinutes(db)], ['No-show threshold (min)', noShowMinutes(db)], ['Session timeout (min)', Number(s.sessionTimeout) || 30], ['Maintenance mode', s.maintenanceMode ? 'On' : 'Off'], [],
-    ['Audit Trail Integrity'], ['Entries checked',d.integrity.total-d.integrity.unsealed], ['Total entries',d.integrity.total], ['Not yet sealed',d.integrity.unsealed], ['Problems found',d.integrity.bad.length],
-  ]);
-  logActivity(db, currentUser, `Downloaded ${reportPeriod} system report`, { category: 'Data' });
-  saveDB(db);
-  toast('Report downloaded.', 'ok');
-}
 
 const RANGES = { audit: { from: '', to: '' } };
 function rangeLabel(r) { return !r.from && !r.to ? 'All recorded dates' : (r.from === r.to ? r.from : `${r.from || 'start'} to ${r.to || 'today'}`); }
@@ -822,7 +687,7 @@ function auditDetailsHtml(r) {
   (r.changes||[]).forEach(c=>{
     const from=c.from==null?'':String(c.from),to=c.to==null?'':String(c.to);
     if(/^[\[{]/.test(from)||/^[\[{]/.test(to))parts.push(`<details class="audit-extra"><summary>${escapeHtml(c.field)}</summary><div>Before: ${escapeHtml(from||'Not set')}</div><div>After: ${escapeHtml(to||'Not set')}</div></details>`);
-    else parts.push(`<div class="chg"><b>${escapeHtml(c.field)}</b>: ${from?escapeHtml(from)+' &rarr; ':''}${escapeHtml(to||'Not set')}</div>`);
+    else parts.push(`<details class="audit-extra"><summary>${escapeHtml(c.field)}</summary><div>Before: ${escapeHtml(from||'Not set')}</div><div>After: ${escapeHtml(to||'Not set')}</div></details>`);
   });
   if(r.target && !/^(VIS-|OSS-|\/?api\/)/.test(r.target))parts.push(`<div class="muted">Record: ${escapeHtml(r.target)}</div>`);
   return parts.join('') || '<span class="muted">&mdash;</span>';
@@ -935,10 +800,26 @@ window.addEventListener('resize', closeKebabs);
 
 // Admin Management is implemented in admin-management.js.
 
+function watchSuperSettings() {
+ const host=document.getElementById('superSettings');if(!host)return;
+ host.querySelectorAll('.settings-block').forEach(block=>{
+   const controls=Array.from(block.querySelectorAll('input,textarea,select'));
+   const value=input=>input.type==='checkbox'?input.checked:input.value;
+   const initial=controls.map(value);
+   const refresh=()=>{block.classList.toggle('has-unsaved-settings',controls.some((input,i)=>value(input)!==initial[i]));
+     const status=document.getElementById('settingsSaveStatus');if(status)status.textContent=host.querySelector('.has-unsaved-settings')?'Unsaved changes':'No unsaved changes';};
+   controls.forEach(input=>{input.oninput=refresh;input.onchange=refresh;});
+ });
+}
+function markSuperSettingsSaved() {
+ const status=document.getElementById('settingsSaveStatus');if(status)status.textContent='All settings saved';
+ document.querySelectorAll('#superSettings .has-unsaved-settings').forEach(block=>block.classList.remove('has-unsaved-settings'));
+ watchSuperSettings();
+}
 function renderSettings() {
   const s = loadDB().systemSettings;
   document.getElementById('content').innerHTML = `
-    <div class="card">
+    <div class="card" id="superSettings">
       <div class="settings-block"><h4>Office Details</h4><div class="desc-txt">Shown on the landing page and the visitor portal contact details.</div>
         <div class="field"><label>Organization Name</label><input id="stOrg" value="${escapeHtml(s.orgName)}"></div>
         <div class="form-row"><div class="field"><label>Support Email</label><input id="stEmail" value="${escapeHtml(s.supportEmail)}"></div><div class="field"><label>Support Phone</label><input id="stPhone" value="${escapeHtml(s.supportPhone)}"></div></div></div>
@@ -947,13 +828,14 @@ function renderSettings() {
       <div class="settings-block"><h4>Appointment Policy</h4><div class="desc-txt">A scheduled visitor is called when their time arrives. Staff reviews late arrivals. Unchecked appointments become No-show after the threshold; staff can reschedule the same request without re-entering details.</div>
         <div class="form-row"><div class="field"><label>Grace Period (minutes)</label><input id="stGraceMin" type="number" min="0" max="180" value="${s.gracePeriodMinutes ?? DEFAULT_GRACE_MINUTES}"></div><div class="field"><label>No-Show Threshold (minutes)</label><input id="stNoShowMin" type="number" min="5" max="480" value="${s.noShowThresholdMinutes ?? DEFAULT_NOSHOW_MINUTES}"></div></div>
         <div class="field-hint">Example: with a 15-minute grace period and a 60-minute threshold, a 10:00 AM appointment is On Time until 10:15, Late from 10:16&ndash;11:00, and automatically No-show after 11:00.</div></div>
-      <div class="settings-block"><h4>Service capacity</h4><div class="field"><label for="stSlotCapacity">Appointments per time slot</label><input id="stSlotCapacity" type="number" min="1" max="20" value="${s.appointmentSlotCapacity??1}"><p class="field-hint">Default: one appointment at each date and time. Increase only when staff can handle the additional bookings.</p></div><div class="switch-row"><div><div class="lbl">Allow parallel service</div><div class="sub">Let each Admin call or serve multiple visitors at once. Off by default.</div></div><label class="switch"><input id="stParallel" type="checkbox" ${s.allowParallelService?'checked':''}><span class="track"></span></label></div></div>
+      <div class="settings-block"><h4>Service capacity</h4><div class="field"><label for="stAppointmentOffices">Appointment offices</label><textarea id="stAppointmentOffices" rows="3">${escapeHtml((s.appointmentOffices||['Office of Student Services']).join('\n'))}</textarea><p class="field-hint">One office per line. Slots last 30 minutes and use the office calendar. Keep offices with active appointments in this list.</p></div><div class="field"><label for="stSlotCapacity">Appointments per time slot</label><input id="stSlotCapacity" type="number" min="1" max="20" value="${s.appointmentSlotCapacity??1}"><p class="field-hint">Default: one appointment per office at each time, including requests awaiting approval. Increase only when staff can handle the additional bookings. Pending requests hold capacity until staff acts; they do not expire automatically.</p></div><div class="switch-row"><div><div class="lbl">Allow parallel service</div><div class="sub">Let each Admin call or serve multiple visitors at once. This does not increase appointment slots or office capacity. Off by default.</div></div><label class="switch"><input id="stParallel" type="checkbox" ${s.allowParallelService?'checked':''}><span class="track"></span></label></div></div>
       <div class="settings-block"><h4>Session</h4><div class="desc-txt">Admin and Super Admin sessions end automatically after this many idle minutes.</div>
         <div class="field"><label>Session Timeout (minutes)</label><input id="stTimeout" type="number" min="5" max="120" value="${Number(s.sessionTimeout) || 30}"></div></div>
       <div class="settings-block"><h4>System Maintenance</h4><div class="desc-txt">Temporarily restrict visitor-facing access while the office performs maintenance.</div>
         <div class="switch-row"><div><div class="lbl">Maintenance Mode</div><div class="sub">New visits can't be started in the Visitor Portal; checking an existing visit and staff login stay available</div></div><label class="switch"><input type="checkbox" id="stMaint" ${s.maintenanceMode ? 'checked' : ''}><span class="track"></span></label></div></div>
-      <div class="modal-foot" style="border-top:1px solid var(--border);"><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
+      <div class="modal-foot" style="border-top:1px solid var(--border);"><span id="settingsSaveStatus" class="field-hint" role="status">No unsaved changes</span><button class="btn btn-primary" onclick="saveSettings()">Save Settings</button></div>
     </div>`;
+  watchSuperSettings();
 }
 function saveSettings() {
   const db = loadDB(), s = db.systemSettings, before = { ...s }, v = id => document.getElementById(id).value;
@@ -976,7 +858,7 @@ function renderBackup() {
     <div class="card backup-page">
       <div class="settings-block backup-export-block"><h4>Export Data</h4><div class="desc-txt">Download an encrypted backup of backend records. Keep the application key separately in a secure place; it is required to restore this backup.</div>
         <button class="btn btn-primary btn-sm backup-action" onclick="exportAllData()">Download backup (.json)</button></div>
-      <div class="settings-block backup-restore-block"><h4>Restore Backup</h4><div class="desc-txt">Choose an encrypted UniServe backup to preview before restoring. It must use this server’s application key.</div><div class="backup-file-picker"><button type="button" id="restoreBackupChoose" class="btn btn-primary btn-sm backup-action" onclick="document.getElementById('restoreBackupFile').click()">Choose backup</button><span id="restoreBackupName" class="backup-file-name">JSON files only · Up to 30 MB</span><input id="restoreBackupFile" type="file" accept=".json,application/json" onchange="previewBackupFile(this)" hidden></div><p id="restoreBackupStatus" class="field-hint" role="status" aria-live="polite"></p></div>
+      <div class="settings-block backup-restore-block"><h4>Restore Backup</h4><p class="super-restore-warning">Restoring replaces current server records with the selected backup. Download a current backup first. You will review record counts and confirm replacement before restoring.</p><div class="desc-txt">Choose an encrypted UniServe backup to preview before restoring. It must use this server’s application key.</div><div class="backup-file-picker"><button type="button" id="restoreBackupChoose" class="btn btn-ghost btn-sm backup-action" onclick="document.getElementById('restoreBackupFile').click()">Choose backup</button><span id="restoreBackupName" class="backup-file-name">JSON files only · Up to 30 MB</span><input id="restoreBackupFile" type="file" accept=".json,application/json" onchange="previewBackupFile(this)" hidden></div><p id="restoreBackupStatus" class="field-hint" role="status" aria-live="polite"></p></div>
       <div class="settings-block"><h4>Storage Summary</h4><div class="desc-txt">This summary covers records cached or stored in this browser. Shared queue records, accounts, calendar settings and backend audit history are stored separately on the server.</div>
         ${kv('Transactions', db.transactions.length)}${kv('Confidential Transactions', confCount)}${kv('Appointments', db.appointments.length)}${kv('Visitor Log Entries', db.visitorLog.length)}${kv('Queue Entries (all time)', db.queues.length)}${kv('Chat Conversations', db.chats.length)}${kv('Services in Catalog', db.services.length)}${kv('Staff Accounts', db.users.length)}${kv('Audit Trail Entries', `${db.activityLog.length} / ${AUDIT_MAX_ENTRIES}`)}</div>
     </div>`;
@@ -987,13 +869,13 @@ function renderProfile() {
   const u = currentUser, initials = u.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
   document.getElementById('content').innerHTML = `
     <div class="card staff-profile-card">
-      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="badge-role">${ROLES[u.role].label}</span></div></div>
+      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="badge-role">${(u.role==='ADMIN'&&u.confidentialApprover?'Head Admin':ROLES[u.role].label)}</span></div></div>
       <div class="card-pad staff-profile-grid"><section class="staff-profile-details" aria-label="Profile details">
         <div class="field"><label>Full Name</label><input id="pfName" value="${escapeHtml(u.fullName)}"></div>
         <div class="field"><label>Username</label><input id="pfUser" value="${escapeHtml(u.username)}"></div>
         <div class="field"><label>Email</label><input id="pfEmail" type="email" value="${escapeHtml(u.email || '')}"></div>
-        </section><section class="staff-profile-password" aria-label="Password and account confirmation"><div class="field"><label>Current Password</label><div class="profile-password-input"><input id="pfCurrentPass" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfCurrentPass',this)">${profilePasswordEye(false)}</button></div></div>
-        <div class="form-row"><div class="field"><label>New Password</label><div class="profile-password-input"><input id="pfPass" aria-describedby="pfPasswordHint" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass',this)">${profilePasswordEye(false)}</button></div></div><div class="field"><label>Confirm New Password</label><div class="profile-password-input"><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass2',this)">${profilePasswordEye(false)}</button></div></div></div>
+        </section><section class="staff-profile-password" aria-label="Password and account confirmation"><div class="field"><label>Current Password</label><div class="profile-password-input"><input id="pfCurrentPass" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfCurrentPass',this)">${profilePasswordEye(true)}</button></div></div>
+        <div class="form-row"><div class="field"><label>New Password</label><div class="profile-password-input"><input id="pfPass" aria-describedby="pfPasswordHint" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass',this)">${profilePasswordEye(true)}</button></div></div><div class="field"><label>Confirm New Password</label><div class="profile-password-input"><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass2',this)">${profilePasswordEye(true)}</button></div></div></div>
         <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p><button class="btn btn-primary btn-block" onclick="saveProfile()">Save changes</button>
         <p class="field-hint" style="margin-top:10px; margin-bottom:0;">Leave the new password fields blank to keep your password.</p>
       </section></div></div>`;
@@ -1031,5 +913,3 @@ async function saveProfile() {
 
 renderSidebar();
 navigate('dashboard');
-
-UniServeUX.install();

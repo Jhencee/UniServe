@@ -19,8 +19,12 @@ beforeEach(function() {
     Schema::create('queues',function(Blueprint $t){$t->string('id')->primary();$t->json('portal_payload');$t->timestamp('created_at')->useCurrent();});
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-12 10:00','Asia/Manila'));
 });
-afterEach(function(){CarbonImmutable::setTestNow();foreach(['queues','notification_outbox','system_audit','calendar_audit','office_calendar','staff_users'] as $t)Schema::dropIfExists($t);});
+afterEach(function(){CarbonImmutable::setTestNow();foreach(['shared_appointments','queues','notification_outbox','system_audit','calendar_audit','office_calendar','staff_users'] as $t)Schema::dropIfExists($t);});
 function improvementHeaders(string $id='admin'): array{return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
+function notificationAccessFixture():void {
+ Schema::create('shared_appointments',function(Blueprint $t){$t->string('visit_id');$t->string('service_key');});
+ DB::table('shared_appointments')->insert(['visit_id'=>'VIS-TEST','service_key'=>'good_moral']);
+}
 function notificationData():array{return ['visitId'=>'VIS-TEST','email'=>'visitor@example.com','name'=>'Visitor','service'=>'Good Moral','date'=>'2026-10-14','time'=>'09:00','kind'=>'confirmation'];}
 it('dispatches confirmation delivery automatically when office SMTP is configured',function(){
  config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
@@ -53,6 +57,7 @@ it('queues email and reminder without sending at request time and deduplicates r
     $this->postJson('/api/notifications',notificationData(),improvementHeaders())->assertAccepted()->assertJsonPath('mailConfigured',false);
     $this->postJson('/api/notifications',notificationData(),improvementHeaders())->assertAccepted();
     expect(DB::table('notification_outbox')->count())->toBe(2);
+    notificationAccessFixture();
     $this->getJson('/api/notifications?visitId=VIS-TEST',improvementHeaders())->assertOk()->assertJsonCount(2,'notifications');
     $this->getJson('/api/notifications?visitId=VIS-TEST')->assertUnauthorized();
     $this->postJson('/api/notifications',notificationData(),improvementHeaders('super'))->assertForbidden();
@@ -62,6 +67,7 @@ it('supersedes old pending messages when rescheduled and supports cancelling pen
     $data=notificationData();$data['date']='2026-10-15';$data['kind']='rescheduled';
     $this->postJson('/api/notifications',$data,improvementHeaders())->assertAccepted();
     expect(DB::table('notification_outbox')->where('status','superseded')->count())->toBe(2);
+    notificationAccessFixture();
     $this->deleteJson('/api/notifications',['visitId'=>'VIS-TEST'],improvementHeaders())->assertOk()->assertJsonPath('cancelled',2);
 });
 it('rejects emails for closed days and lunch hours',function(){

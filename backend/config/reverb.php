@@ -15,6 +15,11 @@ return [
 
     'default' => env('REVERB_SERVER', 'reverb'),
 
+    'public' => [
+        'port' => (int) env('REVERB_PUBLIC_PORT', 8080),
+        'scheme' => env('REVERB_PUBLIC_SCHEME', 'ws'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Reverb Servers

@@ -38,12 +38,12 @@
   --font-body: "Inter", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  --chart-1: #3b82f6;
-  --chart-2: #f59e0b;
-  --chart-3: #10b981;
-  --chart-4: #f43f5e;
-  --chart-5: #8b5cf6;
-  --chart-6: #06b6d4;
+  --chart-1: var(--accent);
+  --chart-2: var(--accent);
+  --chart-3: var(--accent);
+  --chart-4: var(--accent);
+  --chart-5: var(--accent);
+  --chart-6: var(--accent);
   --chart-grid: #d1d5db;
 
   --header-h: 60px;
@@ -3309,8 +3309,8 @@ html[data-theme="dark"] .req-box .req-title {
 .cl-val-label { font-weight: 600; font-size: 9px; }
 
 /* Soft curve styling for dashboard and report trends. */
-:root { --trend-color: #8b5cf6; }
-html[data-theme="dark"] { --trend-color: #b69aff; }
+:root { --trend-color: var(--accent); }
+html[data-theme="dark"] { --trend-color: var(--accent); }
 .cl-line { stroke: var(--trend-color) !important; stroke-width: 3; }
 .cl-dot { stroke: var(--trend-color) !important; opacity: 0; }
 .cl-point-group:last-of-type .cl-dot, .cl-point-group:hover .cl-dot { opacity: 1; }
@@ -3322,7 +3322,7 @@ html[data-theme="dark"] { --trend-color: #b69aff; }
 .cl-dot { opacity: 1; }
 .cl-val-label { opacity: 1; font-size: 10px; }
 .trend-summary { display:flex; flex-wrap:wrap; gap:12px 28px; padding:0 4px 18px; color:var(--text-soft); font-size:.75rem; }
-.trend-summary strong { display:block; margin-top:4px; color:var(--text); font-size:1.3rem; font-weight:700; }
+.trend-summary strong { display:block; margin-top:4px; color:inherit; font-size:inherit; font-weight:400; }
 .trend-chart-scroll { overflow-x:auto; }
 .trend-chart-scroll svg { display:block; min-width:640px; }
 .trend-caption { display:flex; align-items:baseline; gap:7px; margin:14px 4px 0; font-size:.72rem; line-height:1.7; color:var(--text-soft); }
@@ -3386,3 +3386,22 @@ table.report-diff-table tbody tr:last-child td { border-bottom:1px solid var(--b
  #printArea table.report-diff-table thead { display:table-header-group; }
  #printArea table.report-diff-table tr { break-inside:avoid; }
 }
+
+/* Super Admin organization using existing portal surfaces. */
+.super-dashboard-group { grid-column:1 / -1; margin:6px 0 0; color:var(--text-soft); font-size:.8rem; font-weight:500; }
+.analytics-chart-grid > .card:has(+ .super-dashboard-group) { grid-column:1 / -1; }
+.super-permissions-help { padding:14px 24px; border-bottom:1px solid var(--border); font-size:.77rem; color:var(--text-soft); }
+.super-permissions-help summary { cursor:pointer; color:var(--accent-strong); }
+.super-permissions-help dl { display:grid; grid-template-columns:150px minmax(0,1fr); gap:10px 20px; margin:16px 0 0; line-height:1.6; }
+.super-permissions-help dt { color:var(--text); font-weight:500; }
+.super-permissions-help dd { margin:0; }
+.super-account-actions { white-space:nowrap; }
+.super-account-actions > .btn { margin-right:8px; }
+.settings-block.has-unsaved-settings > h4::after { content:'Unsaved'; margin-left:10px; color:var(--accent-strong); font-size:.66rem; font-weight:400; }
+#settingsSaveStatus { margin-right:auto; }
+.super-restore-warning { padding:12px 0; margin:0 0 12px; border-bottom:1px solid var(--border); color:var(--text); font-size:.78rem; line-height:1.6; }
+.backup-page .backup-restore-block { margin-top:16px; border-top:1px solid var(--border); }
+.audit-extra { margin:4px 0; line-height:1.6; }
+.audit-extra summary { cursor:pointer; color:var(--accent-strong); }
+.audit-extra > div { font-size:.73rem; overflow-wrap:anywhere; padding-top:4px; }
+@media(max-width:600px) { .super-permissions-help { padding:14px 16px; } .super-permissions-help dl { grid-template-columns:minmax(0,1fr); gap:4px; } .super-permissions-help dd { margin-bottom:10px; } }

@@ -79,7 +79,11 @@ class StaffLoginController extends Controller
             }catch(\Throwable $e){abort(503,'Security verification is unavailable. Please try again.');}
             abort_unless($response->successful(),503,'Security verification is unavailable. Please try again.');
             $check=$response->json();
-            abort_unless(($check['success']??false)===true&&($check['action']??'')==='staff-login',422,'Security check failed or expired. Please try again.');
+            // Dummy keys return test metadata rather than the requested action.
+            $testingKeys=app()->environment(['local','testing'])
+                && config('services.turnstile.site_key')==='1x00000000000000000000AA'
+                && config('services.turnstile.secret_key')==='1x0000000000000000000000000000000AA';
+            abort_unless(($check['success']??false)===true&&($testingKeys||($check['action']??'')==='staff-login'),422,'Security check failed or expired. Please try again.');
             $hostnames=config('services.turnstile.hostnames',[]);
             abort_if($hostnames&&!in_array($check['hostname']??'',$hostnames,true),422,'Security check did not match this site.');
         }

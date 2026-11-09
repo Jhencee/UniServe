@@ -7,8 +7,8 @@ test('chat renders the same Philippine prefix as the visit form',()=>{
  c.renderChatIdentity();
  assert.match(content.innerHTML,/ph-phone-input/);
  assert.match(content.innerHTML,/Philippines \(\+63\)/);
- assert.match(content.innerHTML,/placeholder="9171234567"/);
+ assert.match(content.innerHTML,/placeholder="\+63 917 123 4567"/);
  assert.doesNotMatch(content.innerHTML,/09XX-XXX-XXXX/);
 });
-test('chat validates names, PH contact numbers and Gmail',()=>{const c=setup(),valid=c.chatProfileValidation({first:'Juan',last:'Dela Cruz',contact:'0917-123-4567',email:'JUAN@gmail.com'});assert.ok(Object.values(valid).every(Boolean));const bad=c.chatProfileValidation({first:'123',last:'',contact:'12345',email:'x@example.com'});assert.ok(Object.values(bad).every(v=>!v));});
+test('chat validates names, PH contact numbers and addresses from any email provider',()=>{const c=setup(),valid=c.chatProfileValidation({first:'Juan',last:'Dela Cruz',contact:'0917-123-4567',email:'JUAN@university.edu.ph'});assert.ok(Object.values(valid).every(Boolean));const bad=c.chatProfileValidation({first:'123',last:'',contact:'12345',email:'invalid-address'});assert.ok(Object.values(bad).every(v=>!v));});
 test('name validation supports accents and apostrophes without accepting markup',()=>{const c=setup();const valid=c.chatProfileValidation({first:'José',last:"O’Neil",contact:'+639171234567',email:'x@gmail.com'});assert.equal(valid.first,true);assert.equal(valid.last,true);assert.equal(c.chatProfileValidation({first:'<script>',last:'Cruz',contact:'09171234567',email:'x@gmail.com'}).first,false);});

@@ -3,7 +3,6 @@ namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\{ShouldQueue,ShouldBeEncrypted};
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Support\Facades\Mail;
 
 class SendVisitTicket implements ShouldQueue, ShouldBeEncrypted
 {
@@ -19,11 +18,7 @@ class SendVisitTicket implements ShouldQueue, ShouldBeEncrypted
 
     public function handle(): void
     {
-        $html=view('emails.visit-ticket',['ticket'=>$this->ticket])->render();
-        Mail::html($html,function($mail)use($html){
-            $logo=$mail->embed(resource_path('images/pup.jpg'));
-            $mail->html(str_replace('cid:uniserve-pup',$logo,$html))
-                ->to($this->ticket['email'])->subject('Your UniServe ticket · '.$this->ticket['visitId']);
-        });
+        // Retired: discard already queued ticket emails after this change.
+        // Appointment updates are delivered through OfficeMail instead.
     }
 }

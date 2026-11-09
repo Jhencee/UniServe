@@ -1,0 +1,58 @@
+/* Selected page stays legible in expanded and collapsed navigation. */
+.sidebar .nav-item { border-radius:6px; }
+.sidebar .nav-item.active,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle.active {
+ background:rgba(255,255,255,.09); color:#fff; font-weight:500;
+ box-shadow:none;
+}
+.sidebar .nav-item.active::before,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle.active::before,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle[aria-expanded="true"]::before {
+ content:""; display:block; position:absolute; left:0; top:10px; bottom:10px;
+ width:3px; border-radius:0 3px 3px 0; background:#fff;
+}
+.sidebar .nav-item.active svg { color:currentColor; opacity:1; }
+.sidebar .nav-item.active:hover { background:rgba(255,255,255,.12); color:#fff; }
+.sidebar .nav-item:focus-visible,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle:focus-visible {
+ outline:2px solid #fff; outline-offset:3px;
+}
+.sidebar .nav-item.active .nav-badge { color:inherit; background:transparent; }
+html[data-theme="dark"] .sidebar .nav-item.active,
+html[data-theme="dark"] .sidebar .sidebar-notifications .dashboard-notifications-toggle.active {
+ background:rgba(255,255,255,.07); color:#fff; box-shadow:none;
+}
+
+/* Soft highlights keep expanded and icon-only navigation consistent. */
+.sidebar .nav-item,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle {
+ transition:background-color .16s ease, color .16s ease;
+}
+.sidebar .nav-item > svg,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle > svg {
+ transition:opacity .16s ease;
+}
+.sidebar .nav-item:focus-visible,
+.sidebar .sidebar-notifications .dashboard-notifications-toggle:focus-visible {
+ background:rgba(255,255,255,.12); color:#fff;
+}
+@media(hover:hover) {
+ .sidebar .nav-item:hover,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle:hover {
+  background:rgba(255,255,255,.12); color:#fff;
+ }
+ .sidebar .nav-item:hover > svg,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle:hover > svg { opacity:1; }
+ .sidebar .nav-item.active:hover,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle.active:hover,
+ html[data-theme="dark"] .sidebar .nav-item.active:hover,
+ html[data-theme="dark"] .sidebar .sidebar-notifications .dashboard-notifications-toggle.active:hover {
+  background:rgba(255,255,255,.16);
+ }
+}
+@media(prefers-reduced-motion:reduce) {
+ .sidebar .nav-item,
+ .sidebar .nav-item > svg,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle,
+ .sidebar .sidebar-notifications .dashboard-notifications-toggle > svg { transition:none; }
+}

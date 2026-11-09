@@ -45,23 +45,8 @@ html[data-text="large"] {
     font-size: 125%;
 }
 
-/* ---------- focus: a real outline (box-shadow alone vanishes in Windows High Contrast) ---------- */
-:root {
-    --focus-outline: #1D4ED8;
-}
-
-html[data-theme="dark"] {
-    --focus-outline: #93C5FD;
-}
-
-:focus-visible {
-    outline: 3px solid var(--focus-outline) !important;
-    outline-offset: 2px;
-}
-
-.sidebar :focus-visible {
-    outline-color: #fff !important;
-}
+/* Shared form-controls.css supplies neutral keyboard focus. */
+.sidebar :focus-visible { outline-color:#fff; }
 
 .svc-card:focus-visible,
 .svc-item:focus-visible,
@@ -81,11 +66,6 @@ html[data-theme="dark"] {
 }
 
 /* ---------- contrast fixes ---------- */
-html:not([data-theme="dark"]) {
-    --warn: #8A5A0B;
-    --info: #4B5563;
-}
-
 .field input::placeholder,
 .field textarea::placeholder,
 .cvl-search input::placeholder,

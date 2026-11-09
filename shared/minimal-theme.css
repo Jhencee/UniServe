@@ -1,0 +1,218 @@
+/* Common surfaces and controls across the four UniServe portals. */
+/* Shared return navigation: color-only hover, with visible keyboard focus. */
+body .system-back-link,
+body #loginScreen .system-back-link,
+body .back-to-transactions,
+body .pass-actions-footer > button:first-child {
+ display:inline-flex; align-items:center; justify-content:flex-start;
+ min-height:44px; padding:8px 0; border:0; border-radius:0;
+ background:transparent; color:var(--text-soft);
+ font-family:var(--font-body); font-size:.8rem; font-weight:400;
+ text-decoration:none; box-shadow:none; cursor:pointer;
+ transition:color .15s ease;
+}
+body .system-back-link:hover,
+body #loginScreen .system-back-link:hover,
+body .back-to-transactions:hover,
+body .pass-actions-footer > button:first-child:hover {
+ background:transparent; color:var(--accent-strong);
+ text-decoration:none; box-shadow:none; transform:none;
+}
+body .system-back-link:focus-visible,
+body #loginScreen .system-back-link:focus-visible,
+body .back-to-transactions:focus-visible,
+body .pass-actions-footer > button:first-child:focus-visible {
+ outline:2px solid var(--accent); outline-offset:3px; box-shadow:none;
+}
+body .modal:has(.important-update-list) { max-width:520px; }
+body .modal:has(.important-update-list) .modal-head { padding:16px 20px; }
+body .modal:has(.important-update-list) .modal-body { padding:4px 20px; }
+body .important-update { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:5px 16px; padding:16px 0; }
+body .important-update strong { font-size:.8rem; font-weight:500; line-height:1.5; }
+body .important-update .field-hint { grid-column:1; margin:0; font-size:.75rem; line-height:1.6; overflow-wrap:anywhere; }
+body .important-update .btn { grid-column:2; grid-row:1 / 3; padding:6px 0; min-height:36px; border:0; border-radius:0; background:transparent; color:var(--accent-strong); font-size:.75rem; font-weight:500; box-shadow:none; }
+body .important-update .btn:hover { background:transparent; text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:480px) {
+ body .important-update { grid-template-columns:minmax(0,1fr); }
+ body .important-update .btn { grid-column:1; grid-row:auto; justify-self:start; min-height:44px; }
+}
+/* Compact table text; card headers and filters use the shared interface scale. */
+@media screen {
+ body #content .visitor-log-card .visitor-log-table :is(th,td),
+ body #content .visitor-log-card .visitor-log-table :is(th,td) * {
+   font-size:11px !important;
+   line-height:1.5;
+ }
+ body #content .visitor-log-card .visitor-log-table :is(th,td) { box-sizing:border-box; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(2) { width:12%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(3) { width:6%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(4) { width:7%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(5) { width:13%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(6) { width:6%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(7) { width:9%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(8) { width:17%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(9) { width:9%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(10) { width:7%; }
+ body #content .visitor-log-card .visitor-log-table th:nth-child(11),
+ body #content .visitor-log-card .visitor-log-table th:nth-child(12) { width:6%; }
+ body #content .visitor-log-card .visitor-log-table td:nth-child(5),
+ body #content .visitor-log-card .visitor-log-table td:nth-child(8) {
+   min-width:0; white-space:normal; overflow-wrap:anywhere; word-break:normal;
+ }
+ body #content .visitor-log-card .visitor-log-table td:nth-child(8) { padding-right:12px; }
+}
+body .filter-bar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 24px; background:var(--surface-2); }
+body .date-range,
+body .date-range.is-set,
+body .date-range:hover { min-height:40px; padding:0 6px 0 12px; gap:6px; border:1px solid var(--border); border-radius:6px; background:var(--surface); box-shadow:none; }
+body .date-range:focus-within { border-color:var(--control-focus); box-shadow:none; }
+body .date-range .dr-field { gap:6px; font-size:.7rem; font-weight:600; letter-spacing:.03em; color:var(--text-soft); }
+body .date-range .date-in { min-height:32px; padding:4px 6px; border:0; background:transparent; color:var(--text); font-family:inherit; font-size:.8rem; box-shadow:none; }
+body .date-range .dr-actions { display:inline-flex; align-items:center; gap:2px; margin-left:4px; padding-left:6px; border-left:1px solid var(--border); }
+body .date-range .dr-btn { min-height:30px; padding:6px 9px; border:0; border-radius:4px; background:transparent; color:var(--accent-strong); font-family:inherit; font-size:.76rem; font-weight:500; white-space:nowrap; box-shadow:none; }
+body .date-range .dr-btn:hover { background:var(--surface-2); }
+body .search-box { position:relative; min-width:0; }
+body .filter-bar .search-box { flex:1 1 240px; }
+body .search-box input { box-sizing:border-box; width:100%; min-height:40px; padding:9px 12px 9px 36px; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-family:inherit; font-size:.8rem; box-shadow:none; }
+body .search-box input::placeholder { color:var(--text-soft); opacity:.75; }
+body .search-box input:focus { border-color:var(--control-focus); box-shadow:none; outline:none; }
+body .search-box svg { position:absolute; left:12px; top:50%; width:15px; height:15px; transform:translateY(-50%); color:var(--text-soft); pointer-events:none; }
+body .filter-select { min-height:40px; padding:8px 30px 8px 12px; border:1px solid var(--border); border-radius:6px; background-color:var(--surface); color:var(--text); font-family:inherit; font-size:.8rem; box-shadow:none; }
+@media(max-width:600px) {
+ body .filter-bar { padding:12px; gap:10px; }
+ body .filter-bar .search-box { flex-basis:100%; }
+ body .date-range { flex-wrap:wrap; row-gap:4px; padding-top:4px; padding-bottom:4px; }
+ body .date-range .dr-field { min-width:0; }
+ body .date-range .date-in { min-width:0; max-width:132px; }
+}
+:root {
+ --font-body:'Inter',sans-serif;
+ --font-display:'Inter',sans-serif;
+ --font-mono:'Inter',sans-serif;
+ --radius:8px;
+ --radius-sm:6px;
+ --shadow:none;
+ --shadow-sm:none;
+}
+/* One interface typeface, including legacy monospace data cells. */
+body,
+body :is(h1,h2,h3,h4,h5,h6,p,a,span,label,button,input,select,textarea,table,th,td,small,strong,summary),
+body .mono,
+body .topbar .clock,
+body .sidebar-brand .name {
+ font-family:'Inter',sans-serif;
+}
+body .mono,
+body .stat-card .val,
+body .topbar .clock { font-variant-numeric:tabular-nums; }
+body .card,
+body .stat-card,
+body .auth-card {
+ border:1px solid var(--border); border-radius:8px;
+ background:var(--surface); box-shadow:none;
+}
+body .stat-card { padding:18px; }
+body .stat-card::before { display:none; }
+body .stat-card .lbl { font-size:.75rem; font-weight:400; line-height:1.5; }
+body .stat-card .val { color:var(--text); font-weight:500; letter-spacing:-.02em; }
+/* Shared summary sizing across staff pages, including Queue and Visitor Log. */
+@media screen {
+ body #content .stat-grid:not(.rpt-stat-grid) { gap:14px; align-items:stretch; }
+ body #content .stat-grid:not(.rpt-stat-grid) > .stat-card { box-sizing:border-box; display:flex; flex-direction:column; min-width:0; min-height:136px; padding:18px; border:1px solid var(--border); border-radius:8px; background:var(--surface); }
+ body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .lbl { min-height:22px; font-size:.76rem; font-weight:400; line-height:1.5; color:#626b78; }
+ body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .val { margin-top:12px; font-size:1.9rem; font-weight:600; line-height:1.2; }
+ body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .metric-note { margin-top:auto; padding-top:8px; font-size:.76rem; line-height:1.5; color:#626b78; }
+ html[data-theme="dark"] body #content .stat-grid:not(.rpt-stat-grid) > .stat-card :is(.lbl,.metric-note) { color:#b2bbc8; }
+ body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .val-list { font-size:1.1rem; line-height:1.5; }
+}
+body .card-head { background:transparent; }
+body .card-head h3,
+body .modal-head h3 { font-family:var(--font-body); font-weight:500; }
+body .card-head h3 { font-size:.9rem; }
+body .card-head .desc { font-size:.75rem; line-height:1.5; }
+body .btn { border-radius:6px; box-shadow:none; font-weight:500; }
+body .btn:not(:disabled):not(.is-disabled):hover,
+body .btn:not(:disabled):not(.is-disabled):active { transform:none; box-shadow:none; }
+body .btn-ghost { background:transparent; }
+body .btn-ghost:hover { background:var(--surface-2); }
+body .field label { font-size:.78rem; font-weight:500; }
+body .field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+body .field select,
+body .field textarea {
+ border-radius:6px; border:1px solid var(--border);
+ background:var(--surface); color:var(--text); box-shadow:none;
+}
+body .field input:focus-visible,
+body .field select:focus-visible,
+body .field textarea:focus-visible,
+body .btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+body .field-hint { font-size:.75rem; line-height:1.6; }
+body .modal { border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,.14); }
+body .modal-head,
+body .modal-foot { background:var(--surface); }
+body .modal-head h3 { font-size:1rem; }
+body table th { font-weight:500; letter-spacing:.02em; }
+body .pill,
+body .readiness-pill.incomplete {
+ display:inline-flex; align-items:center; gap:5px; padding:3px 8px;
+ border:0; border-radius:5px; box-shadow:none;
+ font-size:.7rem; font-weight:500; line-height:1.4; letter-spacing:0;
+ white-space:nowrap;
+}
+body .readiness-pill.incomplete {
+ background:var(--warn-bg); color:var(--warn);
+}
+body .topbar { box-shadow:none; border-bottom:1px solid var(--border); }
+/* Password controls use the same quiet open and closed eye treatment. */
+body button:is(.pass-toggle,.profile-pass-toggle,.account-pass-toggle) { border:0; background:transparent; box-shadow:none; color:var(--text-soft); border-radius:4px; }
+body button:is(.pass-toggle,.profile-pass-toggle,.account-pass-toggle):hover { background:transparent; color:var(--accent-strong); }
+body button:is(.pass-toggle,.profile-pass-toggle,.account-pass-toggle) svg { width:18px; height:18px; stroke-width:1.6; }
+/* The phone wrapper owns the border; its input stays flush with the flag divider. */
+#visitorApp .field .ph-phone-input input[type="tel"],
+#visitorApp .field .ph-phone-input input[type="tel"]:focus,
+#visitorApp .field .ph-phone-input input[type="tel"]:focus-visible {
+ border:0; border-radius:0; background:transparent; box-shadow:none; outline:none;
+}
+body .field .ph-phone-input:has(input[aria-invalid="true"]) { border-color:var(--danger); }
+#landing .step,
+#landing .feat-card,
+#landing .svc-preview-card,
+#landing .contact-card,
+#landing .fb-top,
+#landing .fb-empty { border-radius:8px; box-shadow:none; }
+#landing .hero-actions .btn { border-radius:6px; font-weight:500; }
+#loginScreen .auth-card { border-radius:8px; box-shadow:none; }
+#visitorApp .visitor-hub-nav .nav-item { border:1px solid var(--border); border-radius:8px; box-shadow:none; }
+#visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface-2); box-shadow:none; }
+/* Static panels stay still; only whole-card actions receive a lift. */
+body #landing :is(.step,.feat-card,.svc-preview-card,.fb-top),
+body #content .analytics-dashboard :is(.card,.stat-card) { transition:none; }
+body #landing :is(.step,.feat-card,.svc-preview-card,.fb-top):hover,
+body #content .analytics-dashboard :is(.card,.stat-card):hover {
+ border-color:var(--border); background:var(--surface); box-shadow:none; transform:none;
+}
+@media(hover:hover) and (prefers-reduced-motion:no-preference) {
+ body #landing :is(.step,.feat-card,.svc-preview-card,.fb-top):is(a[href],button,[role="button"][tabindex],[onclick]),
+ body #content .analytics-dashboard :is(.card,.stat-card):is(a[href],button,[role="button"][tabindex],[onclick]) { transition:transform .18s ease; }
+ body #landing :is(.step,.feat-card,.svc-preview-card,.fb-top):is(a[href],button,[role="button"][tabindex],[onclick]):hover,
+ body #content .analytics-dashboard :is(.card,.stat-card):is(a[href],button,[role="button"][tabindex],[onclick]):hover { transform:translateY(-3px); }
+}
+@media(prefers-reduced-motion:reduce) {
+ body .btn, #visitorApp .visitor-hub-nav .nav-item { transition:none; }
+}
+
+/* Match Manage Services on whole-card actions across the portals. */
+body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]) { position:relative; overflow:hidden; }
+body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { content:""; display:block; position:absolute; inset:0 auto 0 0; width:4px; background:var(--accent); transform:scaleY(0); transform-origin:top; pointer-events:none; }
+body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):focus-visible { border-color:var(--accent); outline:2px solid var(--accent); outline-offset:3px; }
+body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):focus-visible::before { transform:scaleY(1); }
+@media(hover:hover) and (prefers-reduced-motion:no-preference) {
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]) { transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease; }
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { transition:transform .2s ease; }
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:translateY(-2px); border-color:var(--accent); box-shadow:var(--shadow-lift,0 8px 20px rgba(0,0,0,.1)); }
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover::before { transform:scaleY(1); }
+}
+@media(prefers-reduced-motion:reduce) {
+ body .svc-manage-card, body .svc-manage-card::before, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]), body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { transition:none; }
+ body .svc-manage-card:hover, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:none; }
+}

@@ -27,6 +27,19 @@ it('rejects expired or mismatched Turnstile tokens',function($result){
  'wrong action'=>[['success'=>true,'action'=>'other','hostname'=>'campus.example']],
  'wrong host'=>[['success'=>true,'action'=>'staff-login','hostname'=>'other.example']],
 ]);
+it('accepts successful dummy verification only with local test keys',function(){
+ config(['services.turnstile.enabled'=>true,'services.turnstile.site_key'=>'1x00000000000000000000AA','services.turnstile.secret_key'=>'1x0000000000000000000000000000000AA','services.turnstile.hostnames'=>[]]);
+ \Illuminate\Support\Facades\Http::fake(['challenges.cloudflare.com/*'=>\Illuminate\Support\Facades\Http::response(['success'=>true,'action'=>'test','hostname'=>'localhost'])]);
+ $login=['username'=>'login.test','password'=>'test-password','turnstileToken'=>'XXXX.DUMMY.TOKEN.XXXX'];
+ $this->postJson('/api/login',$login)->assertOk();
+ config(['services.turnstile.secret_key'=>'production-secret']);
+ $this->postJson('/api/login',$login)->assertUnprocessable();
+});
+it('still rejects failed dummy verification',function(){
+ config(['services.turnstile.enabled'=>true,'services.turnstile.site_key'=>'1x00000000000000000000AA','services.turnstile.secret_key'=>'1x0000000000000000000000000000000AA','services.turnstile.hostnames'=>[]]);
+ \Illuminate\Support\Facades\Http::fake(['challenges.cloudflare.com/*'=>\Illuminate\Support\Facades\Http::response(['success'=>false])]);
+ $this->postJson('/api/login',['username'=>'login.test','password'=>'test-password','turnstileToken'=>'bad-token'])->assertUnprocessable();
+});
 it('blocks login when enabled Turnstile is not configured',function(){
  config(['services.turnstile.enabled'=>true,'services.turnstile.site_key'=>null,'services.turnstile.secret_key'=>null]);
  $this->postJson('/api/login',['username'=>'login.test','password'=>'test-password'])->assertStatus(503);

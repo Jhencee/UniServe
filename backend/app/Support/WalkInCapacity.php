@@ -12,6 +12,9 @@ class WalkInCapacity {
   $effectiveAt=is_array($decision)?CarbonImmutable::parse($decision['effectiveAt']):null;
   $manualClosed=(bool)$decision&&(!$effectiveAt||$now->greaterThanOrEqualTo($effectiveAt));
   $manual=['manualCutoff'=>$manualClosed,'scheduledCutoff'=>is_array($decision)&&($decision['scheduled']??false),'counters'=>$staff,'cutoffTime'=>$effectiveAt?->format('H:i'),'manualCutoffTime'=>$effectiveAt?->format('g:i A'),'closedAt'=>$manualClosed?$effectiveAt?->toIso8601String():null,'closedTime'=>$manualClosed?$effectiveAt?->format('g:i A'):null,'timezone'=>'Asia/Manila'];
+  $override=(bool)Cache::get('walk-in-override:'.$day,false);
+  $cutoff=$ranges?CarbonImmutable::parse($day.' '.end($ranges)[1],'Asia/Manila')->subMinutes($lead):null;
+  $manual+=['override'=>$override,'officeOpen'=>$office['open'],'cutoff'=>$cutoff?->format('g:i A'),'officeMessage'=>$office['reason']];
   if(!$ranges||!$office['open']||($settings['maintenanceMode']??false))return $manual+['accepting'=>false,'message'=>($settings['maintenanceMode']??false)?'New visits are unavailable during maintenance.':$office['reason']];
   $closing=CarbonImmutable::parse($day.' '.end($ranges)[1],'Asia/Manila');$cutoff=$closing->subMinutes($lead);
   $samples=[];$active=[];

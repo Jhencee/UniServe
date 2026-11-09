@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light">
 
 <head>
-    <script src="../shared/api-config.js?v=1.1.0"></script>
+    <link rel="icon" type="image/jpeg" href="../Landing/pup.jpg">
+    <script src="../shared/api-config.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Start Your Visit &mdash; UniServe Visitor Services</title>
@@ -11,12 +12,14 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="user.css?v=20261021.12">
-    <link rel="stylesheet" href="accessibility.css?v=1.1.0">
-    <link rel="stylesheet" href="../shared/ui-components.css?v=20261020.10">
-    <link rel="stylesheet" href="../shared/form-controls.css?v=20261020.13">
-    <link rel="stylesheet" href="../shared/responsive.css?v=1.1.0">
-    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261020.8">
+    <link rel="stylesheet" href="user.css?v=20261109-mobile-ticket-sizing">
+    <link rel="stylesheet" href="accessibility.css">
+    <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
+    <link rel="stylesheet" href="../shared/sidebar-selection.css">
+    <link rel="stylesheet" href="../shared/form-controls.css">
+    <link rel="stylesheet" href="../shared/responsive.css">
+    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261109-clean-calendar">
+    <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261109-card-hover">
 </head>
 
 <body>
@@ -45,7 +48,7 @@
                     </details>
                 </div>
             </header>
-            <div class="visitor-section-bar visitor-home-bar"><a class="btn btn-ghost btn-sm" href="../Landing/landing.html">&larr; Back to home</a></div>
+            <div class="visitor-section-bar visitor-home-bar"><a class="btn btn-ghost btn-sm system-back-link" href="../Landing/landing.html">Back to home</a></div>
             <section class="visitor-hub" id="visitorHub" aria-labelledby="visitorWelcomeTitle">
                 <div class="visitor-welcome">
                     <div class="visitor-welcome-copy">
@@ -61,30 +64,30 @@
                 </nav>
                 <div class="visitor-hub-reading-tools"></div>
             </section>
-            <div class="visitor-section-bar" id="visitorSectionBar" hidden><button type="button" class="btn btn-ghost btn-sm" onclick="visitorSectionBack()">&larr; Back to services</button></div>
+            <div class="visitor-section-bar" id="visitorSectionBar" hidden><button type="button" class="btn btn-ghost btn-sm system-back-link" onclick="visitorSectionBack()">Back to services</button></div>
             <div class="sr-only"><h2 id="visitorPageTitle">Start Your Visit</h2><p id="visitorPageSub">Choose a service and how you want to visit.</p></div>
             <main class="content" id="visitorContent" hidden></main>
         </div>
     </div>
 
     <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
-    <script src="../shared/office-calendar.js?v=20261020.40"></script>
-    <script src="../shared/ui-components.js?v=20261020.40"></script>
-    <script src="visit-flow.js?v=20261019.13"></script>
-    <script src="../shared/code-cooldown.js?v=1.0.0"></script>
-    <script src="../shared/visitor-turnstile.js?v=20261020.1"></script>
-    <script src="../shared/visit-enhancements.js?v=20261021.17"></script>
-    <script src="user.js?v=20261021.13"></script>
-    <script src="chat-identity.js?v=20261020.13"></script>
-    <script src="../shared/appointment-api.js?v=20261020.15"></script>
-    <script src="../shared/private-record-cache.js?v=1.1.0"></script>
-    <script src="accessibility.js?v=1.3.0"></script>
-    <script src="../shared/code-boxes.js?v=1.0.0"></script>
-    <script src="../shared/responsive.js?v=1.1.0"></script>
-    <script src="../shared/portal-api.js?v=20261021.11"></script>
-    <script src="../shared/browser-notifications.js?v=20261020.40"></script>
-    <script src="../shared/realtime-updates.js?v=1.1.3"></script>
-    <script src="visitor-actions.js?v=1.0.3"></script>
+    <script src="../shared/office-calendar.js"></script>
+    <script src="../shared/ui-components.js?v=20261109-in-app-notifications"></script>
+    <script src="visit-flow.js"></script>
+    <script src="../shared/code-cooldown.js"></script>
+    <script src="../shared/visitor-turnstile.js"></script>
+    <script src="../shared/visit-enhancements.js?v=20261109-detail-cleanup"></script>
+    <script src="user.js?v=20261109-consistency-pass"></script>
+    <script src="chat-identity.js?v=20261109-code-cleanup"></script>
+    <script src="../shared/appointment-api.js?v=20261109-requirement-readiness"></script>
+
+    <script src="../shared/private-record-cache.js"></script>
+    <script src="accessibility.js"></script>
+    <script src="../shared/code-boxes.js"></script>
+    <script src="../shared/responsive.js"></script>
+    <script src="../shared/portal-api.js?v=20261109-consistency-pass"></script>
+    <script src="../shared/realtime-updates.js?v=20261109-consistency-pass"></script>
+    <script src="visitor-actions.js?v=20261109-in-app-notifications"></script>
 </body>
 
 </html>

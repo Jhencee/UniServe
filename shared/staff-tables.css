@@ -1,5 +1,33 @@
 /* Shared screen spacing; printed reports keep their own layout. */
 @media screen {
+  #content .visitor-log-table-wrap > .visitor-log-table { min-width:0; width:100%; table-layout:fixed; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(n) { width:auto; white-space:normal; line-height:1.4; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(5),
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(6) {
+    white-space:normal;
+    overflow-wrap:normal;
+    line-height:1.5;
+  }
+  #content .visitor-log-table-wrap > .visitor-log-table td:nth-child(5) {
+    white-space:normal;
+    overflow-wrap:anywhere;
+  }
+  #content .visitor-log-table-wrap > .visitor-log-table th,
+  #content .visitor-log-table-wrap > .visitor-log-table td { min-width:0; padding:10px 6px; font-size:.68rem; overflow-wrap:anywhere; white-space:normal; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(1) { width:3%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(2) { width:12%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(3) { width:6%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(4) { width:7%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(5) { width:11%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(6) { width:7%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(7) { width:9%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(8) { width:16%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(9) { width:10%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(10) { width:7%; }
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(11),
+  #content .visitor-log-table-wrap > .visitor-log-table th:nth-child(12) { width:6%; }
+}
+@media screen {
   #content .table-wrap,
   #content .rpt-table-wrap {
     max-width: 100%;
@@ -147,4 +175,24 @@
   #content .table-wrap > table th.appointment-action-heading,
   #content .table-wrap > table td.appointment-action-cell { width:80px; min-width:80px; padding:14px 12px; text-align:center; vertical-align:middle; }
   #content .table-wrap > table td.appointment-action-cell > .kebab-btn { display:flex; margin:0 auto; }
+}
+
+@media screen {
+ #content .staff-table-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; }
+ #content .staff-table-toolbar > .search-box { order:-2; flex:1 1 220px; max-width:360px; }
+ #content .card:has(.staff-table-toolbar) > .card-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+ #content .card:has(.staff-table-toolbar) > .card-head > .toolbar { display:flex; flex-wrap:wrap; gap:8px; margin-left:auto; }
+ #content .card:has(.staff-table-toolbar) > .card-head > .toolbar .btn { min-height:38px; font-size:.76rem; }
+ #content .card:has(.staff-table-toolbar) > .card-head,
+ #content .staff-table-toolbar { padding-left:24px; padding-right:24px; }
+ #content .staff-table-toolbar > .filter-select { margin-left:auto; }
+ #content .card:has(#txnSearch) > .card-head > .toolbar,
+ #content .staff-table-toolbar > #txnSvcSelect { width:210px; box-sizing:border-box; }
+ #content .card:has(#txnSearch) > .card-head > .toolbar > .btn { width:100%; justify-content:center; }
+ #content .card:has(:is(#logSearch,#apptSearch)) .staff-table-toolbar > .search-box { max-width:none; }
+ #content .card:has(:is(#logSearch,#apptSearch)) .staff-table-toolbar > .date-range { margin-left:auto; }
+}
+@media screen and (max-width:600px) {
+ #content .card:has(.staff-table-toolbar) > .card-head,
+ #content .staff-table-toolbar { padding-left:12px; padding-right:12px; }
 }

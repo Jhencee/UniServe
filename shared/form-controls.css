@@ -121,35 +121,22 @@ button svg, .btn svg, summary svg { flex-shrink:0; }
   .field input[type="file"] { font-size:.72rem; }
 }
 
-/* One restrained focus treatment across all portals. */
-:root { --control-focus: #800000; --control-focus-halo: rgba(128,0,0,.09); }
-html[data-theme="dark"] { --control-focus:#d99a9a; --control-focus-halo:rgba(217,154,154,.12); }
-:where(input,textarea,select):focus-visible { outline:none; }
-.field :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus,
-:is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus-visible {
- border-color:var(--control-focus); outline:none; box-shadow:0 0 0 2px var(--control-focus-halo);
-}
-.field :is(input,textarea,select)[aria-invalid="true"]:focus { border-color:var(--danger); box-shadow:0 0 0 2px color-mix(in srgb,var(--danger) 10%,transparent); }
-:is(button,a,input[type="checkbox"],input[type="radio"]):focus-visible { outline:2px solid var(--control-focus); outline-offset:2px; }
-.ph-phone-input:focus-within { border-color:var(--control-focus); box-shadow:0 0 0 2px var(--control-focus-halo); }
-.field .ph-phone-input input:focus { border:0; outline:none; box-shadow:none; }
-.code-boxes .code-digit.is-current { border-color:var(--control-focus); box-shadow:0 0 0 2px var(--control-focus-halo); }
-@media(forced-colors:active) {
- :is(input,textarea,select,button,a):focus-visible { outline:2px solid Highlight; outline-offset:2px; }
-}
-
-/* Minimal input focus without a colored halo. */
+/* Shared neutral focus without a colored halo. */
 :root { --control-focus:#737b87; --control-focus-halo:transparent; }
 html[data-theme="dark"] { --control-focus:#a4adb9; --control-focus-halo:transparent; }
+:focus-visible { outline:2px solid var(--control-focus); outline-offset:2px; }
 .field :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus,
 :is(input:not([type="checkbox"]):not([type="radio"]),textarea,select):focus-visible { border-color:var(--control-focus); box-shadow:none; outline:none; }
 .field :is(input,textarea,select)[aria-invalid="true"]:focus { border-color:var(--danger); box-shadow:none; }
 .ph-phone-input:focus-within { border-color:var(--control-focus); box-shadow:none; }
 .field .ph-phone-input input:focus { border:0; box-shadow:none; outline:none; }
 .code-boxes .code-digit.is-current { border-color:var(--control-focus); box-shadow:none; }
-@media(forced-colors:active) { :is(input,textarea,select):focus-visible { outline:2px solid Highlight; outline-offset:2px; } }
+@media(forced-colors:active) { :is(input,textarea,select,button,a,[tabindex],summary):focus-visible { outline:2px solid Highlight; outline-offset:2px; } }
 
 .visitor-security { width:100%; min-width:0; margin:16px 0; }
 .visitor-security[hidden] { display:none; }
 .visitor-security-widget { width:100%; min-width:0; }
 .visitor-security .field-hint:empty { display:none; }
+
+/* Shared readable light-theme status colors. */
+html:not([data-theme="dark"]) { --warn:#8a5a0b; --info:#4b5563; }

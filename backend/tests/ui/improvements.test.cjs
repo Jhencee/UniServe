@@ -9,3 +9,16 @@ test('shared status badges consistently cover appointments and access expiry wit
 test('live password guidance lists only missing requirements',()=>{const c=setup();assert.deepEqual(Array.from(c.staffPasswordRequirements('GoodPassword1')),['a special character']);assert.equal(c.staffPasswordRequirements('GoodPassword1!').length,0);});
 
 test('performance averages retain seconds instead of rounding short service to zero',()=>{const c=setup(),now=new Date('2026-10-14T02:00:00Z'),m=c.UniServeUX.metrics({queues:[{createdAt:'2026-10-14T01:00:00Z',servingAt:'2026-10-14T01:00:20Z',completedAt:'2026-10-14T01:00:50Z'}],appointments:[]},now);assert.equal(m.service,0.5);});
+
+function noticeSetup(extra={}){
+ const handlers={},messages=[];const c={document:{visibilityState:'visible'},localStorage:{removeItem:()=>{}},addEventListener:(name,fn)=>handlers[name]=fn,toast:message=>messages.push(message),UniServeUX:{escape:value=>String(value).replaceAll('<','&lt;')},...extra};vm.createContext(c);
+ const source=fs.readFileSync(path.resolve(__dirname,'../../../shared/ui-components.js'),'utf8');vm.runInContext(source.slice(source.indexOf('// In-app visit notices')),c);return {c,handlers,messages};
+}
+test('in-app queue and cutoff notices work without browser notification APIs',()=>{
+ const {c,handlers,messages}=noticeSetup();handlers['uniserve:near-turn']({detail:{id:'visit',ahead:0}});assert.match(messages[0],/You are next/);
+ const event={detail:{id:'cutoff',mode:'scheduled',time:'<10:00>'}};handlers['uniserve:intake-notification'](event);handlers['uniserve:intake-notification'](event);assert.equal(messages.length,2);assert.match(messages[1],/&lt;10:00>/);
+ c.document.visibilityState='hidden';handlers['uniserve:near-turn']({detail:{id:'other',ahead:2}});assert.equal(messages.length,2);
+});
+test('retiring browser alerts unregisters only the old UniServe notification worker',async()=>{
+ let removed=0,other=0;noticeSetup({URL,location:{href:'https://example.test/Admin/admin.html',origin:'https://example.test'},navigator:{serviceWorker:{getRegistrations:async()=>[{active:{scriptURL:'https://example.test/shared/notification-worker.js'},unregister:async()=>removed++},{active:{scriptURL:'https://example.test/other-worker.js'},unregister:async()=>other++}]}}});await new Promise(resolve=>setImmediate(resolve));assert.equal(removed,1);assert.equal(other,0);
+});

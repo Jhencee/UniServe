@@ -55,7 +55,7 @@
         const available=date>=today && ranges.length>0;
         const name=day.name||(!day.open?'Closed':day.type==='special'?'Special hours':'Open');
         const type=day.type==='holiday'?'holiday':!day.open?'closed':day.type==='special'?'special':'open';
-        return `<button class="ux-calendar-day ${type} ${date<today?'past':''} ${date===today?'today':''}" ${available?'':'disabled'} title="${esc(name)}${date<today?' (past date)':''}" aria-label="${date}, ${esc(name)}" ${date===today?'aria-current="date"':''} onclick="UniServeUX.calendarSelect('${date}')">${i+1}<small>${esc(day.type==='holiday'?'Holiday':!day.open?'Closed':day.type==='special'?'Special':'Open')}</small></button>`;
+        return `<button class="ux-calendar-day ${type} ${date<today?'past':''} ${date===today?'today':''}" ${available?'':'disabled'} title="${esc(name)}${date<today?' (past date)':''}" aria-label="${date}, ${esc(name)}" ${date===today?'aria-current="date"':''} onclick="UniServeUX.calendarSelect('${date}')"><span class="ux-calendar-number">${i+1}</span><small>${esc(day.name||(day.type==='holiday'?'Holiday':!day.open?'Closed':day.type==='special'?'Special hours':''))}</small><span class="ux-calendar-dot" aria-hidden="true"></span></button>`;
       }).join('')}</div><p class="ux-calendar-note" id="visitorCalendarDetails" role="status">Select an open date to see its hours.${preferredTarget?' This is a preferred date; OSS confirms your appointment.':''}</p>`;
     root.openModal('Office calendar',body,[]);
     document.querySelector('#activeModal .modal')?.classList.add('office-calendar-modal');
@@ -82,7 +82,7 @@
   async function notificationStatus(appt) {
     try {
       const result=await request('/notifications?visitId='+encodeURIComponent(appt.visitId||appt.code));
-      root.openModal('Email delivery details',result.notifications.length?result.notifications.map(n=>`<div class="kv"><span>${esc(n.kind)}</span><span>${esc(n.status)}${n.sent_at?' · '+esc(n.sent_at):''}</span></div>`).join(''):'<p>Confirmation emails are queued automatically when the schedule is saved. No email records were found for this visit.</p>',appt.status==='Booked'&&(result.notifications.some(n=>n.status==='failed')||!result.notifications.length)?[{label:'Resend email',cls:'btn-primary',action:()=>queueNotification(appt,result.notifications.some(n=>n.kind==='rescheduled')?'rescheduled':'confirmation')}]:[]);
+      root.openModal('Email delivery details',result.notifications.length?result.notifications.map(n=>`<div class="kv"><span>${esc(n.kind)}</span><span>${esc(String(n.status).toLowerCase()==='superseded'?'Replaced':n.status)}${n.sent_at?' · '+esc(n.sent_at):''}</span></div>`).join(''):'<p>Confirmation emails are queued automatically when the schedule is saved. No email records were found for this visit.</p>',appt.status==='Booked'&&(result.notifications.some(n=>n.status==='failed')||!result.notifications.length)?[{label:'Resend email',cls:'resend-text',action:()=>queueNotification(appt,result.notifications.some(n=>n.kind==='rescheduled')?'rescheduled':'confirmation')}]:[]);
     }catch(error){root.toast(esc(error.message),'err');}
   }
   const auditKey='ossuniserve_pending_audit_v1';let syncing=false;
@@ -118,7 +118,7 @@
     const average=values=>values.length?values.reduce((a,b)=>a+b,0)/values.length:null;
     return {waiting:average(waits),service:average(durations),waitSamples:waits.length,serviceSamples:durations.length,noShows:appointments.filter(a=>a.status==='No-show').length,total:queues.length,hours};
   }
-  function durationLabel(minutes){if(minutes===null||minutes===undefined)return '?';const total=Math.max(0,Math.round(minutes*60)),hours=Math.floor(total/3600),mins=Math.floor(total%3600/60),seconds=total%60;return [hours?hours+' '+(hours===1?'hour':'hours'):'',mins?mins+' '+(mins===1?'minute':'minutes'):'',seconds?seconds+' '+(seconds===1?'second':'seconds'):''].filter(Boolean).join(' ')||'0 seconds';}
+  function durationLabel(minutes){if(minutes===null||minutes===undefined||!Number.isFinite(Number(minutes)))return '?';const total=Math.max(0,Math.round(Number(minutes))),hours=Math.floor(total/60),mins=total%60;return hours?hours+'h'+(mins?' '+mins+'m':''):total+'m';}
   function reportHtml(db) {
     const m=metrics(db),max=Math.max(...m.hours,1);
     return `<div class="card ux-report"><div class="card-head"><div><h3>Queue &amp; appointment performance</h3><div class="desc">Last 30 days &middot; Queue and appointment summary</div></div><button class="btn btn-ghost btn-sm" onclick="UniServeUX.exportMetrics()">Download CSV</button></div><div class="card-pad"><div class="stat-grid"><div class="stat-card"><div class="lbl">Average waiting</div><div class="val">${m.waiting===null?'—':durationLabel(m.waiting)}</div><div class="field-hint">${m.waitSamples} timed visits</div></div><div class="stat-card"><div class="lbl">Average service</div><div class="val">${m.service===null?'—':durationLabel(m.service)}</div><div class="field-hint">${m.serviceSamples} completed visits</div></div><div class="stat-card"><div class="lbl">Missed appointments</div><div class="val">${m.noShows}</div></div></div><h3>Arrivals by hour</h3><div class="ux-hour-bars">${m.hours.some(Boolean)?m.hours.map((count,h)=>count?`<div class="ux-hour-row"><span>${OfficeCalendar.clock(String(h).padStart(2,'0')+':00')}</span><div class="ux-hour-track"><div class="ux-hour-fill" style="width:${Math.round(count/max*100)}%"></div></div><span>${count}</span></div>`:'').join(''):'<p class="field-hint">No arrivals recorded in the last 30 days.</p>'}</div></div></div>`;
@@ -138,13 +138,14 @@
   function unifiedModal(title,body,buttons=[]) {
     buttons=buttons.filter(button=>!(/^close$/i.test(String(button.label).trim())&&(button.action===root.closeModal||button.action===closeUnifiedModal)));
     closeUnifiedModal();modalReturnFocus=document.activeElement;previousOverflow=document.body.style.overflow;document.body.style.overflow='hidden';
+    const visibleButtons=buttons.map((button,index)=>({button,index})).filter(({button})=>!/^back(?:\s|$)/i.test(String(button.label).trim()));
     const overlay=document.createElement('div');overlay.className='overlay';overlay.id='activeModal';
-    overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="activeModalTitle" tabindex="-1"><div class="modal-head"><h3 id="activeModalTitle">${title}</h3><button class="close-x" id="modalCloseX" aria-label="Close dialog">${root.icon('x',18)}</button></div><div class="modal-body">${body}</div>${buttons.length?`<div class="modal-foot">${buttons.map((b,i)=>`<button class="btn ${b.cls||'btn-ghost'} btn-sm" id="modalBtn${i}" data-modal-action="${i}">${b.label}</button>`).join('')}</div>`:''}</div>`;
+    overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="activeModalTitle" tabindex="-1"><div class="modal-head"><h3 id="activeModalTitle">${title}</h3><button class="close-x" id="modalCloseX" aria-label="Close dialog">${root.icon('x',18)}</button></div><div class="modal-body">${body}</div>${visibleButtons.length?`<div class="modal-foot">${visibleButtons.map(({button:b,index:i})=>`<button class="btn ${b.cls||'btn-ghost'} btn-sm" id="modalBtn${i}" data-modal-action="${i}">${b.label}</button>`).join('')}</div>`:''}</div>`;
     document.body.appendChild(overlay);
     for(const element of document.body.children){if(element===overlay||['SCRIPT','STYLE','LINK'].includes(element.tagName)||element.hasAttribute('aria-live')||element.id==='toastContainer')continue;inertBackground.set(element,element.inert);element.inert=true;}
     const dismiss=()=>{if(overlay.dataset.busy!=='true')closeUnifiedModal();};
     overlay.querySelector('.close-x').onclick=dismiss;overlay.onclick=e=>{if(e.target===overlay)dismiss();};
-    buttons.forEach((button,i)=>{overlay.querySelector(`[data-modal-action="${i}"]`).onclick=async()=>{
+    visibleButtons.forEach(({button,index:i})=>{overlay.querySelector(`[data-modal-action="${i}"]`).onclick=async()=>{
       if(overlay.dataset.busy==='true')return;overlay.dataset.busy='true';
       const controls=[...overlay.querySelectorAll('.modal-foot button,.close-x')];controls.forEach(b=>b.disabled=true);
       try{await button.action();}catch(error){unifiedToast(esc(error.message||'Could not complete this action. Please try again.'),'err');}
@@ -182,6 +183,28 @@
       document.querySelectorAll('.field').forEach(field=>{const label=field.querySelector('label'),input=field.querySelector('input[id],select[id],textarea[id]');if(label&&input&&!label.htmlFor)label.htmlFor=input.id;});
     });
     observer.observe(document.documentElement,{childList:true,subtree:true});
+    // Supply Enter submission for controls built outside native forms.
+    document.addEventListener('keydown',event=>{
+      if(event.key!=='Enter'||event.defaultPrevented||event.repeat||event.isComposing||event.keyCode===229||event.shiftKey||event.ctrlKey||event.altKey||event.metaKey)return;
+      const input=event.target;
+      if(!input.matches?.('input')||input.disabled||input.readOnly||input.closest('[onkeydown]'))return;
+      if(['button','submit','reset','checkbox','radio','file','range','color','hidden'].includes(input.type))return;
+      // Existing login/reset listeners already submit these controls.
+      if(['loginUser','loginPass','fpEmail'].includes(input.id))return;
+      const modal=document.getElementById('activeModal');
+      if(modal&&!modal.contains(input))return;
+      if(modal?.dataset.busy==='true'){event.preventDefault();return;}
+      if(input.form)return; // Preserve native submission and validation.
+      const scope=modal||input.closest('.card,.login-card,section');
+      if(!scope)return;
+      const visible=button=>button.getClientRects().length&&!button.closest('[hidden],[inert]');
+      const candidates=[...scope.querySelectorAll(modal?'.modal-foot button':'button.btn-primary,button[type="submit"],[data-enter-submit]')].filter(visible);
+      const primary=candidates.filter(button=>button.matches('.btn-primary,[data-enter-submit],button[type="submit"]'));
+      const action=primary.length===1?primary[0]:(modal&&candidates.length===1&&!/^(cancel|close|back)$/i.test(candidates[0].textContent.trim())?candidates[0]:null);
+      if(!action)return;
+      event.preventDefault();
+      if(!action.disabled&&action.getAttribute('aria-disabled')!=='true')action.click();
+    });
     document.addEventListener('keydown',event=>{
       const modal=document.getElementById('activeModal');if(!modal)return;
       if(event.key==='Escape'){if(modal.dataset.busy!=='true')root.closeModal();return;}
@@ -220,11 +243,11 @@
 })();
 
 function profilePasswordEye(hidden) {
- const path=hidden?'M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.5 21.5 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.5 21.5 0 01-2.61 3.68M14.12 14.12a3 3 0 11-4.24-4.24M1 1l22 22':'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z';
- return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>';
+ const path=hidden?'M3 9c2 4 5 6 9 6s7-2 9-6M5 12l-2 3M9 14.5l-1 3.5M15 14.5l1 3.5M19 12l2 3':'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z';
+ return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+path+'"/></svg>';
 }
 function toggleProfilePassword(id,button) {
- const input=document.getElementById(id),show=input.type==='password';input.type=show?'text':'password';button.innerHTML=profilePasswordEye(show);button.setAttribute('aria-label',show?'Hide password':'Show password');button.setAttribute('aria-pressed',String(show));
+ const input=document.getElementById(id),show=input.type==='password';input.type=show?'text':'password';button.innerHTML=profilePasswordEye(!show);button.setAttribute('aria-label',show?'Hide password':'Show password');button.setAttribute('aria-pressed',String(show));
 }
 
 (function(){
@@ -241,3 +264,29 @@ function toggleProfilePassword(id,button) {
  }
  new MutationObserver(enhanceLabels).observe(document.body,{childList:true,subtree:true});enhanceLabels();
 })();
+
+// In-app visit notices do not request browser notification permission.
+(function(root){
+  if(typeof document==='undefined'||typeof root.addEventListener!=='function')return;
+  try{localStorage.removeItem('uniserve:browser-alerts');}catch(_){}
+  if(typeof navigator!=='undefined'&&navigator.serviceWorker?.getRegistrations){
+    navigator.serviceWorker.getRegistrations().then(registrations=>Promise.all(registrations.filter(registration=>[registration.active,registration.waiting,registration.installing].some(worker=>{
+      if(!worker?.scriptURL)return false;
+      const url=new URL(worker.scriptURL,location.href);
+      return url.origin===location.origin&&url.pathname.endsWith('/shared/notification-worker.js');
+    })).map(registration=>registration.unregister()))).catch(()=>{});
+  }
+  root.addEventListener('uniserve:near-turn',event=>{
+    const data=event.detail;if(!data?.id||document.visibilityState!=='visible')return;
+    const message=data.ahead===0?'You are next in the waiting queue. Stay near OSS.':'Your turn is near. Only '+Number(data.ahead)+' people are ahead of you. Stay near OSS.';
+    root.toast?.(message,'ok');
+  });
+  const intakeEvents=new Set();
+  root.addEventListener('uniserve:intake-notification',event=>{
+    const data=event.detail;if(!data?.id||intakeEvents.has(data.id))return;
+    intakeEvents.add(data.id);if(intakeEvents.size>100)intakeEvents.delete(intakeEvents.values().next().value);
+    if(document.visibilityState!=='visible')return;
+    const message=data.mode==='closed'?'Head Admin closed walk-in intake'+(data.time?' at '+data.time:'')+'.':data.mode==='scheduled'?'Head Admin scheduled walk-in cutoff for '+data.time+'.':data.mode==='extra'?'Head Admin allowed extra walk-ins during office hours.':'Head Admin restored automatic walk-in cutoff.';
+    root.toast?.(root.UniServeUX.escape(message),'ok');
+  });
+})(globalThis);

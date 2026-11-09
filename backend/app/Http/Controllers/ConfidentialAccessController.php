@@ -7,6 +7,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 class ConfidentialAccessController extends Controller {
+    public function approvals(Request $r) {
+        $u=StaffAuth::user($r,'ADMIN');
+        return response()->json(['approvals'=>DB::table('confidential_requests as r')->join('confidential_cases as c','c.id','=','r.case_id')
+            ->where('r.requester_id',$u->id)->where('r.status','Approved')->where('r.expires_at','>',now())
+            ->orderByDesc('r.updated_at')->get(['r.id','r.case_id','r.scope','r.expires_at','c.code'])]);
+    }
+    public function notifications(Request $r) {
+        $u=StaffAuth::user($r,'ADMIN');
+        abort_unless($u->confidential_approver??false,403,'Head Admin access required.');
+        $query=DB::table('confidential_requests as r')->join('staff_users as u','u.id','=','r.requester_id')->join('confidential_cases as c','c.id','=','r.case_id')
+            ->where('r.status','Pending')->where('r.requester_id','!=',$u->id)->where('u.is_active',true);
+        return response()->json(['requests'=>$query->orderByDesc('r.created_at')->get(['r.id','r.scope','r.created_at','u.full_name as requester_name','c.code'])]);
+    }
     private function permitted(object $u, string $id, string $scope): bool {
         $case=DB::table('confidential_cases')->where('id',$id)->first();
         if (!$case) return false;
@@ -89,6 +102,21 @@ class ConfidentialAccessController extends Controller {
     public function unlock(Request $r,string $id) {
         $u=$this->actor($r,true); $d=$r->validate(['password'=>'required|string','reason'=>'required|string|min:5|max:500','scope'=>'required|in:view,print']);
         abort_unless(Hash::check($d['password'],$u->password_hash),422,'Incorrect password.');
+        if(str_starts_with($id,'apt:')){
+            $appointment=DB::table('shared_appointments')->where('id',substr($id,4))->first();abort_unless($appointment,404);
+            abort_unless(\App\Support\CaseAccess::canViewAppointment($u,$appointment),403,'Appointment access required.');
+            abort_unless($d['scope']==='print',422,'Print scope required.');
+            $expiry=now()->addMinutes(5);\Illuminate\Support\Facades\Cache::put('appointment-print:'.$u->id.':'.$appointment->id,true,$expiry);
+            SystemAudit::record($u,'Confidential','Unlocked appointment printing',$appointment->visit_id);
+            return response()->json(['expiresAt'=>$expiry->toIso8601String()]);
+        }
+        if (str_starts_with($id,'rpt:') || str_starts_with($id,'svc:')) {
+            abort_unless($u->confidential_approver,403,'Only the Head Admin can print combined confidential reports.');
+            abort_unless($d['scope']==='print',422,'Print scope required.');
+            \Illuminate\Support\Facades\Cache::put('report-print:'.$u->id.':'.$id,true,now()->addMinutes(5));
+            SystemAudit::record($u,'Confidential','Unlocked confidential report with password',$id);
+            return response()->json(['expiresAt'=>now()->addMinutes(5)->toIso8601String()]);
+        }
         $case=DB::table('confidential_cases')->where('id',$id)->first(); abort_unless($case,404);
         $grant=DB::table('confidential_requests')->where('case_id',$id)->where('requester_id',$u->id)->where('status','Approved')->where('expires_at','>',now());
         if ($d['scope']==='print') $grant->where('scope','print');

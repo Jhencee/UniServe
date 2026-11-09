@@ -1,0 +1,26 @@
+.terms-page .terms-brand { text-decoration: none; min-width: 0; }
+.terms-page .crest img { width: 52px; height: 52px; }
+.terms-page .landing-nav { gap: 20px; }
+.terms-page .landing-nav > .nav-link { flex-shrink: 0; }
+.terms-content { width: min(100%, 840px); margin: 0 auto; padding: 56px 24px 64px; }
+.terms-heading { margin-bottom: 32px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+.terms-heading h1 { margin: 12px 0 18px; font-size: clamp(1.8rem, 5vw, 2.7rem); color: var(--text); letter-spacing: -.035em; }
+.terms-heading p, .terms-body p { color: var(--text-soft); font-size: .9rem; line-height: 1.85; text-align: justify; }
+.terms-body h2 { margin: 30px 0 10px; font-size: 1rem; font-weight: 600; color: var(--text); }
+.terms-body h2:first-child { margin-top: 0; }
+.terms-body a { color: var(--accent); text-underline-offset: 3px; }
+.terms-page .terms-footer { padding: 24px; }
+.terms-footer .footer-bottom { max-width: 792px; margin: 0 auto; padding: 0; border: 0; }
+.terms-footer p { font-size: .78rem; color: inherit; opacity: .85; }
+.terms-footer-links { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 12px; font-size: .8rem; }
+.terms-footer-links a { text-underline-offset: 3px; }
+.terms-skip { position: absolute; left: 16px; top: -100px; padding: 12px 16px; background: var(--surface); color: var(--accent); z-index: 1000; }
+.terms-skip:focus { top: 12px; }
+@media (max-width: 600px) {
+    .terms-page .landing-nav { position: static; flex-wrap: wrap; padding: 16px 20px; gap: 12px; }
+    .terms-page .brandline .name small { white-space: normal; }
+    .terms-page .crest img { width: 44px; height: 44px; }
+    .terms-content { padding: 32px 20px 40px; }
+    .terms-heading { padding-bottom: 24px; margin-bottom: 24px; }
+    .terms-page .terms-footer { padding: 24px 20px; }
+}

@@ -1,4 +1,25 @@
 /* One calendar palette for office schedules and date-selection dialogs. */
+/* Compact weekly tiles with opening and closing times on separate lines. */
+body #content .calendar-page .calendar-week { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px; }
+body #content .calendar-page .calendar-weekday { display:flex; flex-direction:column; align-items:flex-start; min-width:0; padding:14px; border:0; border-bottom:2px solid var(--accent); border-radius:6px; background:color-mix(in srgb,var(--accent) 3%,var(--surface)); text-align:left; }
+body #content .calendar-page .calendar-weekday-name { margin:0 0 12px; font-size:.78rem; font-weight:600; color:var(--text); }
+body #content .calendar-page .calendar-time-range { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:.78rem; line-height:1.5; color:var(--text); font-variant-numeric:tabular-nums; }
+body #content .calendar-page .calendar-time-range time { white-space:nowrap; }
+body #content .calendar-page .calendar-time-range > span { display:none; }
+body #content .calendar-page .calendar-time-range time:last-child { color:var(--text-soft); }
+body #content .calendar-page .calendar-weekday.is-closed { background:var(--surface-2); border-bottom-color:var(--border); }
+body #content .calendar-page .calendar-weekday.is-closed .calendar-weekday-name,
+body #content .calendar-page .calendar-closed-label { color:var(--text-soft); }
+body #content .calendar-page .calendar-lunch { justify-content:flex-start; gap:10px; margin-top:16px; padding-top:14px; font-size:.76rem; }
+body #content .calendar-page .calendar-lunch > span:first-child { color:var(--text-soft); font-weight:400; }
+body #content .calendar-page .calendar-lunch > span:last-child { padding:0; border:0; border-radius:0; background:transparent; color:var(--text); }
+@media(max-width:1000px) {
+ body #content .calendar-page .calendar-week { grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media(max-width:520px) {
+ body #content .calendar-page .calendar-week { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ body #content .calendar-page .calendar-weekday { padding:12px; }
+}
 .calendar-page, .office-calendar-modal {
   --cal-tint:color-mix(in srgb,var(--accent) 7%,var(--surface));
   --cal-muted:var(--surface-2);
@@ -91,7 +112,7 @@ body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-n
   line-height:1.4;
   font-size:.72rem;
 }
-body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid { gap:3px; margin:8px 0; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid { gap:6px; margin:12px 0; }
 body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid > span { padding:4px 0; }
 body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day {
   min-height:0;
@@ -118,11 +139,21 @@ html[data-theme="dark"] { --cal-open:#75d6a0; --cal-closed:#f59898; --cal-holida
 .calendar-page .calendar-legend .pill-danger::before, .office-calendar-modal .ux-calendar-legend .closed::before { background:var(--cal-closed); }
 .calendar-page .calendar-legend .pill-info::before, .office-calendar-modal .ux-calendar-legend .holiday::before { background:var(--cal-holiday); }
 .calendar-page .calendar-legend .pill-warn::before, .office-calendar-modal .ux-calendar-legend .special::before { background:var(--cal-special); border:0; }
-.office-calendar-modal .ux-calendar-day.open { color:var(--cal-open); background:color-mix(in srgb,var(--cal-open) 6%,var(--surface)); }
-.office-calendar-modal .ux-calendar-day.closed { color:var(--cal-closed); background:color-mix(in srgb,var(--cal-closed) 6%,var(--surface)); }
-.office-calendar-modal .ux-calendar-day.holiday { color:var(--cal-holiday); background:color-mix(in srgb,var(--cal-holiday) 8%,var(--surface)); }
-.office-calendar-modal .ux-calendar-day.special { color:var(--cal-special); background:color-mix(in srgb,var(--cal-special) 8%,var(--surface)); }
-.office-calendar-modal .ux-calendar-day.today { background:var(--accent); color:#fff; }
+.office-calendar-modal .ux-calendar-day { position:relative; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+.office-calendar-modal .ux-calendar-day.open { color:var(--text); background:var(--surface); }
+.office-calendar-modal .ux-calendar-day.closed { color:var(--text-soft); background:var(--cal-muted); }
+.office-calendar-modal .ux-calendar-day.holiday,
+.office-calendar-modal .ux-calendar-day.special { color:var(--text); background:var(--cal-tint); }
+.office-calendar-modal .ux-calendar-day.today { background:var(--surface); color:var(--text); box-shadow:none; }
+.office-calendar-modal .ux-calendar-number { display:flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; font-size:.8rem; }
+.office-calendar-modal .ux-calendar-day.today .ux-calendar-number { background:var(--accent); color:#fff; border-radius:50%; }
+.office-calendar-modal .ux-calendar-dot { display:block; width:4px; height:4px; flex-shrink:0; border-radius:50%; background:var(--cal-open); }
+.office-calendar-modal .closed .ux-calendar-dot { background:var(--cal-closed); }
+.office-calendar-modal .holiday .ux-calendar-dot { background:var(--cal-holiday); border-radius:1px; }
+.office-calendar-modal .special .ux-calendar-dot { background:var(--cal-special); border-radius:1px; }
+.office-calendar-modal .ux-calendar-day small { display:none; }
+body:is(:has(#visitorApp),:has(#landing)) .office-calendar-modal .ux-calendar-day { padding:5px; border-radius:8px; height:clamp(40px,calc((100dvh - 300px) / 6),54px); }
+.office-calendar-modal .ux-calendar-toolbar .btn { border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); }
 .calendar-page .calendar-upcoming .pill-info { color:var(--cal-holiday); background:color-mix(in srgb,var(--cal-holiday) 8%,var(--surface)); }
 .calendar-page .calendar-upcoming .pill-danger { color:var(--cal-closed); background:color-mix(in srgb,var(--cal-closed) 8%,var(--surface)); }
 .calendar-page .calendar-upcoming .pill-warn { color:var(--cal-special); background:color-mix(in srgb,var(--cal-special) 8%,var(--surface)); }

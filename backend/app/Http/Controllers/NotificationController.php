@@ -19,10 +19,10 @@ class NotificationController extends Controller
         $scheduled = CarbonImmutable::parse($data['date'].' '.$data['time'],'Asia/Manila');
         if(\Illuminate\Support\Facades\Schema::hasTable('shared_appointments')){
             $row=DB::table('shared_appointments')->where('visit_id',$data['visitId'])->first();abort_unless($row,404,'Appointment not found.');
-            if(\App\Support\ServicePrivacy::confidential($row->service_key))abort_unless($actor->confidential_access,403,'Confidential access required.');
+            (new AppointmentController)->access($request,$row);
             $a=AppointmentController::present($row);
             abort_unless($row->status==='Booked'&&$row->date===$data['date']&&$row->time===$data['time']&&$a['email']===$data['email'],409,'Refresh the appointment before sending its pass.');
-            $data['name']=$a['name'];$data['service']=$a['service'];
+            $data['name']=$a['name'];$data['service']=$a['service'];$data['office']=$a['office']??'Office of Student Services';
         }
         abort_unless($scheduled->isFuture(),422,'Choose an upcoming appointment time.');
         $calendar = \App\Support\OfficeCalendar::status($scheduled);
@@ -44,7 +44,7 @@ class NotificationController extends Controller
                 $sendAt = $kind === 'reminder' ? $scheduled->subDay() : CarbonImmutable::now();
                 if ($kind === 'reminder' && $sendAt->isPast()) continue;
                 $subject = match($kind){'reminder'=>'Appointment reminder','rescheduled'=>'Appointment rescheduled',default=>'Appointment confirmation'};
-                $body = 'Hi '.$data['name'].",\n\nYour appointment ".($kind==='rescheduled'?'has been rescheduled.':($kind==='reminder'?'is coming up.':'is confirmed.'))."\n\nService: ".$data['service']."\nDate: ".$scheduled->format('l, F j, Y')."\nTime: ".$scheduled->format('g:i A')."\nVisit ID: ".$data['visitId']."\n\nBring your required documents and show your Visit ID at the OSS counter. An Admin will check you in when you arrive.\n\nOffice of Student Services";
+                $body = 'Hi '.$data['name'].",\n\nYour appointment ".($kind==='rescheduled'?'has been rescheduled.':($kind==='reminder'?'is coming up.':'is confirmed.'))."\n\nOffice: ".($data['office']??'Office of Student Services')."\nService: ".$data['service']."\nDate: ".$scheduled->format('l, F j, Y')."\nTime: ".$scheduled->format('g:i A')."\nVisit ID: ".$data['visitId']."\n\nBring your required documents and show your Visit ID at the OSS counter. An Admin will check you in when you arrive.\n\nOffice of Student Services";
                 $body=str_replace("\n\nOffice of Student Services","\n\nArrival guidelines\n".implode("\n",$rules)."\n\nOffice of Student Services",$body);
                 $count+=DB::table('notification_outbox')->insertOrIgnore(\App\Support\PrivateNotification::fields($data['email'],$subject,$body)+['visit_id'=>$data['visitId'],
                     'scheduled_at'=>$scheduled->utc(),'send_at'=>$sendAt->utc(),'kind'=>$kind,'dedup_key'=>hash('sha256',$snapshot.'|'.$kind),'actor_id'=>$actor->id,'created_at'=>now(),'updated_at'=>now()]);
@@ -62,12 +62,18 @@ class NotificationController extends Controller
     {
         StaffAuth::user($request,'ADMIN');
         $data = $request->validate(['visitId'=>['required','string','max:80']]);
+        $row=DB::table('shared_appointments')->where('visit_id',$data['visitId'])->first();
+        abort_unless($row,404,'Appointment not found.');
+        (new AppointmentController)->access($request,$row);
         return response()->json(['notifications'=>DB::table('notification_outbox')->where('visit_id',$data['visitId'])->orderByDesc('id')->get(['id','kind','status','send_at','sent_at','attempts'])]);
     }
     public function cancel(Request $request)
     {
         StaffAuth::user($request,'ADMIN');
         $data = $request->validate(['visitId'=>['required','string','max:80']]);
+        $row=DB::table('shared_appointments')->where('visit_id',$data['visitId'])->first();
+        abort_unless($row,404,'Appointment not found.');
+        (new AppointmentController)->access($request,$row);
         $count = DB::table('notification_outbox')->where('visit_id',$data['visitId'])->whereIn('status',['pending','paused','failed'])->update(['status'=>'cancelled','updated_at'=>now()]);
         return response()->json(['cancelled'=>$count]);
     }

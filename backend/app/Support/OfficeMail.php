@@ -3,15 +3,15 @@ namespace App\Support;
 
 class OfficeMail
 {
-    public static function send(string $recipient,string $subject,string $body,?string $code=null,?array $ticket=null):void
+    public static function send(string $recipient,string $subject,string $body,?string $code=null):void
     {
-        $html=self::html($subject,$body,$code,$ticket);
+        $html=self::html($subject,$body,$code);
         \Illuminate\Support\Facades\Mail::html($html,function($mail)use($recipient,$subject,$html){
             $logo=$mail->embed(resource_path('images/pup.jpg'));
             $mail->html(str_replace('cid:uniserve-pup',$logo,$html))->to($recipient)->subject($subject);
         });
     }
-    public static function html(string $title,string $body,?string $code=null,?array $ticket=null):string
+    public static function html(string $title,string $body,?string $code=null):string
     {
         $details=[];$intro=$body;$closing='';
         if(preg_match_all('/^(Service|Date|Time|Visit ID):[ \t]*(.+)$/m',$body,$matches,PREG_OFFSET_CAPTURE)){
@@ -25,7 +25,6 @@ class OfficeMail
             $rules=explode("\n",$match[1]);$closing=str_replace($match[0],'',$closing);
         }
         $intro=preg_replace('/\n{3,}/',"\n\n",$intro);
-        if($ticket!==null)return view('emails.visit-ticket',['ticket'=>$ticket,'emailTitle'=>$title,'emailBody'=>$body,'emailIntro'=>$intro,'emailDetails'=>$details,'emailClosing'=>$closing,'emailRules'=>$rules])->render();
         return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'details'=>$details,'rules'=>$rules])->render();
     }
 }

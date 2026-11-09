@@ -7,7 +7,7 @@ class ServiceOutcome {
   if(in_array($q['status'],['Serving','Completed','Cancelled'])){
    $row=DB::table('shared_visitor_log')->where('queue_id',$q['id'])->first();
    if($q['status']==='Cancelled'&&!$row)return;
-   $log=$row?json_decode(Crypt::decryptString($row->payload),true):['id'=>'L'.bin2hex(random_bytes(8)),'visitId'=>$q['visitId'],'name'=>$q['name'],'type'=>$q['visitorType'],'idNumber'=>$q['idNumber']??'','contact'=>$q['contact']??'','email'=>$q['email']??'','source'=>$q['source'],'purpose'=>$q['serviceLabel'],'timeIn'=>$q['servingAt']??now()->toIso8601String(),'timeOut'=>null,'shared'=>true];
+   $log=$row?json_decode(Crypt::decryptString($row->payload),true):['id'=>'L'.bin2hex(random_bytes(8)),'visitId'=>$q['visitId'],'name'=>$q['name'],'type'=>$q['visitorType'],'idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','contact'=>$q['contact']??'','email'=>$q['email']??'','source'=>$q['source'],'purpose'=>$q['serviceLabel'],'timeIn'=>$q['servingAt']??now()->toIso8601String(),'timeOut'=>null,'shared'=>true];
    if(!empty($log['timeOut'])&&$q['status']==='Serving'){$log['timeIn']=$q['servingAt']??now()->toIso8601String();$log['timeOut']=null;}
    $log['serviceHistory']=$q['serviceHistory']??[];
    $log['purpose']=$q['serviceLabel'];$log['outcome']=$q['status'];
@@ -16,9 +16,10 @@ class ServiceOutcome {
   }
   if($q['status']==='Completed'){
    $existing=DB::table('shared_transactions')->where('queue_id',$q['id'])->first();
-   $txn=$existing?json_decode(Crypt::decryptString($existing->payload),true):['id'=>'T'.bin2hex(random_bytes(8)),'code'=>'OSS-'.strtoupper(bin2hex(random_bytes(4))),'name'=>$q['name'],'type'=>$q['visitorType'],'service'=>$q['serviceKey'],'email'=>$q['email']??'','idNumber'=>$q['idNumber']??'','status'=>'Completed','queueId'=>$q['id'],'visitId'=>$q['visitId'],'appointmentId'=>$q['appointmentId']??null,'queueNumber'=>$q['number']??null,'entryMethod'=>$q['source'],'servedBy'=>$actor->full_name,'createdAt'=>$q['createdAt'],'completedAt'=>$q['completedAt']??now()->toIso8601String(),'shared'=>true];
+   $txn=$existing?json_decode(Crypt::decryptString($existing->payload),true):['id'=>'T'.bin2hex(random_bytes(8)),'code'=>'OSS-'.strtoupper(bin2hex(random_bytes(4))),'name'=>$q['name'],'type'=>$q['visitorType'],'service'=>$q['serviceKey'],'email'=>$q['email']??'','idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','status'=>'Completed','queueId'=>$q['id'],'visitId'=>$q['visitId'],'appointmentId'=>$q['appointmentId']??null,'queueNumber'=>$q['number']??null,'entryMethod'=>$q['source'],'servedBy'=>$actor->full_name,'createdAt'=>$q['createdAt'],'completedAt'=>$q['completedAt']??now()->toIso8601String(),'shared'=>true];
    $txn['serviceHistory']=$q['serviceHistory']??[];
    $txn['caseStatus']??=in_array($q['serviceKey'],['incident_report','concern'])?'Open':null;$q['caseStatus']=$txn['caseStatus'];
+   if($txn['caseStatus']){$txn['caseOwnerId']??=$actor->id;$txn['caseOwnerName']??=$actor->full_name;$txn['caseDueDate']??=now('Asia/Manila')->addDays(3)->toDateString();$txn['caseNextAction']??='Review the concern and contact the visitor';}
    $elapsed=fn($a,$b)=>$a&&$b?max(0,(strtotime($b)-strtotime($a))/60):null;$txn['waitingTimeMin']=$elapsed($q['checkedInAt']??$q['createdAt']??null,$q['servingAt']??null);$txn['serviceTimeMin']=$elapsed($q['servingAt']??null,$q['completedAt']??null);$txn['totalTimeMin']=$elapsed($q['checkedInAt']??$q['createdAt']??null,$q['completedAt']??null);
    DB::table('shared_transactions')->updateOrInsert(['queue_id'=>$q['id']],['id'=>$txn['id'],'payload'=>Crypt::encryptString(json_encode($txn)),'created_at'=>$existing->created_at??now(),'updated_at'=>now()]);$q['transactionId']=$txn['id'];
    if(!empty($q['appointmentId'])){

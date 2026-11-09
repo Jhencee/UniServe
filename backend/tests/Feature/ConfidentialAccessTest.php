@@ -13,6 +13,41 @@ beforeEach(function(){
 });
 afterEach(function(){foreach(['confidential_requests','confidential_cases','notification_outbox','system_audit','staff_users'] as $table)Schema::dropIfExists($table);});
 function confHeaders($id){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
+it('notifies only the requester about active approvals and removes expired or revoked approvals',function(){
+ $id=$this->postJson('/api/confidential/requests',['caseId'=>'case1','scope'=>'view','reason'=>'Case review'],confHeaders('other'))->assertCreated()->json('id');
+ $this->getJson('/api/confidential/approvals',confHeaders('other'))->assertOk()->assertJsonCount(0,'approvals');
+ $this->patchJson('/api/confidential/requests/'.$id,['decision'=>'Approved','minutes'=>30],confHeaders('head'))->assertOk();
+ $this->getJson('/api/confidential/approvals',confHeaders('other'))->assertOk()->assertJsonCount(1,'approvals')->assertJsonPath('approvals.0.id',$id)->assertJsonPath('approvals.0.code','OSS-001');
+ foreach(['owner','head','blocked'] as $user)$this->getJson('/api/confidential/approvals',confHeaders($user))->assertOk()->assertJsonCount(0,'approvals');
+ $this->getJson('/api/confidential/approvals')->assertUnauthorized();
+ $this->getJson('/api/confidential/approvals',confHeaders('super'))->assertForbidden();
+ DB::table('confidential_requests')->where('id',$id)->update(['expires_at'=>now()->subMinute()]);
+ $this->getJson('/api/confidential/approvals',confHeaders('other'))->assertJsonCount(0,'approvals');
+ DB::table('confidential_requests')->where('id',$id)->update(['expires_at'=>now()->addMinutes(30),'status'=>'Revoked']);
+ $this->getJson('/api/confidential/approvals',confHeaders('other'))->assertJsonCount(0,'approvals');
+});
+
+it('authorizes staff approval channels only for the owning Admin',function(){
+ config(['broadcasting.connections.reverb.key'=>'fixture','broadcasting.connections.reverb.secret'=>'fixture-secret']);
+ $data=['socket_id'=>'123.456','channel_name'=>'private-admin-other'];
+ $this->postJson('/api/realtime/auth',$data,confHeaders('other'))->assertOk();
+ foreach(['owner','head','super'] as $user)$this->postJson('/api/realtime/auth',$data,confHeaders($user))->assertForbidden();
+});
+it('shows pending access notifications only to Head Admin and removes reviewed requests',function(){
+ $id=$this->postJson('/api/confidential/requests',['caseId'=>'case1','scope'=>'view','reason'=>'Case review'],confHeaders('other'))->assertCreated()->json('id');
+ $this->getJson('/api/confidential/notifications')->assertUnauthorized();
+ foreach(['owner','other','blocked','super'] as $user)$this->getJson('/api/confidential/notifications',confHeaders($user))->assertForbidden();
+ $this->getJson('/api/confidential/notifications',confHeaders('head'))->assertOk()->assertJsonCount(1,'requests')->assertJsonPath('requests.0.id',$id)->assertJsonPath('requests.0.requester_name','other')->assertJsonPath('requests.0.code','OSS-001');
+ $this->patchJson('/api/confidential/requests/'.$id,['decision'=>'Denied','minutes'=>30],confHeaders('head'))->assertOk();
+ $this->getJson('/api/confidential/notifications',confHeaders('head'))->assertOk()->assertJsonCount(0,'requests');
+});
+
+it('restricts the access notification realtime channel to Head Admin',function(){
+ config(['broadcasting.connections.reverb.key'=>'fixture','broadcasting.connections.reverb.secret'=>'fixture-secret']);
+ $data=['socket_id'=>'123.456','channel_name'=>'private-head-admin'];
+ foreach(['owner','other','blocked','super'] as $user)$this->postJson('/api/realtime/auth',$data,confHeaders($user))->assertForbidden();
+ $this->postJson('/api/realtime/auth',$data,confHeaders('head'))->assertOk();
+});
 it('records approval expiry once and keeps readable case references in case history',function(){
  DB::table('confidential_cases')->insert(['id'=>'expiry-case','code'=>'OSS-EXPIRY','assigned_admin_id'=>'owner','created_at'=>now(),'updated_at'=>now()]);
  DB::table('confidential_requests')->insert(['id'=>(string)\Illuminate\Support\Str::uuid(),'case_id'=>'expiry-case','requester_id'=>'other','scope'=>'view','reason'=>'Case review','status'=>'Approved','expires_at'=>now()->subMinute(),'created_at'=>now(),'updated_at'=>now()]);
@@ -119,4 +154,13 @@ it('lets Head Admin grant print permission and supersedes duplicate pending deci
  $this->patchJson('/api/confidential/requests/'.$one,['decision'=>'Approved','minutes'=>30,'scope'=>'print'],confHeaders('head'))->assertOk();
  expect(DB::table('confidential_requests')->where('id',$two)->value('status'))->toBe('Revoked');
  $this->postJson('/api/confidential/cases/case1/unlock',confUnlock('print'),confHeaders('blocked'))->assertOk();
+});
+
+it('requires the Head Admin password to unlock combined confidential reports',function(){
+ $path='/api/confidential/cases/rpt:all/unlock';
+ $this->postJson($path,confUnlock('print'),confHeaders('owner'))->assertForbidden();
+ $data=confUnlock('print');$data['password']='wrong';
+ $this->postJson($path,$data,confHeaders('head'))->assertUnprocessable();
+ $this->postJson($path,confUnlock('print'),confHeaders('head'))->assertOk()->assertJsonStructure(['expiresAt']);
+ expect(DB::table('system_audit')->where('action','Unlocked confidential report with password')->count())->toBe(1);
 });

@@ -29,13 +29,13 @@ function renderCalendar() {
     <div class="calendar-page">
       <div class="card">
         <div class="card-head"><div><h3>Daily hours</h3><div class="desc">Weekly schedule</div></div><button class="btn btn-ghost btn-sm" onclick="calendarEditHours()">${icon('edit',14)} Edit hours</button></div>
-        <div class="card-pad calendar-schedule"><div class="calendar-week">${cfg.weekly.map((day,i) => `<div class="calendar-weekday"><span class="calendar-weekday-name">${names[i]}</span><span class="calendar-weekday-hours">${day.open ? OfficeCalendar.clock(day.start) + '<br>' + OfficeCalendar.clock(day.end) : 'Closed'}</span></div>`).join('')}</div>
+        <div class="card-pad calendar-schedule"><div class="calendar-week">${cfg.weekly.map((day,i) => `<div class="calendar-weekday${day.open ? '' : ' is-closed'}"><span class="calendar-weekday-name">${names[i]}</span><div class="calendar-weekday-hours">${day.open ? '<div class="calendar-time-range"><time>' + OfficeCalendar.clock(day.start) + '</time><span aria-hidden="true">?</span><time>' + OfficeCalendar.clock(day.end) + '</time></div>' : '<span class="calendar-closed-label">Closed</span>'}</div></div>`).join('')}</div>
           <div class="calendar-lunch"><span>${icon('clock',14)} Lunch break</span><span>${cfg.lunch.enabled ? OfficeCalendar.clock(cfg.lunch.start) + ' &ndash; ' + OfficeCalendar.clock(cfg.lunch.end) : 'Disabled'}</span></div>
         </div>
       </div>
       <div class="calendar-layout">
         <div class="card">
-          <div class="card-head"><div><h3>${first.toLocaleDateString('en-PH',{month:'long',year:'numeric',timeZone:'UTC'})}</h3><div class="desc">Select a day to manage its hours or closure.</div></div><div class="toolbar"><button class="btn btn-ghost btn-sm" aria-label="Previous month" onclick="calendarMove(-1)">&larr;</button><button class="btn btn-ghost btn-sm" onclick="calendarMonth=OfficeCalendar.parts().date.slice(0,7);renderCalendar()">Today</button><button class="btn btn-ghost btn-sm" aria-label="Next month" onclick="calendarMove(1)">&rarr;</button></div></div>
+          <div class="card-head"><div><h3>${first.toLocaleDateString('en-PH',{month:'long',year:'numeric',timeZone:'UTC'})}</h3><div class="desc">Select a day to manage its hours or closure.</div></div><div class="toolbar calendar-month-controls"><button type="button" class="btn btn-ghost btn-sm" title="Previous month" aria-label="Previous month" onclick="calendarMove(-1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button><button class="btn btn-ghost btn-sm" onclick="calendarMonth=OfficeCalendar.parts().date.slice(0,7);renderCalendar()">Today</button><button class="btn btn-ghost btn-sm" aria-label="Next month" onclick="calendarMove(1)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button></div></div>
           <div class="calendar-legend">${['open','closed','holiday','special'].map(calendarStatusPill).join('')}</div>
           <div class="calendar-grid">${names.map(n => `<span class="calendar-heading">${n}</span>`).join('')}${'<span class="calendar-empty"></span>'.repeat(first.getUTCDay())}${Array.from({length:count},(_,i) => {
             const date = `${calendarMonth}-${String(i+1).padStart(2,'0')}`, day = OfficeCalendar.day(date,cfg);
@@ -66,9 +66,9 @@ function calendarEditDay(date) {
     <div class="field"><label for="calType">Day status</label><select id="calType">${['open','closed','holiday','special'].map(type => `<option value="${type}" ${existing.type === type ? 'selected' : ''}>${type === 'special' ? 'Special hours' : type[0].toUpperCase()+type.slice(1)}</option>`).join('')}</select></div>
     <div class="field"><label for="calName">Closure reason / holiday name / special-hours note</label><input id="calName" maxlength="200" value="${escapeHtml(existing.name || '')}" placeholder="Suspension, maintenance, Independence Day…"></div>
     <div class="form-row"><div class="field"><label for="calDayStart">Special opening time</label><input id="calDayStart" type="time" value="${existing.start || '08:00'}"></div><div class="field"><label for="calDayEnd">Special closing time</label><input id="calDayEnd" type="time" value="${existing.end || '17:00'}"></div></div>
-    <p class="field-hint">Open overrides a weekly closure or holiday using that weekday's hours. Special hours use the times above. Lunch still applies.</p>`, [
+    `, [
+    {label:'Use weekly schedule',cls:'calendar-weekly-schedule',action:() => calendarUseWeeklySchedule(date)},
     {label:'Cancel',cls:'btn-ghost',action:closeModal},
-    {label:'Use weekly schedule',cls:'btn-ghost',action:() => {delete cfg.days[date]; calendarConfirmSave(cfg, date);}},
     {label:'Save day',cls:'btn-primary',action:() => {
       const type = document.getElementById('calType').value, name = document.getElementById('calName').value.trim();
       if (['closed','holiday'].includes(type) && !name) {toast('Enter a reason or holiday name.','err');return;}
@@ -81,6 +81,11 @@ function calendarEditDay(date) {
       calendarConfirmSave(cfg,date);
     }}]);
 }
+function calendarUseWeeklySchedule(date) {
+  const cfg = OfficeCalendar.get();
+  delete cfg.days[date];
+  calendarConfirmSave(cfg,date);
+}
 function calendarSaveHours() {
   const cfg = JSON.parse(JSON.stringify(calendarDisplayedConfig || OfficeCalendar.get()));
   cfg.weekly = cfg.weekly.map((_,i) => ({open:document.getElementById(`calOpen${i}`).checked,start:document.getElementById(`calStart${i}`).value,end:document.getElementById(`calEnd${i}`).value}));
@@ -90,7 +95,7 @@ function calendarSaveHours() {
 }
 function calendarAffected(cfg,target) {
   const singleDay = /^\d{4}-\d{2}-\d{2}$/.test(target);
-  return loadDB().appointments.filter(a => a.date >= OfficeCalendar.parts().date && (!singleDay || a.date === target) && ['Booked'].includes(a.status) && (() => {
+  return loadDB().appointments.filter(a => a.date >= OfficeCalendar.parts().date && (!singleDay || a.date === target) && ['Requested','Booked'].includes(a.status) && (() => {
     if (!a.time) return !OfficeCalendar.intervals(a.date,cfg).length;
     const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i.exec(a.time);
     if (!match) return false;
@@ -117,7 +122,7 @@ async function calendarPersist(cfg,target,affected,decision) {
     await OfficeCalendar.save(cfg,{affected:affected.length,decision});
     const db = loadDB();
     logActivity(db,currentUser,`Changed calendar ${target}; ${affected.length} booking(s) affected; ${decision}`,{category:'Settings',target,changes:[{field:'Calendar',from:'Revision '+cfg.revision,to:'Revision '+(cfg.revision+1)}]});
-    saveDB(db); closeModal(); renderCalendar(); toast('Calendar saved.','ok');
+    saveDB(db); closeModal(); renderCalendar(); toast('Calendar saved.'+(affected.length?' '+affected.length+' booking(s) '+(decision==='review'?'flagged for review.':'kept as scheduled.'):' No existing bookings affected.'),'ok');
     if (decision === 'review') {navigate('appointments');if(typeof renderAppointments==='function')await renderAppointments(true); if (affected[0]) openApptDetail(affected[0].id);}
   } catch (error) {toast(escapeHtml(error.message),'err'); await OfficeCalendar.refresh();}
   finally {calendarBusy = false;}

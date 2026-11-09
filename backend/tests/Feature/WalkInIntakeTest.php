@@ -86,3 +86,18 @@ it('uses staffed capacity and active workload for waiting estimates',function(){
  expect($status['waitEstimates']['second'])->toBe(10);
  expect($status['estimatedMinutes'])->toBe(15);
 });
+
+it('saves extra intake after closing without bypassing office hours',function(){
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 19:00','Asia/Manila'));
+ $this->postJson('/api/walk-in-capacity/override',intakeChange('extra'),intakeHeaders())->assertOk()->assertJsonPath('override',true)->assertJsonPath('officeOpen',false)->assertJsonPath('accepting',false)->assertJsonPath('message','Closed outside daily hours');
+ $this->getJson('/api/walk-in-capacity')->assertOk()->assertJsonPath('override',true)->assertJsonPath('officeOpen',false);
+});
+it('extra intake bypasses the cutoff while the office is still open',function(){
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 16:45','Asia/Manila'));
+ $this->getJson('/api/walk-in-capacity')->assertOk()->assertJsonPath('accepting',false);
+ $this->postJson('/api/walk-in-capacity/override',intakeChange('extra'),intakeHeaders())->assertOk()->assertJsonPath('officeOpen',true)->assertJsonPath('accepting',true);
+});
+it('rejects scheduled intake cutoff on a closed day without a server error',function(){
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-18 10:00','Asia/Manila'));
+ $this->postJson('/api/walk-in-capacity/override',intakeChange('scheduled')+['cutoffTime'=>'11:00'],intakeHeaders())->assertUnprocessable();
+});

@@ -1,3 +1,5 @@
+// Use the shared modal, toast and status controls before page initialization.
+UniServeUX.install();
 const DB_KEY = 'ossuniserve_db_v1';
 
 const DEFAULT_SERVICES = [
@@ -107,16 +109,34 @@ function autoCapitalizeInput(el) {
   if (before !== after) { el.value = after; try { el.setSelectionRange(pos, pos); } catch (e) { } }
 }
 function formatContactInput(el) {
-  let digits=el.value.replace(/\D/g,'');
-  if(digits.startsWith('63')) digits=digits.slice(2);
-  else if(digits.startsWith('0')) digits=digits.slice(1);
-  el.value=digits.slice(0,10);
+  const before = el.value;
+  const cursor = el.selectionStart;
+  let digits = before.replace(/\D/g, '');
+  if (digits.startsWith('63')) digits = digits.slice(2);
+  digits = digits.replace(/^0+/, '');
+  digits = digits.slice(0, 10);
+  const groups = [digits.slice(0, 3), digits.slice(3, 6), digits.slice(6)].filter(Boolean);
+  const formatted = '+63' + (groups.length ? ' ' + groups.join(' ') : '');
+  if (before === formatted) return;
+  // Preserve the editing position by counting digits before the caret.
+  const digitsBefore = cursor == null ? null : before.slice(0, cursor).replace(/\D/g, '').length;
+  el.value = formatted;
+  if (digitsBefore != null && cursor < before.length) {
+    let position = 0, count = 0;
+    const prefixDigits = before.replace(/\D/g, '').startsWith('63') ? 0 : before.replace(/\D/g, '').startsWith('0') ? 1 : 2;
+    const target = Math.max(2, digitsBefore + (prefixDigits === 1 ? 1 : prefixDigits));
+    while (position < formatted.length && count < target) {
+      if (/\d/.test(formatted[position])) count++;
+      position++;
+    }
+    try { el.setSelectionRange(position, position); } catch (e) { }
+  }
 }
 const PH_CONTACT_RE = /^(09\d{2}[-\s]?\d{3}[-\s]?\d{4}|\+639\d{2}[-\s]?\d{3}[-\s]?\d{4})$/;
 const STUDENT_NO_RE = /^\d{4}-\d{5}-SM-\d$/;
 function isValidContact(v) { return PH_CONTACT_RE.test(String(v || '').trim()) || /^9\d{9}$/.test(String(v || '').trim()); }
 function normEmail(v) { return String(v || '').trim().toLowerCase(); }
-function isValidGmail(v) { return /^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@gmail\.com$/.test(normEmail(v)); }
+function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(normEmail(v)); }
 function isValidPersonName(v) { return String(v || '').trim().length >= 2; }
 function isValidStudentNo(v) { return STUDENT_NO_RE.test(String(v || '').trim().toUpperCase()); }
 function maskStudentNo(v) {
@@ -175,7 +195,7 @@ function migrateLegacyVisitIds(db) {
 }
 function migrateVisitIds(db) {
   let changed = false;
-  (db.appointments || []).forEach(a => { if (!a.visitId) { a.visitId = nextVisitId(db); changed = true; } });
+  (db.appointments || []).forEach(a => { if (!a.visitId && !a.shared) { a.visitId = nextVisitId(db); changed = true; } });
   (db.queues || []).forEach(q => {
     if (!q.visitId) {
       const a = q.appointmentId ? (db.appointments || []).find(x => x.id === q.appointmentId) : null;
@@ -292,18 +312,6 @@ function logActivity(db, user, action, extra) {
   if (db.activityLog.length > AUDIT_MAX_ENTRIES) db.activityLog.length = AUDIT_MAX_ENTRIES;
 }
 
-function queuePrefixFor(db, visitorType) {
-  const s = db.systemSettings;
-  const p = visitorType === 'Student' ? (s.queuePrefixStudent || 'A') : (s.queuePrefixGuest || 'G');
-  return p.toUpperCase().slice(0, 2) || 'A';
-}
-function nextQueueNumber(db, visitorType) {
-  const prefix = queuePrefixFor(db, visitorType);
-  if (!db.queueCounters || db.queueCounters.dayKey !== today()) db.queueCounters = { dayKey: today() };
-  const seq = (db.queueCounters[prefix] || 0) + 1;
-  db.queueCounters[prefix] = seq;
-  return { number: `${prefix}-${String(seq).padStart(3, '0')}`, prefix, seq };
-}
 function queueRef(q) { return q.number || q.visitId; }
 function isDue(q, now = new Date()) { return q.source !== 'Appointment' || !q.scheduledAt || new Date(q.scheduledAt) <= now; }
 function queueRank(q, now) {
@@ -330,28 +338,18 @@ function cancelQueue(db, id, actor) {
   if (a) a.status = 'Cancelled';
   if (actor) logActivity(db, actor, `Cancelled ${queueRef(q)} (${q.visitId})`, { category: 'Queue', target: q.visitId });
 }
-function visitStart(q) {
-  const arrived = new Date(q.checkedInAt || q.createdAt);
-  return q.source === 'Appointment' && q.scheduledAt && new Date(q.scheduledAt) > arrived ? new Date(q.scheduledAt) : arrived;
-}
 function findService(db, key) { return db.services.find(x => x.key === key) || db.services.find(x => x.label === key); }
 function serviceLabel(db, key) { const s = db.services.find(x => x.key === key); return s ? s.label : key; }
 function serviceQueueLabel(db, e) { return e.serviceLabel || (e.serviceKey ? serviceLabel(db, e.serviceKey) : 'General Concern'); }
 
-function historicalAvgMinutes(db, svcKeyOrLabel) {
-  const m = db.queues.filter(q => q.status === 'Completed' && q.checkedInAt && q.servingAt && (q.serviceKey === svcKeyOrLabel || q.serviceLabel === svcKeyOrLabel));
-  if (!m.length) return QUEUE_AVG_MINUTES;
-  return Math.max(1, Math.round(m.reduce((s, q) => s + Math.max(1, (new Date(q.servingAt) - visitStart(q)) / 60000), 0) / m.length));
-}
-function waitEstimateMinutes(db, svcKeyOrLabel) {
-  return db.queues.filter(q => q.status === 'Waiting').length * (svcKeyOrLabel ? historicalAvgMinutes(db, svcKeyOrLabel) : QUEUE_AVG_MINUTES);
-}
-
 function computeReadiness(svc, attachments) {
-  const required = svc && svc.requirements ? svc.requirements.length : 0;
-  const have = (attachments || []).length;
-  if (!required || have >= required) return { status: 'READY', label: have ? `${have} ${have === 1 ? 'file' : 'files'} uploaded` : 'No uploads required' };
-  return { status: 'INCOMPLETE', label: `${have} ${have === 1 ? 'file' : 'files'} uploaded (optional)` };
+  const required=svc?.requirements?.length||0, files=attachments||[];
+  const accepted=files.filter(file=>file.review?.status==='Accepted').length;
+  if(files.some(file=>file.review?.status==='Needs correction'))return {status:'INCOMPLETE',label:'Needs correction'};
+  if(!required&&!files.length)return {status:'READY',label:'No uploads required'};
+  if(files.length<required)return {status:'INCOMPLETE',label:`Incomplete — ${files.length} of ${required} requirements uploaded`};
+  if(files.some(file=>file.review?.status!=='Accepted'))return {status:'FOR_REVIEW',label:'Pending review'};
+  return {status:'READY',label:`Accepted — ${accepted} ${accepted===1?'file':'files'}`};
 }
 function readinessPillHtml(r) {
   if (!r) return '';
@@ -388,7 +386,7 @@ function visitorHistoryFor(db, email) {
   db.queues.concat(db.appointments).forEach(x => { if (normEmail(x.email) === em && x.visitId) emailVisitIds.add(x.visitId); });
   const mine = x => normEmail(x.email) === em || (x.visitId && emailVisitIds.has(x.visitId));
   db.transactions.filter(mine).forEach(t => { if (t.visitId) known.add(t.visitId); rows.push({ when: t.createdAt, label: serviceLabel(db, t.service), status: t.status, ref: t.visitId || t.code }); });
-  db.appointments.filter(mine).forEach(a => { if (!known.has(a.visitId)) { known.add(a.visitId); rows.push({ when: a.createdAt, label: a.service, status: a.status, ref: a.visitId || a.code }); } });
+  db.appointments.filter(mine).forEach(a => { if (!known.has(a.visitId||a.code)) { known.add(a.visitId||a.code); rows.push({ when: a.createdAt, label: a.service, status: a.status, ref: a.visitId || a.code }); } });
   db.queues.filter(mine).forEach(q => { if (!known.has(q.visitId)) rows.push({ when: q.createdAt, label: serviceQueueLabel(db, q), status: q.status, ref: q.visitId || q.number }); });
   return rows.sort((a, b) => new Date(b.when) - new Date(a.when));
 }
@@ -450,32 +448,6 @@ function icon(name, size = 17) {
   }[name] || 'M12 2v20';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p.split('M').filter(Boolean).map(seg => `<path d="M${seg}"/>`).join('')}</svg>`;
 }
-function toast(msg, type = 'ok') {
-  const wrap = document.getElementById('toastWrap');
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.setAttribute('role', type === 'err' ? 'alert' : 'status');
-  el.innerHTML = `<span class="toast-ic">${icon(type === 'err' ? 'x' : 'check', 15)}</span><span class="toast-msg">${msg}</span><button type="button" class="toast-close" aria-label="Dismiss" onclick="this.closest('.toast').remove()">${icon('x', 12)}</button>`;
-  wrap.appendChild(el);
-  setTimeout(() => el.remove(), type === 'err' ? 5500 : 3500);
-}
-function openModal(title, bodyHtml, buttons) {
-  closeModal();
-  const wrap = document.createElement('div');
-  wrap.className = 'overlay'; wrap.id = 'activeModal';
-  wrap.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true" tabindex="-1">
-      <div class="modal-head"><h3>${title}</h3><button class="close-x" id="modalCloseX" aria-label="Close">${icon('x', 18)}</button></div>
-      <div class="modal-body">${bodyHtml}</div>
-      <div class="modal-foot">${buttons.map((b, i) => `<button class="btn ${b.cls} btn-sm" id="modalBtn${i}">${b.label}</button>`).join('')}</div>
-    </div>`;
-  document.body.appendChild(wrap);
-  buttons.forEach((b, i) => document.getElementById(`modalBtn${i}`).onclick = b.action);
-  document.getElementById('modalCloseX').onclick = closeModal;
-  wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
-  wrap.querySelector('.modal').focus();
-}
-function closeModal() { const m = document.getElementById('activeModal'); if (m) m.remove(); }
 function setTheme(t) {
   localStorage.setItem('ossuniserve_theme', t);
   document.documentElement.setAttribute('data-theme', t);
@@ -498,14 +470,50 @@ function confirmAction(title, bodyHtml, confirmLabel, onConfirm, onCancel, cance
   ]);
 }
 
+function visitorTermsHtml(prefix) {
+  return `<div class="visitor-terms"><div class="visitor-terms-row"><input type="checkbox" id="${prefix}TermsAccepted" aria-describedby="${prefix}TermsStatus" onchange="document.getElementById('${prefix}TermsStatus').textContent='';if(this.checked){this.checked=false;openVisitorTerms('${prefix}');}"><span><label for="${prefix}TermsAccepted">I accept the </label><button type="button" class="visitor-terms-link" onclick="openVisitorTerms('${prefix}')">Terms &amp; Conditions</button>.</span></div><p class="field-hint" id="${prefix}TermsStatus" role="status"></p></div>`;
+}
+
+async function openVisitorTerms(prefix) {
+  const checkbox = document.getElementById(prefix + 'TermsAccepted');
+  if (!checkbox) return;
+  try {
+    const response = await fetch('../Landing/terms.html');
+    if (!response.ok) throw new Error('Terms unavailable');
+    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+    const article = page.querySelector('.terms-body');
+    if (!article || !checkbox.isConnected) throw new Error('Terms unavailable');
+    // Keep the policy inside this dialog rather than navigating away from the form.
+    article.querySelectorAll('a').forEach(link => link.replaceWith(document.createTextNode(link.textContent)));
+    const decide = accepted => {
+      checkbox.checked = accepted;
+      document.getElementById(prefix + 'TermsStatus').textContent = accepted
+        ? ''
+        : 'Terms declined. You must accept before submitting a visit.';
+      closeModal();
+    };
+    openModal('Terms &amp; Conditions', `<div class="visitor-terms-content"><p>Please read these portal usage guidelines before submitting your visit.</p>${article.innerHTML}</div>`, [
+      { label: 'Decline', cls: 'btn-ghost', action: () => decide(false) },
+      { label: 'Accept', cls: 'btn-primary', action: () => decide(true) },
+    ]);
+  } catch (error) {
+    toast('Could not load the Terms & Conditions. Please try again.', 'err');
+  }
+}
+
+function requireVisitorTerms(prefix) {
+  if (document.getElementById(prefix + 'TermsAccepted')?.checked) return true;
+  const status = document.getElementById(prefix + 'TermsStatus');
+  if (status) status.textContent = 'Please accept the Terms & Conditions before continuing.';
+  toast('Please read and accept the Terms & Conditions before continuing.', 'err');
+  openVisitorTerms(prefix);
+  return false;
+}
+
 function isSeniorFromClassification(type, guestClass) { return type === 'Guest' && guestClass === 'Senior Citizen'; }
 function visitorTypeLabel(type, guestClass) { return guestClass ? `${type} (${guestClass})` : type; }
 function idTypeSelectHtml(id) {
   return `<select id="${id}"><option value="" disabled selected>Select ID type</option>${VALID_ID_TYPES.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('')}</select>`;
-}
-function statusPill(status) {
-  const map = { Open: 'pill-info', Closed: 'pill-danger', Pending: 'pill-warn', Processing: 'pill-info', Approved: 'pill-ok', Completed: 'pill-ok', Rejected: 'pill-danger', Requested: 'pill-warn', Booked: 'pill-info', 'Checked-in': 'pill-gold', Waiting: 'pill-warn', Called: 'pill-gold', Serving: 'pill-info', Unfinished: 'pill-warn', Skipped: 'pill-danger', Cancelled: 'pill-danger', 'No-show': 'pill-danger' };
-  return `<span class="pill ${map[status] || 'pill-info'}">${status}</span>`;
 }
 function findVisitByRef(db, ref) {
   ref = normVisitRef(ref);
@@ -524,12 +532,13 @@ const VISITOR_NAV = [
 const VISITOR_TITLES = {
   visit: ['Start Your Visit', 'Choose a service and how you want to visit'],
   checkvisit: ['Check My Visit', 'See your appointment schedule or live queue status'],
-  history: ['Visit History', 'Verify your Gmail to see your past visits'],
+  history: ['Visit History', 'Verify your email to see your past visits'],
   chat: ['Chat with OSS', 'Send a message to the office'],
 };
 
 let visitorView = 'visit';
 let visitorHubOpen = true;
+let visitorNavigationVersion = 0;
 let visitStep = sessionStorage.getItem('oss_visitStep') || 'pick';
 let visitVisitorType = sessionStorage.getItem('oss_visitVisitorType') || 'Student';
 let visitGuestClass = sessionStorage.getItem('oss_visitGuestClass') || null;
@@ -595,6 +604,8 @@ function checkPortalHours() {
   closeModal();
   if (open) toast('OSS is now open. Welcome!', 'ok');
   if(visitorHubOpen)return;
+  if (sessionStorage.getItem('oss_activeAppointmentId')) { refreshAppointmentPass(); return; }
+  if (myActiveQueueId) { renderQueueTicket(); return; }
   navigateVisitor(visitorView);
 }
 setInterval(checkPortalHours, 15000);
@@ -606,7 +617,7 @@ function renderMaintenanceNotice() {
     <div class="card card-pad visitor-page-wrap">
       <div class="info-banner warn">${icon('alert', 14)} The visitor portal is closed for maintenance.</div>
       <p style="font-size:.9rem; line-height:1.6; color:var(--text-soft); margin-bottom:16px;">New visits are unavailable during maintenance. You can still check an existing visit or view your history. Please contact the front desk for assistance.</p>
-      <a class="btn btn-primary" href="../Landing/landing.html">Back to Home</a>
+      <a class="btn system-back-link" href="../Landing/landing.html">Back to home</a>
     </div>`;
 }
 
@@ -625,7 +636,7 @@ function renderHubOfficeNotice() {
 }
 function updateVisitorBackButton() {
   const button=document.querySelector('#visitorSectionBar button');
-  if(button)button.textContent=window.historyVisitOpen?'\u2190 Back to records':'\u2190 Back to services';
+  if(button)button.textContent=window.historyVisitOpen?'Back to records':'Back to services';
 }
 function visitorSectionBack() {
   if(window.historyVisitOpen){
@@ -634,6 +645,7 @@ function visitorSectionBack() {
   }else showVisitorHub();
 }
 function showVisitorHub() {
+  visitorNavigationVersion++;
   window.historyVisitOpen=false;updateVisitorBackButton();
   captureVisitorDraft();stopTicketPolling();stopChatPolling();closeModal();hideClosedScreen();
   setVisitorHubState(true);
@@ -652,6 +664,7 @@ function navigateVisitor(key) {
     else {window.pendingVisitorChat=true;showVisitorHub();}
     return;
   }
+  visitorNavigationVersion++;
   if(typeof setVisitorHubState==='function')setVisitorHubState(false);
   captureVisitorDraft();
   stopTicketPolling(); stopChatPolling();
@@ -670,7 +683,7 @@ function renderVisitorSidebar() {
   const descriptions={visit:'Choose a service and plan your visit.',checkvisit:'Track your queue or appointment.',history:'View your previous visits securely.',chat:'Ask a question or follow up with OSS.'};
   document.getElementById('visitorNavList').innerHTML = VISITOR_NAV.map(n => {
     const badge = n.key === 'chat' ? unread : 0;
-    return `<li><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,21)}</span><span class="visitor-hub-label"><b>${n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}<span class="visitor-hub-action" aria-hidden="true">${icon('arrowright',16)}</span></button></li>`;
+    return `<li><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,21)}</span><span class="visitor-hub-label"><b>${n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}</button></li>`;
   }).join('');
 }
 
@@ -728,7 +741,7 @@ function renderVisitPicker() {
         <button type="button" class="svc-item" data-q="${escapeHtml((s.label + ' ' + (s.desc || '')).toLowerCase())}" onclick="pickVisitService('${s.key}')">
           <span class="svc-item-ic">${icon(s.icon || 'home', 20)}</span>
           <span class="svc-item-tx"><b>${escapeHtml(s.label)}</b><small>${escapeHtml(s.desc || '')}</small></span>
-          <span class="svc-item-go">${icon('arrowright', 16)}</span>
+
         </button>`).join('')}
     </div>
     <div class="cvx-empty" id="svcEmpty" hidden>No service matches your search. Try &ldquo;Other Student Services Documentation&rdquo; for anything not listed.</div>
@@ -771,14 +784,14 @@ function renderVisitChoose() {
     <div class="visit-entry-heading visitor-page-wrap"><h3>How would you like to visit?</h3><p>Review the documents above, then choose an entry method.</p></div>
     <div class="entry-method-grid">
       <button class="svc-card entry-method-card" onclick="startWalkIn()">
-        <span class="svc-ic">${icon('ticket', 22)}</span><h3>Visit Today</h3>
+        <span class="svc-ic">${icon('ticket', 22)}</span><h3>Walk in today</h3>
         <p>Get your Visit Pass and queue number now.</p>
-        <span class="svc-go">Get a queue number &rarr;</span>
+        <span class="svc-go">Get a queue number</span>
       </button>
       <button class="svc-card entry-method-card" onclick="startSchedule()">
-        <span class="svc-ic">${icon('calendar', 22)}</span><h3>Appointment request</h3>
-        <p>Submit your details and supporting documents. Admin assigns your appointment date and time.</p>
-        <span class="svc-go">Request an appointment &rarr;</span>
+        <span class="svc-ic">${icon('calendar', 22)}</span><h3>Request an appointment</h3>
+        <p>Choose your preferred date and an available slot. Staff approve or reschedule your request.</p>
+        <span class="svc-go">Request an appointment</span>
       </button>
     </div><div class="visitor-page-wrap visit-calendar-link"><span class="field-hint">Planning an appointment? Check opening days and lunch hours.</span><button class="btn btn-ghost btn-sm" onclick="UniServeUX.visitorCalendar()">View office calendar</button></div>
     </section>`;
@@ -813,7 +826,7 @@ function validateVisitorFields(p, isStudent) {
   if (isStudent) ok = markField(`fw${P}IdNum`, isValidStudentNo(idNumber), 'Use the format 0000-00000-SM-0.') && ok;
   else ok = markField(`fw${P}IdType`, !!idType, 'Select the type of ID you will present.') && ok;
   ok = markField(`fw${P}Contact`, isValidContact(contact), 'Enter a valid PH mobile number (e.g. +639171234567).') && ok;
-  ok = markField(`fw${P}Email`, isValidGmail(email), 'Enter a valid Gmail address (e.g. juan.delacruz@gmail.com).') && ok;
+  ok = markField(`fw${P}Email`, isValidEmail(email), 'Enter a valid email address (e.g. juan.delacruz@gmail.com).') && ok;
   if (!ok) { toast('Please fix the highlighted fields.', 'err'); focusFirstError(); return null; }
   return { first, last, idType, idNumber, contact, email, isPWD: !!document.getElementById(p + 'PWD')?.checked };
 }
@@ -824,18 +837,21 @@ function renderVisitWalkinForm() {
   const svc = visitSelectedService, db = loadDB(), isStudent = visitVisitorType === 'Student';
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
-    ${selectedBarHtml('ticket', 'Walk In', svc)}
+    ${selectedBarHtml('ticket', 'Walk in today', svc)}
     <div class="card card-pad visitor-page-wrap" onkeydown="uxEnter(event,'confirmWalkInPrompt')"><div class="chat-contact-head"><h3>Your details</h3><p>Complete your information, then review it before getting your queue number.</p></div>
-      ${visitorFieldsHtml('q', isStudent)}
-      ${disabilityPriorityHtml('q')}
-      <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span aria-hidden="true">+63</span><span class="sr-only">Philippines country code +63</span></span><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="9171234567" aria-label="Philippine mobile number, country code +63" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
-      <div class="field" id="fwQEmail"><label for="qEmail">Gmail address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com" required><p class="field-hint">Gmail verification is required before continuing.</p><div class="field-error"></div></div>
-      <p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch the &ldquo;Now Serving&rdquo; board and go to OSS when called.</p>
+      <fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('q', isStudent)}
+      ${disabilityPriorityHtml('q')}</fieldset>
+      <fieldset class="visitor-form-section"><legend>Contact details</legend>
+      <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
+      <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com" required><p class="field-hint">Email verification is required before continuing.</p><div class="field-error"></div></div>
+      </fieldset><p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch the &ldquo;Now Serving&rdquo; board and go to OSS when called.</p>
+      ${visitorTermsHtml('q')}
       <button class="btn btn-gold btn-block" onclick="confirmWalkInPrompt()">${icon('check', 16)} Review details</button>
     </div>`;
   restoreVisitorDraft('q');
 }
 async function confirmWalkInPrompt() {
+  if (!requireVisitorTerms('q')) return;
   if (!isOfficeHours()) { toast(`Walk-in queue numbers can only be issued ${officeHoursLabel()}.`, 'err'); renderClosedScreen(); return; }
   if (maintenanceOn()) { toast('The visitor portal is closed for maintenance.', 'err'); renderMaintenanceNotice(); return; }
   const svc = visitSelectedService, isStudent = visitVisitorType === 'Student';
@@ -850,7 +866,7 @@ async function confirmWalkInPrompt() {
     intro: 'Please check your details before you get your queue number.',
     sections: [
       { title: 'Your visit', rows: [['Service', svc.label, true], ['Entry method', 'Walk-in'], ['Priority', [isSenior ? 'Senior citizen' : '', vals.isPWD ? 'Person with disability' : ''].filter(Boolean).join(' / ')]] },
-      { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber], ['Contact number', vals.contact], ['Gmail', vals.email, true]] },
+      { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber], ['Contact number', vals.contact], ['Email', vals.email, true]] },
     ],
     notice: 'Your queue number is issued right after you confirm.',
   });
@@ -858,6 +874,7 @@ async function confirmWalkInPrompt() {
 }
 let walkInPending = false;
 async function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
+  if (!requireVisitorTerms('q')) return;
   try { if(!await SharedAppointments.ensureEmail(vals.email,()=>confirmWalkIn(possibleDuplicate,vals,name,isSenior))) return; }
   catch(error) { toast(escapeHtml(error.message),'err'); return; }
   if (walkInPending) return;
@@ -877,7 +894,7 @@ async function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
     const result = await response.json();
     if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Could not start the visit.');
     entry = result.queue;
-  } catch (error) { toast(escapeHtml(error instanceof TypeError ? 'Cannot start your visit. Check MySQL and the backend server, then try again.' : error.message), 'err'); return; }
+  } catch (error) { toast(escapeHtml(error instanceof TypeError ? 'We could not start your visit. Check your connection and try again.' : error.message), 'err'); return; }
   finally { walkInPending = false; }
   db.queues.push(entry);
   logActivity(db, VISITOR_ACTOR, `Joined queue ${entry.number} (${entry.visitId}) &mdash; walk-in, ${entry.serviceLabel}`, { category: 'Queue', target: entry.visitId });
@@ -893,14 +910,18 @@ function renderVisitScheduleForm() {
   const svc = visitSelectedService, isStudent = visitVisitorType === 'Student', reqs = svc.requirements || [];
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
-    ${selectedBarHtml('calendar', 'Schedule Ahead', svc)}
-    <div class="card card-pad visitor-page-wrap" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Provide your details and supporting documents. Admin will assign your appointment date and time.</p></div>
-      ${visitorFieldsHtml('bk', isStudent)}
-      ${disabilityPriorityHtml('bk')}
+    ${selectedBarHtml('calendar', 'Request an appointment', svc)}
+    <div class="card card-pad visitor-page-wrap" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose your preferred date and available time. Staff will approve or reschedule your request.</p></div>
+      <fieldset class="visitor-form-section"><legend>Schedule</legend><input id="bkOffice" type="hidden" value="">
+      <div class="form-row"><div class="field"><label for="bkDate">Preferred date *</label><input id="bkDate" type="date" min="${OfficeCalendar.parts().date}" onchange="refreshBookingSlots()" required></div><div class="field"><label for="bkTime">Available time slot *</label><select id="bkTime" required disabled><option value="">Choose a date first</option></select></div></div><p id="bkSlotStatus" class="field-hint" role="status" aria-live="polite"></p>
+      </fieldset><fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('bk', isStudent)}
+      ${disabilityPriorityHtml('bk')}</fieldset>
+      <fieldset class="visitor-form-section"><legend>Contact details</legend>
       <div class="form-row">
-        <div class="field" id="fwBkContact"><label for="bkContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span aria-hidden="true">+63</span><span class="sr-only">Philippines country code +63</span></span><input id="bkContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" placeholder="9171234567" aria-label="Philippine mobile number, country code +63" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
-        <div class="field" id="fwBkEmail"><label for="bkEmail">Gmail address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com"><p class="field-hint">Gmail verification is required before continuing.</p><div class="field-error"></div></div>
+        <div class="field" id="fwBkContact"><label for="bkContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="bkContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
+        <div class="field" id="fwBkEmail"><label for="bkEmail">Email address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com"><p class="field-hint">Email verification is required before continuing.</p><div class="field-error"></div></div>
       </div>
+      </fieldset><fieldset class="visitor-form-section"><legend>Supporting documents <span class="opt">(optional)</span></legend>
       <div class="field">
         <label for="bkFiles">Upload supporting documents <span class="opt">(optional, PDF or image)</span></label>
         ${templatesBoxHtml(svc)}
@@ -911,11 +932,26 @@ function renderVisitScheduleForm() {
         <input id="bkFiles" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg" onchange="handleScheduleFilesChange(this)">
         <p class="field-hint">Uploads are optional. Bring the required documents when you visit OSS.</p><div id="bkReadiness"></div><div id="bkAttachPreview"></div>
       </div>
-      <p class="field-hint" style="margin-bottom:14px;">* Required fields. OSS will email your appointment date, time, and Visit Pass.</p>
-      <p class="field-hint">Submit anytime. OSS confirms appointments during office hours.</p><button class="btn btn-primary btn-block" id="bkSubmitBtn" onclick="confirmSchedulePrompt()">Review details</button>
+      </fieldset><p class="field-hint" style="margin-bottom:14px;">* Required fields. We will email you when OSS approves or reschedules your request.</p>
+      ${visitorTermsHtml('bk')}
+      <button class="btn btn-primary btn-block" id="bkSubmitBtn" onclick="confirmSchedulePrompt()">Review details</button>
     </div>`;
   restoreVisitorDraft('bk');
+  loadBookingOffices();
   updateScheduleAttachUI();
+}
+let bookingSlotVersion=0;
+async function loadBookingOffices(){
+  const input=document.getElementById('bkOffice');
+  try{const result=await SharedAppointments.request('/appointment-offices');if(!input.isConnected)return;input.value=result.offices.includes('Office of Student Services')?'Office of Student Services':(result.offices[0]||'');await refreshBookingSlots();}
+  catch(error){if(input.isConnected){document.getElementById('bkSlotStatus').textContent='Could not load appointment availability. Please try again.';toast(escapeHtml(error.message),'err');}}
+}
+async function refreshBookingSlots(){
+  const version=++bookingSlotVersion,office=document.getElementById('bkOffice')?.value,date=document.getElementById('bkDate')?.value,input=document.getElementById('bkTime'),status=document.getElementById('bkSlotStatus');
+  if(!input)return;input.disabled=true;input.innerHTML='<option value="">'+(office&&date?'Loading available slots...':'Choose a date first')+'</option>';
+  if(!office||!date)return;
+  try{const result=await SharedAppointments.request('/appointment-slots?'+new URLSearchParams({office,date}));if(version!==bookingSlotVersion||!input.isConnected)return;input.innerHTML='<option value="">'+(result.slots.length?'Select a time':'No available slots')+'</option>'+result.slots.map(time=>'<option value="'+time+'">'+escapeHtml(UniServeUX.timeLabel(time))+'</option>').join('');input.disabled=!result.slots.length;status.textContent=result.slots.length?'':'No slots available for this office and date. Choose another date.';}
+  catch(error){if(version!==bookingSlotVersion||!input.isConnected)return;status.textContent=error.message;input.innerHTML='<option value="">Availability could not be loaded</option>';}
 }
 function uxDropFiles(e) { e.preventDefault(); e.currentTarget.classList.remove('drag'); addScheduleFiles(e.dataTransfer.files); }
 function handleScheduleFilesChange(inputEl) { const files = Array.from(inputEl.files || []); inputEl.value = ''; return addScheduleFiles(files); }
@@ -943,10 +979,14 @@ function updateScheduleAttachUI() {
   if (r) r.innerHTML = svc && svc.requirements && svc.requirements.length ? readinessPillHtml(computeReadiness(svc, scheduleAttachments)) : '';
 }
 async function confirmSchedulePrompt() {
+  if (!requireVisitorTerms('bk')) return;
   if (maintenanceOn()) { toast('The visitor portal is closed for maintenance.', 'err'); renderMaintenanceNotice(); return; }
   const svc = visitSelectedService, isStudent = visitVisitorType === 'Student';
   const vals = validateVisitorFields('bk', isStudent);
   if (!vals) return;
+  const office=document.getElementById('bkOffice').value,date=document.getElementById('bkDate').value,time=document.getElementById('bkTime').value;
+  if(!office||!date||!time){toast('Choose your date and an available time slot.','err');return;}
+  Object.assign(vals,{office,date,time});
   try { if(!await SharedAppointments.ensureEmail(vals.email,confirmSchedulePrompt)) return; }
   catch(error) { toast(escapeHtml(error.message),'err'); return; }
   const isSenior = isSeniorFromClassification(visitVisitorType, visitGuestClass);
@@ -957,16 +997,17 @@ async function confirmSchedulePrompt() {
   const body = duplicateWarningHtml(dup) + confirmSummaryHtml({
     intro: 'Please check your request before you send it to OSS.',
     sections: [
-      { title: 'Your visit', rows: [['Service', svc.label, true], ['Entry method', 'Appointment request'], ['Priority', [isSenior ? 'Senior citizen' : '', vals.isPWD ? 'Person with disability' : ''].filter(Boolean).join(' / ')]] },
+      { title: 'Your visit', rows: [['Service', svc.label, true], ['Office', vals.office], ['Preferred schedule', vals.date+' '+UniServeUX.timeLabel(vals.time)], ['Entry method', 'Appointment request'], ['Priority', [isSenior ? 'Senior citizen' : '', vals.isPWD ? 'Person with disability' : ''].filter(Boolean).join(' / ')]] },
       { title: 'About you', rows: [['Name', name, true], ['Visitor type', visitorTypeLabel(visitVisitorType, visitGuestClass)], ['ID type', vals.idType], [isStudent ? 'Student number' : 'ID number', vals.idNumber]] },
-      { title: 'How we reach you', rows: [['Contact number', vals.contact], ['Gmail', vals.email, true]] },
+      { title: 'How we reach you', rows: [['Contact number', vals.contact], ['Email', vals.email, true]] },
       { title: 'Requirements', rows: [['Files', files], ['Status', readiness.label]] },
     ],
-    notice: 'Your request is not a confirmed appointment yet. OSS will assign a date and time during office hours. On arrival, show your Visit ID to the Admin for check-in.',
+    notice: 'Your selected slot will be reserved while staff review your request. Wait for approval or a rescheduled time and your Visit ID before travelling. On arrival, show that Visit ID to the Admin for check-in.',
   });
   confirmAction('Review your appointment request', body, 'Submit Request', () => confirmSchedule(!!dup, readiness.status, vals, name, isSenior), null, 'Edit details');
 }
 async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, isSenior) {
+  if (!requireVisitorTerms('bk')) return;
   try { if(!await SharedAppointments.ensureEmail(vals.email,()=>confirmSchedule(possibleDuplicate,readinessStatus,vals,name,isSenior))) return; }
   catch(error) { toast(escapeHtml(error.message),'err'); return; }
   if (maintenanceOn()) { renderMaintenanceNotice(); return; }
@@ -979,11 +1020,12 @@ async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, i
     const result = await SharedAppointments.request('/appointments', 'POST', {submissionKey,
       name, type: visitVisitorType, guestClass: visitGuestClass, idNumber: vals.idNumber,
       idType: vals.idType, contact: vals.contact, email: vals.email, serviceKey: svc.key,
-      isSenior, isPWD: !!vals.isPWD, attachments: scheduleAttachments
+      office:vals.office, date:vals.date, time:vals.time, isSenior, isPWD: !!vals.isPWD, attachments: scheduleAttachments
     });
     SharedAppointments.cache(result); appt = result.appointment;sessionStorage.removeItem('oss_appointment_submission');
   } catch (error) {
     toast(escapeHtml(error.message), 'err');
+    if(error.status===409){sessionStorage.removeItem('oss_appointment_submission');await refreshBookingSlots();}
     if (btn) { btn.disabled=false; btn.textContent='Review details'; }
     return;
   }
@@ -994,7 +1036,8 @@ async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, i
 }
 
 function appointmentPassHtml(appt) {
-  const slot = appt.date ? `${appt.date} &middot; ${escapeHtml(UniServeUX.timeLabel(appt.time))}` : 'Awaiting date &amp; time from OSS';
+  if (appt.ticketHtml) return `<div class="printable-ticket">${appt.ticketHtml.replace(/ style="[^"]*"/g, '')}</div>`;
+  const slot = appt.date ? `${appt.date} &middot; ${escapeHtml(UniServeUX.timeLabel(appt.time))}` : 'Pending';
   const seniorNote = (appt.isSenior && appt.guestClass !== 'Senior Citizen' ? ' &middot; Senior' : '') + (appt.isPWD ? ' &middot; PWD priority' : '');
   return `
     <div class="printable-ticket">
@@ -1007,7 +1050,6 @@ function appointmentPassHtml(appt) {
               <div class="ticket-v2-issued">Requested<br>${fmtDateTime(appt.createdAt)}</div>
             </div>
             <div class="ticket-v2-body">
-              <div class="ticket-v2-line">Scheduled appointment</div>
               <div class="ticket-v2-number">${escapeHtml(appt.visitId)}</div>
               <div class="ticket-v2-service">${escapeHtml(appt.service)}</div>
               <div class="ticket-v2-type">${icon(appt.type === 'Student' ? 'cap' : 'users', 13)} ${escapeHtml(visitorTypeLabel(appt.type, appt.guestClass))}${seniorNote}</div>
@@ -1019,7 +1061,7 @@ function appointmentPassHtml(appt) {
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('calendar', 13)} Scheduled</span><span class="tvf-val">${slot}</span></div>
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('ticket', 13)} Reference</span><span class="tvf-val">${escapeHtml(appt.code)}</span></div>
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('users', 13)} Visitor</span><span class="tvf-val">${escapeHtml(appt.name)}</span></div>
-              <div class="ticket-v2-field"><span class="tvf-lbl">${icon('checkin', 13)} Status</span><span class="tvf-val">${escapeHtml(String(appt.status).toUpperCase())}</span></div>
+              <div class="ticket-v2-field"><span class="tvf-lbl">${icon('checkin', 13)} Status</span><span class="tvf-val">${escapeHtml(String(appt.status))}</span></div>
             </div>
             <p class="ticket-v2-fine-print">No queue number is issued for scheduled visits. Show this Visit ID at the front desk &mdash; you are called when your scheduled time arrives, ahead of walk-ins.</p>
           </div>
@@ -1030,7 +1072,13 @@ function appointmentPassHtml(appt) {
 }
 function requirementsBlockHtml(db, appt) {
   const svc = findService(db, appt.service) || { requirements: [] };
-  return `<div style="margin-top:14px;"><label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:6px; color:var(--text-soft);">Uploaded requirements</label>${readinessPillHtml(computeReadiness(svc, appt.attachments))}${attachListHtml(appt.attachments, 'No files uploaded with this booking.')}${documentReviewHtml(appt)}</div>`;
+  const files = appt.attachments || [];
+  const rows = files.map((file,index) => {
+    const review = file.review || {}, status = review.status || 'Pending review';
+    const tone = status === 'Accepted' ? 'pill-ok' : status === 'Needs correction' ? 'pill-danger' : 'pill-warn';
+    return `<li class="requirement-file"><div class="requirement-file-row">${attachChip(file)}<span class="pill ${tone}">${escapeHtml(status)}</span></div>${review.reason ? `<p class="requirement-feedback">${escapeHtml(review.reason)}</p>` : ''}${review.reviewedAt ? `<p class="requirement-reviewed">Reviewed ${escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))}</p>` : ''}${status==='Needs correction'&&['Requested','Booked'].includes(appt.status)?`<div class="field"><label for="replacement${index}">Corrected document</label><input id="replacement${index}" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="${escapeHtml(appt.id)}" data-index="${index}" onclick="replaceVisitDocument(this)">Submit replacement</button></div>`:''}</li>`;
+  }).join('');
+  return `<section class="appointment-requirements" aria-label="Uploaded requirements"><div class="requirements-heading"><h4>Uploaded requirements</h4>${readinessPillHtml(computeReadiness(svc, files))}</div>${files.length ? `<ul class="requirement-files">${rows}</ul>` : '<p class="requirements-note">No files uploaded with this booking.</p>'}</section>`;
 }
 
 function timelineStepsHtml(q, appointment = null) {
@@ -1075,9 +1123,11 @@ function submitVisitFeedback(queueId) {
   renderQueueTicket();
 }
 let sharedTicketLoading = false;
+let lastTicketRender = {id:null,status:null};
 async function renderQueueTicket() {
   if (sharedTicketLoading) return;
-  const local = loadDB().queues.find(q => q.id === myActiveQueueId);
+  const selectedQueueId=myActiveQueueId,navigation=typeof visitorNavigationVersion==='undefined'?0:visitorNavigationVersion;
+  const local = loadDB().queues.find(q => q.id === selectedQueueId);
   if (local?.shared) {
     sharedTicketLoading = true;
     try {
@@ -1094,7 +1144,8 @@ async function renderQueueTicket() {
     finally { sharedTicketLoading = false; }
     if (!['visit', 'checkvisit'].includes(visitorView)) return;
   }
-  const db = loadDB(), q = db.queues.find(x => x.id === myActiveQueueId);
+  if(myActiveQueueId!==selectedQueueId||(typeof visitorNavigationVersion!=='undefined'&&visitorNavigationVersion!==navigation)||(typeof visitorHubOpen!=='undefined'&&visitorHubOpen))return;
+  const db = loadDB(), q = db.queues.find(x => x.id === selectedQueueId);
   if (!q) { resetVisit(); return; }
   const isAppt = q.source === 'Appointment';
   const due = isDue(q);
@@ -1115,12 +1166,13 @@ async function renderQueueTicket() {
 
   let waitBanner = '';
   if (q.status === 'Waiting') {
-    if (isAppt && !due) waitBanner = `<div class="wait-estimate">${icon('clock', 15)} Your slot is at ${slotText} &mdash; you will be called when it arrives</div>`;
+    if (isAppt && !due) waitBanner = `<div class="wait-estimate">Your slot is at ${slotText} &mdash; you will be called when it arrives</div>`;
     else if (!Number.isFinite(ahead)) waitBanner = '<div class="wait-estimate">Queue estimate temporarily unavailable. Stay near OSS and watch for your call.</div>';
-    else waitBanner = `<div class="wait-estimate">${icon('clock', 15)} ${ahead} ${ahead === 1 ? 'person' : 'people'} ahead of you &middot; estimated wait ${Number.isFinite(etaMin) ? fmtWaitDuration(etaMin) : 'unavailable'}. Timing may change as priority visits arrive.</div>`;
+    else waitBanner = `<div class="wait-estimate"><div class="wait-estimate-copy"><span class="wait-estimate-label">${ahead} ${ahead === 1 ? 'person' : 'people'} ahead of you</span><strong>Estimated wait: ${Number.isFinite(etaMin) ? fmtWaitDuration(etaMin) : 'unavailable'}</strong><span class="wait-estimate-note">Timing may change as priority visits arrive.</span></div></div>`;
   }
 
   const finished = ['Completed', 'Skipped', 'Cancelled', 'Unfinished'].includes(q.status), isDone = q.status === 'Completed';
+  const justCompleted=isDone&&lastTicketRender.id===q.id&&lastTicketRender.status!=='Completed';
   const seniorNote = (q.isSenior && q.guestClass !== 'Senior Citizen' ? ' &middot; Senior' : '') + (q.isPWD ? ' &middot; PWD priority' : '');
   const dupBadge = q.possibleDuplicate ? `<div class="qt-source-note ticket-v2-dup">${icon('alert', 11)} Flagged for OSS review as a possible duplicate visit</div>` : '';
   const firstField = isAppt
@@ -1130,13 +1182,11 @@ async function renderQueueTicket() {
   const nowServing = `<div class="qt-nowserving"><div class="qt-nowserving-head"><span class="qt-live-dot"></span><div class="qt-nowserving-lbl">Now Serving</div></div>
     <div class="qt-nowserving-row">${serving.length ? serving.map(e => `<span class="pill ${e.id === q.id ? 'pill-gold' : 'pill-info'}">${escapeHtml(queueRef(e))}</span>`).join('') : `<span class="qt-empty">No one is being served yet.</span>`}</div></div>`;
   const reqSection = linkedAppt ? `<div class="card card-pad"><label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:6px; color:var(--text-soft);">Your uploaded requirements</label>${attachListHtml(linkedAppt.attachments, 'No files were uploaded with this booking.')}${documentReviewHtml(linkedAppt)}${visitExtrasHtml({...linkedAppt,followUpTask:Object.prototype.hasOwnProperty.call(q,'followUpTask')?q.followUpTask:linkedAppt.followUpTask})}</div>` : (q.followUpTask?`<div class="card card-pad">${visitExtrasHtml(q)}</div>`:'');
-  const another = `<button class="btn btn-ghost btn-block" onclick="resetVisit()">${icon('ticket', 16)} Start Another Visit</button>`;
-  const actions = isDone ? another.replace('btn-block', 'btn-block btn-full')
-    : finished ? another
-    : q.status==='Serving' ? '' : `<button class="btn btn-primary btn-block ticket-cancel-button" onclick="confirmCancelQueuePrompt()">Cancel visit</button>`;
-
+  const another = `<button class="btn btn-primary" onclick="resetVisit()">Start another visit</button>`;
+  const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;
+  const nextStep = isDone ? 'Your visit is complete. Share feedback about your service below.' : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
   document.getElementById('visitorContent').innerHTML = `
-    <div class="queue-ticket-wrap">
+    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p><section class="visit-status-summary" aria-label="Current visit status"><span class="visit-status-caption">Current status</span><h4>${escapeHtml(q.status)}</h4><p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
       ${waitBanner}
       <div class="qt-layout">
         <div class="qt-main ${isDone ? 'qt-main-complete' : ''}">
@@ -1159,6 +1209,7 @@ async function renderQueueTicket() {
                 </div>
                 <div class="ticket-v2-seam"></div>
                 <div class="ticket-v2-bottom">
+                  ${isDone?'<div class="ticket-completion-mark"><div class="ticket-v2-stamp" role="img" aria-label="Visit completed"><span class="ticket-stamp-caption">OSS &middot; Visit record</span><strong>Completed</strong>'+(q.completedAt?'<span class="ticket-stamp-date">'+escapeHtml(fmtDate(q.completedAt))+'</span>':'')+'</div></div>':''}
                   <div class="ticket-v2-grid">
                     <div class="ticket-v2-field">${firstField}</div>
                     <div class="ticket-v2-field"><span class="tvf-lbl">${icon('folder', 13)} Service</span><span class="tvf-val">${escapeHtml(serviceQueueLabel(db, q))}</span></div>
@@ -1167,24 +1218,28 @@ async function renderQueueTicket() {
                   </div>
                   <p class="ticket-v2-fine-print">${isDone ? 'This visit is complete &mdash; this pass has been used and is no longer valid.' : (isAppt ? "This pass is valid for your scheduled visit only and is non-transferable. You are called when your scheduled time arrives." : "This pass is valid for today's visit only and is non-transferable. Please present it at the counter when your number is called.")}</p>
                 </div>
-                ${isDone ? `<div class="ticket-v2-thanks">${icon('check', 13)} Thank you for visiting OSS!</div>` : ''}
               </div>
-              ${isDone ? '' : `<div class="ticket-v2-stub"><div class="ticket-v2-stub-inner"><span class="ticket-v2-stub-lbl">${q.number ? 'Queue No.' : 'Visit ID'}</span><span class="ticket-v2-stub-num">${escapeHtml(ref)}</span><span class="ticket-v2-stub-id">${escapeHtml(q.number ? q.visitId : (slotText || ''))}</span></div></div>`}
-              ${isDone ? `<div class="ticket-v2-stamp">${icon('check', 16)} Completed</div>` : ''}
+              <div class="ticket-v2-stub"><div class="ticket-v2-stub-inner"><span class="ticket-v2-stub-lbl">${q.number ? 'Queue No.' : 'Visit ID'}</span><span class="ticket-v2-stub-num">${escapeHtml(ref)}</span><span class="ticket-v2-stub-id">${escapeHtml(q.number ? q.visitId : (slotText || ''))}</span></div></div>
             </div>
           </div>
-          <div class="qt-actions">${actions}${q.status==='Unfinished'&&linkedAppt?`<button class="btn btn-primary btn-block" onclick="showPassModalReadonly(loadDB().appointments.find(a=>a.id==='${linkedAppt.id}'),true)">View appointment / next visit</button>`:''}${q.caseStatus?'<button class="btn btn-ghost btn-block" onclick="renderQueueTicket()">Refresh case status</button>':''}</div>
         </div>
         <div class="qt-side">
-          <div class="vj-card card"><h3>Your Visit Journey</h3>${timelineStepsHtml(q, q.appointmentProgress || linkedAppt)}</div>
+          ${feedbackSectionHtml(q)}
+          <details class="visit-journey queue-visit-journey" ${isDone?'':'open'}><summary><span class="visit-journey-title">Visit progress</span><span class="visit-journey-status">${escapeHtml(q.status)}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></summary><div class="queue-journey-body">${timelineStepsHtml(q, q.appointmentProgress || linkedAppt)}</div></details>
           ${isDone ? '' : nowServing}
           ${q.caseStatus?`<div class="card card-pad"><h3>Case follow-up</h3><p>Visit: Completed &middot; Case: ${escapeHtml(q.caseStatus)}</p><p class="field-hint">${q.caseStatus==='Resolved'?'Your concern has been resolved.':'Your visit is complete. Your concern remains under review.'}</p></div>`:''}
-          ${feedbackSectionHtml(q)}
         </div>
       </div>
       ${reqSection}
       ${typeof flowServiceHistory==='function'?flowServiceHistory(q.serviceHistory):''}
-    </div>`;
+      <div class="appointment-pass-actions">
+        <div class="pass-actions-main">${finished?another:'<button type="button" class="btn btn-primary" onclick="renderQueueTicket()">Refresh status</button>'}</div>
+        <div class="pass-actions-secondary">${download}${q.status==='Unfinished'&&linkedAppt?'<button type="button" class="btn btn-ghost" onclick="showPassModalReadonly(loadDB().appointments.find(a=>a.id===loadDB().queues.find(q=>q.id===myActiveQueueId).appointmentId),true)">View appointment</button>':''}</div>
+        ${!finished&&q.status!=='Serving'?'<div class="pass-actions-footer"><button type="button" class="btn btn-danger-ghost" onclick="confirmCancelQueuePrompt()">Cancel visit</button></div>':''}
+      </div>
+    </div></div></div>`;
+  lastTicketRender={id:q.id,status:q.status};
+  if(justCompleted)document.querySelector('.queue-record')?.scrollIntoView({block:'start',behavior:'smooth'});
   if (finished) stopTicketPolling(); else startTicketPolling();
 }
 function confirmCancelQueuePrompt() {
@@ -1226,7 +1281,7 @@ async function lookupMyVisit() {
   const code = normVisitRef(document.getElementById('cvInput').value);
   if (!code) { visitorFormError('Enter your Visit ID.', 'visitorLookupError'); return; }
   const db = loadDB();
-  const savedAppointment = db.appointments.find(a => (a.visitId || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === code.replace(/[^A-Z0-9]/g, ''));
+  const savedAppointment = db.appointments.find(a => (a.visitId || a.requestReference || a.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === code.replace(/[^A-Z0-9]/g, ''));
   if (savedAppointment && !savedAppointment.queueId) {showPassModalReadonly(savedAppointment, true);return;}
   const q = db.queues.find(x => (x.visitId || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === code.replace(/[^A-Z0-9]/g, ''));
   if (q) { myActiveQueueId = q.id; persistSession(); renderQueueTicket(); return; }
@@ -1247,6 +1302,11 @@ function showPassModalReadonly(apptIn, embedded = false) {
   const db = loadDB();
   const appt = db.appointments.find(x => x.id === apptIn.id) || apptIn;
   const linked = appt.queueId && ['Checked-in','Completed'].includes(appt.status) ? db.queues.find(q => q.id === appt.queueId) : null;
+  if(embedded&&linked?.status==='Completed'){
+    visitorView='checkvisit';visitStep='ticket';myActiveQueueId=linked.id;
+    if(typeof setVisitorHubState==='function')setVisitorHubState(false);
+    sessionStorage.removeItem('oss_activeAppointmentId');persistSession();renderVisitorSidebar();renderQueueTicket();return;
+  }
   const bookingConflict = UniServeUX.conflict(appt);
   const canCheckIn = !linked && appt.status === 'Booked' && !bookingConflict && appt.date === OfficeCalendar.parts().date;
   const arrival = canCheckIn ? evaluateArrival(db, appt) : null;
@@ -1261,19 +1321,27 @@ function showPassModalReadonly(apptIn, embedded = false) {
     Cancelled: 'This scheduled visit has been cancelled. Start a new visit if you still need the service.',
     'No-show': 'You missed this appointment. Request a new schedule below; your details and uploads are retained.',
     Unfinished: 'Your visit was not finished. Request a new schedule or show this Visit ID to OSS to resume it.',
-    Requested: `Your request is still pending. OSS will email you at ${escapeHtml(appt.email || '')} once a date &amp; time is assigned &mdash; check back here with this Visit ID afterward.`,
+    Requested: `Your request is still pending. OSS will email you at ${escapeHtml(appt.email || '')} when staff approve or reschedule your selected slot. Use your request reference to check updates and wait for confirmation before travelling.`,
   };
   notes.Completed = 'Your visit is complete. Open your visit to leave feedback about the service.';
   notes['Checked-in'] = 'You are checked in. Follow your queue status and wait for OSS to call you.';
   const note = bookingConflict ? 'Contact OSS before travelling to the office; your scheduled slot is unavailable.' : linked ? (linked.status === 'Completed' ? notes.Completed : notes['Checked-in']) : (notes[appt.status] || (appt.status === 'Booked' && !canCheckIn ? 'Show your Visit ID at the OSS counter on your appointment day. An Admin will check you in when you arrive.' : '') || 'Show your Visit ID at the OSS counter. An Admin will check you in when you arrive.');
-  const buttons = [];
+  const buttons = appt.status==='Completed'||linked?.status==='Completed'?[]:[{label:'Download ticket',cls:'btn-ghost',action:()=>downloadVisitorTicket()}];
   if (appt.shared && ['Requested','Booked'].includes(appt.status)) buttons.push({label:'Cancel appointment',cls:'btn-danger-ghost',action:()=>cancelSharedAppointment(appt.id)});
   if(appt.shared&&['Requested','Booked','No-show','Unfinished'].includes(appt.status)) buttons.push({label:appt.rescheduleRequested?'Update reschedule request':'Request new schedule',cls:'btn-ghost',action:()=>requestNewSchedule(appt.id)});
   if (bookingConflict) buttons.push({label:'Contact OSS',cls:'btn-primary',action:()=>navigateVisitor('chat')});
   if (linked) buttons.push({ label: linked.status === 'Completed' ? 'View visit' : 'View live queue', cls: 'btn-primary', action: () => { closeModal(); myActiveQueueId = linked.id; persistSession(); renderQueueTicket(); } });
 
-  const body = `${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>Waiting for OSS confirmation. Your current appointment stays the same for now.</p></div></div>':''}${appointmentPassHtml(appt)}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}<p class="field-hint" style="margin-top:14px;"><strong>Next step:</strong> ${note}</p>`;
+  const statusLabel = (bookingConflict||appt.needsRescheduling) ? 'Needs rescheduling' : linked ? linked.status : ({Requested:'Awaiting approval',Booked:'Appointment confirmed','Checked-in':'Checked in',Completed:'Visit completed',Cancelled:'Appointment cancelled','No-show':'Appointment missed',Unfinished:'Visit unfinished'}[appt.status] || appt.status);
+  const summary = '<section class="visit-status-summary" aria-label="Current appointment status"><span class="visit-status-caption">Current status</span><h4>'+escapeHtml(statusLabel)+'</h4><p><strong>Next step:</strong> '+note+'</p></section>';
+  const body = `${summary}${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>'+ (appt.needsRescheduling?'The previous requested slot has been released. Wait for OSS to confirm a new time.':'Waiting for OSS confirmation. Your current appointment stays the same for now.') +'</p></div></div>':''}${appointmentPassHtml(appt)}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}`;
   if (embedded) {
+    visitorView = 'checkvisit';
+    if (typeof setVisitorHubState === 'function') setVisitorHubState(false);
+    renderVisitorSidebar();
+    visitStep = 'pass';
+    stopTicketPolling();
+    persistSession();
     if(typeof myActiveQueueId!=='undefined'){myActiveQueueId=null;persistSession();}
     closeModal(); sessionStorage.setItem('oss_activeAppointmentId', appt.id);
     window.dispatchEvent(new CustomEvent('uniserve:visit-selected'));
@@ -1283,39 +1351,38 @@ function showPassModalReadonly(apptIn, embedded = false) {
     const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" onclick="runVisitorPassAction(${i})">${button.label}</button>`;
     const secondaryActions = visitorPassActions.map((button,i)=>i!==primaryIndex&&!button.cls.includes('danger')?actionButton(button,i):'').join('');
     const cancelActions = visitorPassActions.map((button,i)=>button.cls.includes('danger')?actionButton(button,i):'').join('');
-    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">&larr; ${window.historyVisitOpen?'Back to records':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
+    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Keep your ${appt.visitId ? 'Visit ID' : 'request reference'} to return to this status screen.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'Back to records':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
   } else openModal(`Visit Pass &mdash; ${escapeHtml(appt.visitId || appt.code)}`, body, buttons);
 }
-function confirmCheckInPrompt() { toast('Show your Visit ID at the OSS counter. An Admin will check you in when you arrive.', 'ok'); }
 const HISTORY_RESEND_COOLDOWN_MS = 60 * 1000;
 let historyFlow = null;
 
 
 function renderHistoryScreen() {
   if(window.visitorHistoryGateEntering&&historyFlow?.step==='verified'){renderHistoryStep();return;}
+  if(sessionStorage.getItem('ossuniserve_visitor_token')&&typeof window.openVerifiedVisitorHistory==='function'){window.openVerifiedVisitorHistory();return;}
   historyFlow = { step: 'email', email: '', code: '', expiresAt: 0, sentAt: 0, attempts: 0 };
   renderHistoryStep();
 }
 function renderHistoryStep() {
   const f=historyFlow,wrap=document.getElementById('visitorContent');
-  const stages=`<div class="visitor-history-stages" aria-label="History verification progress">${[['email','Gmail'],['code','Verify code'],['verified','Your visits']].map(([key,label])=>`<span class="${f.step===key?'current':''}" ${f.step===key?'aria-current="step"':''}>${label}</span>`).join('')}</div>`;
-  const head=`<div class="chat-contact-head"><h3>${f.step==='verified'?'Your visit history':'Find your visit history'}</h3><p>${f.step==='verified'?'Visits associated with '+escapeHtml(f.email):'Verify your Gmail to view your past visits.'}</p></div>${f.step==='verified'?'':stages}`;
+  const stages=`<div class="visitor-history-stages" aria-label="History verification progress">${[['email','Email'],['code','Verify code'],['verified','Your visits']].map(([key,label])=>`<span class="${f.step===key?'current':''}" ${f.step===key?'aria-current="step"':''}>${label}</span>`).join('')}</div>`;
+  const head=f.step==='code'?`<div class="modal-head"><h3>Verify your email</h3><button type="button" class="close-x" aria-label="Cancel verification" onclick="changeHistoryEmail()">&times;</button></div>`:`<div class="chat-contact-head"><h3>${f.step==='verified'?'Your visit history':f.step==='code'?'Verify your email':'Find your visit history'}</h3><p>${f.step==='verified'?'Visits associated with '+escapeHtml(f.email):'Verify your email to view your past visits.'}</p></div>${f.step==='verified'?'':stages}`;
   const error='<div class="field-error" id="historyInlineError" role="alert" hidden></div>';
   let body='';
-  if(f.step==='email')body=`<div class="field"><label for="hsEmail">Gmail</label><input id="hsEmail" type="email" autocomplete="email" placeholder="name@gmail.com" value="${escapeHtml(f.email)}" aria-describedby="historyInlineError" onkeydown="if(event.key==='Enter')sendHistoryCode()">${error}</div><button class="btn btn-primary btn-block" onclick="sendHistoryCode()">Send verification code</button><p class="field-hint">Use the Gmail address you provided when starting your visit.</p>`;
-  else if(f.step==='code')body=`<div class="history-code-note">${icon('mail',20)}<div><b>Check your Gmail</b><p>Your code is on its way to <strong>${escapeHtml(f.email)}</strong>.</p><span>Valid for five minutes</span></div></div><div class="field history-code-field"><label for="hsCode">Enter verification code</label><input id="hsCode" class="verification-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="historyInlineError" oninput="clearHistoryCodeError(this)" onkeydown="if(event.key==='Enter')verifyHistoryCode()">${error}</div><button id="hsVerifyButton" class="btn btn-primary history-verify-button" onclick="verifyHistoryCode()">Verify code</button><div class="visit-pass-actions"><button class="btn btn-ghost btn-sm" onclick="resendHistoryCode()">Resend code</button><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Change Gmail</button></div>`;
+  if(f.step==='email')body=`<div class="field"><label for="hsEmail">Email</label><input id="hsEmail" type="email" autocomplete="email" placeholder="name@gmail.com" value="${escapeHtml(f.email)}" aria-describedby="historyInlineError" onkeydown="if(event.key==='Enter')sendHistoryCode()">${error}</div><button class="btn btn-primary btn-block" onclick="sendHistoryCode()">Send verification code</button><p class="field-hint">Use the email address you provided when starting your visit.</p>`;
+  else if(f.step==='code')body=`<div class="modal-body"><div class="history-code-note"><p>A verification code has been requested for ${escapeHtml(f.email)}. Check your inbox or spam folder.</p></div><div class="field history-code-field"><label for="hsCode">Verification code</label><input id="hsCode" class="verification-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="historyInlineError" oninput="clearHistoryCodeError(this)" onkeydown="if(event.key==='Enter')verifyHistoryCode()">${error}</div><div class="history-resend-row"><button class="btn btn-ghost btn-sm resend-text" onclick="resendHistoryCode()">Resend code</button></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="changeHistoryEmail()">Cancel</button><button id="hsVerifyButton" class="btn btn-primary history-verify-button" onclick="verifyHistoryCode()">Verify</button></div>`;
   else {
     const db=loadDB(),rows=visitorHistoryFor(db,f.email);
     body=rows.length?`<div class="visitor-history-list">${rows.map(r=>{
-      const appt=db.appointments.find(a=>a.visitId===r.ref),queue=db.queues.find(q=>q.visitId===r.ref);
-      return `<article class="visitor-history-item"><div class="visitor-history-icon" aria-hidden="true">${icon(appt?'calendar':'ticket',18)}</div><div class="visitor-history-detail"><div class="visitor-history-title"><b>${escapeHtml(r.label)}</b>${statusPill(r.status)}</div><div class="visitor-history-meta"><span>${escapeHtml(String(fmtDateTime(r.when)).replace(/&middot;/g,String.fromCharCode(183)))}</span><span class="visitor-history-ref">${escapeHtml(r.ref)}</span><span>${appt?'Appointment':'Walk-in'}</span></div></div><div class="visitor-history-actions">${appt||queue?`<button class="btn btn-ghost btn-sm" onclick="openHistoryVisit('${escapeHtml(r.ref)}')">View visit <span aria-hidden="true">&rarr;</span></button>`:''}</div></article>`;
-    }).join('')}</div>`:'<p class="field-hint">No visits were found for this Gmail yet.</p>';
-    body+='<div class="visitor-history-footer"><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different Gmail</button></div>';
+      const appt=db.appointments.find(a=>(a.visitId||a.requestReference||a.code)===r.ref),queue=db.queues.find(q=>q.visitId===r.ref);
+      return `<article class="visitor-history-item"><div class="visitor-history-icon" aria-hidden="true">${icon(appt?'calendar':'ticket',18)}</div><div class="visitor-history-detail"><div class="visitor-history-title"><b>${escapeHtml(r.label)}</b>${statusPill(r.status)}</div><div class="visitor-history-meta"><span>${escapeHtml(String(fmtDateTime(r.when)).replace(/&middot;/g,String.fromCharCode(183)))}</span><span class="visitor-history-ref">${escapeHtml(r.ref)}</span><span>${appt?'Appointment':'Walk-in'}</span></div></div><div class="visitor-history-actions">${appt||queue?`<button class="btn btn-ghost btn-sm" onclick="openHistoryVisit('${escapeHtml(r.ref)}')">View visit</button>`:''}</div></article>`;
+    }).join('')}</div>`:'<p class="field-hint">No visits were found for this email yet.</p>';
+    body+='<div class="visitor-history-footer"><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different email</button></div>';
   }
   if(f.step==='email')body=body.replace('<button class="btn btn-primary btn-block" onclick="sendHistoryCode()">',VisitorTurnstile.markup('historySecurity')+'<button class="btn btn-primary btn-block" onclick="sendHistoryCode()">');
-  if(f.step==='code')body=body.replace('<div class="visit-pass-actions">',VisitorTurnstile.markup('historySecurity')+'<div class="visit-pass-actions">');
-  wrap.innerHTML=`<div class="card card-pad visitor-page-wrap">${head}${body}</div>`;
-  if(f.step==='email'||f.step==='code')VisitorTurnstile.mount('historySecurity');
+  wrap.innerHTML=`<div class="card card-pad visitor-page-wrap history-page${f.step==='code'?' history-code-page':''}">${head}${body}</div>`;
+  if(f.step==='email')VisitorTurnstile.mount('historySecurity');
   if(f.step==='code')window.CodeCooldown?.bind(document.querySelector('#visitorContent button[onclick="resendHistoryCode()"]'),'visitor:'+f.email);
   document.getElementById(f.step==='code'?'hsCode':'hsEmail')?.focus();
 }
@@ -1344,22 +1411,46 @@ async function issueHistoryCode() {
 async function sendHistoryCode() {
   if (historyRequestBusy) return;
   const email = normEmail(document.getElementById('hsEmail').value);
-  if (!email) { visitorFormError('Enter your Gmail address.', 'historyInlineError'); return; }
-  if (!isValidGmail(email)) { visitorFormError('Enter a valid Gmail address (e.g. juan.delacruz@gmail.com).', 'historyInlineError'); return; }
+  if (!email) { visitorFormError('Enter your email address.', 'historyInlineError'); return; }
+  if (!isValidEmail(email)) { visitorFormError('Enter a valid email address (e.g. juan.delacruz@gmail.com).', 'historyInlineError'); return; }
   historyFlow.email = email;
   if (!await issueHistoryCode()) return;
   historyFlow.step = 'code';
-  toast(`Code sent to ${escapeHtml(email)}.`, 'ok');
+  toast(`A verification code has been requested for ${escapeHtml(email)}.`, 'ok');
   renderHistoryStep();
 }
 async function resendHistoryCode() {
-  const f = historyFlow, wait = f.sentAt + HISTORY_RESEND_COOLDOWN_MS - Date.now();
-  if (wait > 0) { visitorFormError(`Please wait ${Math.ceil(wait / 1000)} seconds before requesting a new code.`, 'historyInlineError'); return; }
-  if (!await issueHistoryCode()) return;
-  toast(`New code sent to ${escapeHtml(f.email)}.`, 'ok');
-  renderHistoryStep();
+  const f=historyFlow,wait=f.sentAt+HISTORY_RESEND_COOLDOWN_MS-Date.now();
+  if(wait>0){visitorFormError(`Please wait ${Math.ceil(wait/1000)} seconds before requesting a new code.`,'historyInlineError');return;}
+  openModal('Resend verification code', '<p class="field-hint">Send a new code to '+escapeHtml(f.email)+'.</p>'+VisitorTurnstile.markup('historySecurity'),[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:'Send code',cls:'btn-primary',action:async()=>{
+      if(historyFlow!==f)return;
+      if(!await issueHistoryCode())return;
+      closeModal();toast('A new verification code has been requested for '+escapeHtml(f.email)+'.','ok');renderHistoryStep();
+    }}
+  ]);
+  VisitorTurnstile.mount('historySecurity');
+}
+function clearVisitorIdentity() {
+  window.visitorIdentityVersion=(window.visitorIdentityVersion||0)+1;
+  visitorNavigationVersion++;
+  stopTicketPolling();stopChatPolling();closeModal();
+  for(const key of Object.keys(sessionStorage))if(/^(?:ossuniserve_visitor_token|visit-token:|chat-token:|oss_(?:visit|visitor|myActiveQueueId|chat_id|activeAppointmentId|appointment_submission))/.test(key))sessionStorage.removeItem(key);
+  sessionStorage.removeItem('ossuniserve_visitor_token');
+  if(typeof clearVisitorDraft==='function')clearVisitorDraft();
+  window.SecureState?.clear();window.SharedAppointments?.clearPrivateCache?.();
+  const db=loadDB();
+  for(const key of ['appointments','queues','transactions','visitorLog','chats','activityLog'])db[key]=[];
+  saveDB(db);
+  myActiveQueueId=null;currentPublicChatId=null;chatFlow=null;historyFlow=null;
+  visitStep='pick';visitSelectedService=null;visitVisitorType='Student';visitGuestClass=null;
+  scheduleAttachments=[];visitorPassActions=[];feedbackStars=0;window.historyVisitOpen=false;
+  window.dispatchEvent(new Event('uniserve:visitor-identity-cleared'));
 }
 function changeHistoryEmail() {
+  if(typeof clearVisitorIdentity==='function')clearVisitorIdentity();
+  else sessionStorage.removeItem('ossuniserve_visitor_token');
   historyFlow = { step: 'email', email: '', code: '', expiresAt: 0, sentAt: 0, attempts: 0 };
   renderHistoryStep();
 }
@@ -1376,57 +1467,15 @@ async function verifyHistoryCode() {
     if(result.visitorToken) sessionStorage.setItem('ossuniserve_visitor_token',result.visitorToken); if(result.appointments) SharedAppointments.cache({appointments:result.appointments});const db=loadDB();for(const queue of result.queues){db.queues=db.queues.filter(q=>q.id!==queue.id).concat(queue);}saveDB(db);
     f.step='verified';f.code='';renderHistoryStep();
   }catch(error){if(historyFlow===f)visitorFormError(error.message||'Could not verify the code. Please try again.', 'historyInlineError');}
-  finally{historyRequestBusy=false;if(verifyButton){verifyButton.disabled=false;verifyButton.textContent='Verify code';}}
+  finally{historyRequestBusy=false;if(verifyButton){verifyButton.disabled=false;verifyButton.textContent='Verify';}}
 }
 
-const CHAT_PROMPTS = {
-  visit: 'Hi! Enter your Visit ID (e.g. VIS-K7M29QXA) to open your chat. You can find it on your Visit Pass.',
-  message: 'What would you like to ask or report to OSS?',
-};
-function initChatFlow() {
-  chatFlow = { step: 'visit', visitRef: '', message: '', bubbles: [{ sender: 'staff', text: CHAT_PROMPTS.visit }] };
-  renderChatFlowScreen();
-}
 function submitChatFlowText() {
   const raw = (document.getElementById('cfText').value || '').trim();
-  if (chatFlow.step === 'visit') {
-    const ref = normVisitRef(raw);
-    if (!ref) { toast('Please enter your Visit ID.', 'err'); return; }
-    if (!findVisitByRef(loadDB(), ref)) { toast('No visit found with that Visit ID. Check it and try again.', 'err'); return; }
-    chatFlow.visitRef = ref;
-    chatFlow.bubbles.push({ sender: 'visitor', text: ref }, { sender: 'staff', text: CHAT_PROMPTS.message });
-    chatFlow.step = 'message';
-    renderChatFlowScreen();
-    return;
-  }
   if (!raw) { toast('Please type a message.', 'err'); return; }
   chatFlow.message = raw;
   chatFlow.bubbles.push({ sender: 'visitor', text: raw });
   finalizeChatFlow();
-}
-async function finalizeChatFlow() {
-  if (!isOfficeHours()) { toast(`Messages to OSS can only be sent ${officeHoursLabel()}.`, 'err'); renderClosedScreen(); return; }
-  let attachments = [];
-  const fi = document.getElementById('cfFiles');
-  if (fi && fi.files && fi.files.length) {
-    validateAttachments(fi.files).forEach(p => toast(p, 'err'));
-    try { attachments = await readFilesAsAttachments(fi.files); } catch (e) { toast('Could not read one of the uploaded files.', 'err'); }
-  }
-  const db = loadDB(), src = findVisitByRef(db, chatFlow.visitRef);
-  if (!src) { toast('No visit found with that Visit ID.', 'err'); chatFlow = null; renderChatScreen(); return; }
-  const msg = { id: uid('MSG'), sender: 'visitor', senderName: 'Visitor', text: chatFlow.message, ts: new Date(), attachments };
-  let chat = db.chats.find(c => c.visitId === src.visitId && c.status === 'Open');
-  if (chat) { chat.messages.push(msg); chat.staffUnread = (chat.staffUnread || 0) + 1; chat.updatedAt = new Date(); }
-  else {
-    chat = mkChat({ visitId: src.visitId, visitorName: src.name || 'Visitor', visitorType: src.visitorType || src.type || '', contact: src.contact || '', createdAt: new Date(), updatedAt: new Date() });
-    chat.messages.push(msg);
-    chat.staffUnread = 1;
-    db.chats.push(chat);
-  }
-  saveDB(db);
-  currentPublicChatId = chat.id; persistSession();
-  chatFlow = null;
-  renderChatScreen(); renderVisitorSidebar();
 }
 function renderChatFlowInput(openNow) {
   const isMessage = chatFlow.step === 'message';
@@ -1434,7 +1483,7 @@ function renderChatFlowInput(openNow) {
     ${isMessage ? `<label class="chx-attach" for="cfFiles" title="Attach files">${icon('paperclip', 18)}<span class="chx-attach-count" id="cfAttachCount"></span></label>
       <input id="cfFiles" type="file" multiple hidden onchange="var n=this.files.length; var b=document.getElementById('cfAttachCount'); b.textContent=n; b.classList.toggle('on', n>0)">` : ''}
     <textarea id="cfText" rows="1" placeholder="${isMessage ? 'Type your message...' : 'VIS-XXXXXXXX'}" ${openNow ? '' : 'disabled'} ${isMessage ? '' : 'style="text-transform:uppercase"'} onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); submitChatFlowText();}"></textarea>
-    <button class="btn btn-gold chx-send" ${openNow ? '' : 'disabled'} onclick="submitChatFlowText()">${openNow ? icon('arrowright', 16) : 'Closed'}</button></div>`;
+    <button class="btn btn-gold chx-send" ${openNow ? '' : 'disabled'} onclick="submitChatFlowText()">${openNow ? 'Send' : 'Closed'}</button></div>`;
 }
 function chatOfficeHoursHtml() {
   return '<button type="button" class="chat-calendar-button" onclick="UniServeUX.visitorCalendar()" aria-label="View office hours and calendar" title="Office hours and calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-11 4h4"/></svg></button>';
@@ -1469,22 +1518,6 @@ function renderBubbles(c) {
   if (!c.messages.length) return `<div class="muted" style="font-size:.8rem; padding:10px;">No messages yet.</div>`;
   return c.messages.map(m => `<div class="bubble ${m.sender}"><div class="who">${m.sender === 'staff' ? 'OSS Staff' : 'Visitor'}</div><div>${escapeHtml(m.text)}</div>${m.attachments && m.attachments.length ? `<div class="attach-list">${m.attachments.map(attachChip).join('')}</div>` : ''}<div class="ts">${fmtDateTime(m.ts)}</div></div>`).join('');
 }
-function toggleChatResume() {
-  const box = document.getElementById('chResumeBox');
-  if (!box) return;
-  box.hidden = !box.hidden;
-  if (!box.hidden) document.getElementById('chResume').focus();
-}
-function resumeChat() {
-  const code = normVisitRef(document.getElementById('chResume').value);
-  if (!code) { toast('Enter your Visit ID.', 'err'); return; }
-  const db = loadDB();
-  if (!findVisitByRef(db, code)) { toast('No visit found with that Visit ID.', 'err'); return; }
-  const c = db.chats.filter(x => (x.visitId || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === code.replace(/[^A-Z0-9]/g, '')).sort((a, b) => b.updatedAt - a.updatedAt)[0];
-  if (!c) { toast('No conversation yet for this Visit ID. Close this box and send your first message.', 'err'); return; }
-  currentPublicChatId = c.id; persistSession();
-  renderChatScreen(); renderVisitorSidebar();
-}
 function renderPublicChatThread(c) {
   const db = loadDB(), fresh = db.chats.find(x => x.id === c.id);
   if (fresh) { fresh.visitorUnread = 0; saveDB(db); c = fresh; }
@@ -1503,35 +1536,13 @@ function renderPublicChatThread(c) {
           <label class="chx-attach" for="chReplyFiles" title="Attach files">${icon('paperclip', 18)}<span class="chx-attach-count" id="chAttachCount"></span></label>
           <input id="chReplyFiles" type="file" multiple hidden onchange="var n=this.files.length; var b=document.getElementById('chAttachCount'); b.textContent=n; b.classList.toggle('on', n>0)">
           <textarea id="chReply" rows="1" placeholder="Type a message..." onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); sendVisitorMessage('${c.id}');}"></textarea>
-          <button class="btn btn-gold chx-send" id="chReplyBtn" ${openNow ? '' : 'disabled'} onclick="sendVisitorMessage('${c.id}')">${openNow ? `Send ${icon('arrowright', 16)}` : 'Closed'}</button>
+          <button class="btn btn-gold chx-send" id="chReplyBtn" ${openNow ? '' : 'disabled'} onclick="sendVisitorMessage('${c.id}')">${openNow ? `Send` : 'Closed'}</button>
         </div></div>` : `<p class="chx-closed">This conversation has been closed by OSS staff.</p>`}
     </div>
-    <p class="field-hint chx-save-hint">Use your Gmail and its verification code to resume this conversation.</p>`;
+    <p class="field-hint chx-save-hint">Use your email and its verification code to resume this conversation.</p>`;
   const area = document.getElementById('chatMsgArea');
   if (area) area.scrollTop = area.scrollHeight;
   startChatPolling(c.id);
-}
-function refreshChatIfNeeded(chatId) {
-  const c = loadDB().chats.find(x => x.id === chatId);
-  if (!c) return;
-  const wrap = document.querySelector('#visitorContent [data-chat-status]');
-  if (!wrap || wrap.dataset.chatStatus !== c.status) { renderPublicChatThread(c); return; }
-  const area = document.getElementById('chatMsgArea');
-  if (area && c.messages.length !== area.querySelectorAll('.bubble').length) { area.innerHTML = renderBubbles(c); area.scrollTop = area.scrollHeight; }
-}
-async function sendVisitorMessage(id) {
-  if (!isOfficeHours()) { toast(`Messages to OSS can only be sent ${officeHoursLabel()}.`, 'err'); renderClosedScreen(); return; }
-  const db = loadDB(), c = db.chats.find(x => x.id === id), text = document.getElementById('chReply').value.trim();
-  if (!c || !text) return;
-  const btn = document.getElementById('chReplyBtn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
-  let attachments = [];
-  try { attachments = await readFilesAsAttachments(document.getElementById('chReplyFiles')?.files); } catch (e) { toast('Could not read one of the uploaded files.', 'err'); }
-  c.messages.push({ id: uid('MSG'), sender: 'visitor', senderName: 'Visitor', text, ts: new Date(), attachments });
-  c.staffUnread = (c.staffUnread || 0) + 1;
-  c.updatedAt = new Date();
-  saveDB(db);
-  renderPublicChatThread(c);
 }
 function startChatPolling(chatId) {
   stopChatPolling();
@@ -1555,13 +1566,24 @@ function clearHistoryCodeError(input){
 }
 function openHistoryVisit(ref) {
   window.historyVisitOpen=true;updateVisitorBackButton();
-  const db=loadDB(),queue=db.queues.find(q=>q.visitId===ref),appt=db.appointments.find(a=>a.visitId===ref);
+  const db=loadDB(),queue=db.queues.find(q=>q.visitId===ref),appt=db.appointments.find(a=>(a.visitId||a.requestReference||a.code)===ref);
   if(queue){myActiveQueueId=queue.id;visitorView='checkvisit';persistSession();renderVisitorSidebar();renderQueueTicket();}
   else if(appt)showPassModalReadonly(appt,true);
 }
 
-const initialVisitorFlow = new URLSearchParams(location.search).get('flow');
-if (initialVisitorFlow && Object.prototype.hasOwnProperty.call(VISITOR_TITLES, initialVisitorFlow)) {
+const initialVisitorParams = new URLSearchParams(location.search);
+const initialServiceKey = initialVisitorParams.get('service');
+const initialService = initialServiceKey ? findService(loadDB(), initialServiceKey) : null;
+const initialVisitorFlow = initialVisitorParams.get('flow');
+if (initialService) {
+  visitSelectedService = initialService;
+  visitStep = 'choose';
+  myActiveQueueId = null;
+  scheduleAttachments = [];
+  sessionStorage.removeItem('oss_activeAppointmentId');
+  persistSession();
+  navigateVisitor('visit');
+} else if (initialVisitorFlow && Object.prototype.hasOwnProperty.call(VISITOR_TITLES, initialVisitorFlow)) {
   navigateVisitor(initialVisitorFlow);
 } else {
   showVisitorHub();
@@ -1570,5 +1592,3 @@ if (initialVisitorFlow && Object.prototype.hasOwnProperty.call(VISITOR_TITLES, i
 window.addEventListener('office-calendar-change', () => { renderHubOfficeNotice(); if (!isOfficeHours()) renderClosedScreen(); else checkPortalHours(); });
 
 function disabilityPriorityHtml(prefix) { return '<div class="field disability-priority"><label for="'+prefix+'PWD"><input type="checkbox" id="'+prefix+'PWD"> Person with disability (PWD)</label><div class="field-hint">Priority service for students and guests with disabilities.</div></div>'; }
-
-UniServeUX.install();

@@ -10,7 +10,7 @@ class StaffAuth
 {
     public static function needsPasswordChange(object $user): bool {
         return \Illuminate\Support\Facades\Cache::remember('default-password:'.hash('sha256',$user->password_hash),3600,function()use($user){
-            foreach(['1234','admin','password'] as $password)if(password_verify($password,$user->password_hash))return true;
+            foreach(['1234','admin','password','admin123'] as $password)if(password_verify($password,$user->password_hash))return true;
             return false;
         });
     }
@@ -33,7 +33,7 @@ class StaffAuth
         $user = DB::table('staff_users')->where('id', $payload['id'] ?? '')->first();
         abort_unless($user && $user->is_active && ($payload['expires'] ?? 0) > time()
             && hash_equals(hash('sha256', $user->password_hash), $payload['credential'] ?? ''), 401, 'Please sign in again.');
-        abort_if($role !== null && $user->role !== $role, 403, 'Super Admin access required.');
+        abort_if($role !== null && $user->role !== $role, 403, $role === 'ADMIN' ? 'Admin access required.' : 'Super Admin access required.');
         abort_if(self::needsPasswordChange($user) && !$request->is('api/profile') && !$request->is('api/password') && !$request->is('api/logout'),403,'Change your default password in My Profile first.');
         return $user;
     }

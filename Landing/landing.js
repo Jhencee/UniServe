@@ -1,3 +1,5 @@
+// Use the shared modal, toast and status controls before page initialization.
+UniServeUX.install();
 const DB_KEY = 'ossuniserve_db_v1';
 const QUEUE_AVG_MINUTES = 4;
 const DEFAULT_GRACE_MINUTES = 15;
@@ -226,36 +228,11 @@ function icon(name, size = 17) {
     home: 'M3 12l9-9 9 9M5 10v10h14V10',
     log: 'M4 4h16v16H4V4zM8 8h8M8 12h8M8 16h5',
     eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z',
-    eyeoff: 'M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.5 21.5 0 015.06-6.06M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.5 21.5 0 01-2.61 3.68M14.12 14.12a3 3 0 11-4.24-4.24M1 1l22 22',
+    eyeoff: 'M3 9c2 4 5 6 9 6s7-2 9-6M5 12l-2 3M9 14.5l-1 3.5M15 14.5l1 3.5M19 12l2 3',
     mail: 'M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7',
   }[name] || 'M12 2v20';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p.split('M').filter(Boolean).map(seg => `<path d="M${seg}"/>`).join('')}</svg>`;
 }
-function toast(msg, type = 'ok') {
-  let wrap = document.getElementById('toastWrap');
-  if (!wrap) { wrap = document.createElement('div'); wrap.id = 'toastWrap'; wrap.className = 'toast-wrap'; document.body.appendChild(wrap); }
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `${icon(type === 'err' ? 'x' : 'check', 15)} ${msg}`;
-  wrap.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
-}
-function openModal(title, bodyHtml, buttons) {
-  closeModal();
-  const wrap = document.createElement('div');
-  wrap.className = 'overlay'; wrap.id = 'activeModal';
-  wrap.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true">
-      <div class="modal-head"><h3>${title}</h3><button class="close-x" id="modalCloseX" aria-label="Close">${icon('x', 18)}</button></div>
-      <div class="modal-body">${bodyHtml}</div>
-      <div class="modal-foot">${buttons.map((b, i) => `<button class="btn ${b.cls} btn-sm" id="modalBtn${i}">${b.label}</button>`).join('')}</div>
-    </div>`;
-  document.body.appendChild(wrap);
-  buttons.forEach((b, i) => document.getElementById(`modalBtn${i}`).onclick = b.action);
-  document.getElementById('modalCloseX').onclick = closeModal;
-  wrap.addEventListener('click', e => { if (e.target === wrap) closeModal(); });
-}
-function closeModal() { const m = document.getElementById('activeModal'); if (m) m.remove(); }
 function setTheme(t) {
   localStorage.setItem('ossuniserve_theme', t);
   document.documentElement.setAttribute('data-theme', t);
@@ -283,9 +260,8 @@ if (sessionNotice) { sessionStorage.removeItem('ossuniserve_notice'); toast(esca
 function applyPortalAvailability() {
   const schedule = document.getElementById('contactOfficeHours'); if (schedule) schedule.innerHTML = contactHoursHtml();
   const db = loadDB(), maint = !!db.systemSettings.maintenanceMode, open = isOfficeHours();
-  const maintBanner = document.getElementById('maintBanner'), hoursBanner = document.getElementById('hoursBanner');
+  const maintBanner = document.getElementById('maintBanner');
   if (maintBanner) maintBanner.hidden = !maint;
-  if (hoursBanner) { hoursBanner.hidden = open || maint; hoursBanner.textContent = OfficeCalendar.status().message + (OfficeCalendar.status().lunch ? '' : '. Next opening: ' + OfficeCalendar.status().nextLabel); }
   document.querySelectorAll('a[href*="user.html"]').forEach(a => {
     a.classList.remove('is-disabled');
     a.removeAttribute('aria-disabled');
@@ -306,6 +282,7 @@ function showLogin() {
   showScreen('loginScreen');
   LoginTurnstile.init();
   document.getElementById('loginErr').hidden = true;
+  clearLoginFieldErrors();
   const savedUser = localStorage.getItem('ossuniserve_remember_user');
   document.getElementById('loginUser').value = savedUser || '';
   document.getElementById('loginPass').value = '';
@@ -313,16 +290,23 @@ function showLogin() {
   const rememberBox = document.getElementById('loginRemember');
   if (rememberBox) rememberBox.checked = !!savedUser;
   const btn = document.getElementById('loginPassToggle');
-  if (btn) { btn.innerHTML = icon('eye', 17); btn.setAttribute('aria-label', 'Show password'); }
+  if (btn) { btn.innerHTML = profilePasswordEye(true); btn.setAttribute('aria-label', 'Show password'); btn.setAttribute('aria-pressed', 'false'); }
 }
 function togglePasswordVisibility(inputId, btn) {
   const input = document.getElementById(inputId);
   const isHidden = input.type === 'password';
   input.type = isHidden ? 'text' : 'password';
-  btn.innerHTML = icon(isHidden ? 'eyeoff' : 'eye', 17);
+  btn.innerHTML = profilePasswordEye(!isHidden);
   btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+  btn.setAttribute('aria-pressed', String(isHidden));
 }
 let loginPending = false;
+function clearLoginFieldErrors() {
+  ['loginUser','loginPass'].forEach(id=>{
+    document.getElementById(id).removeAttribute('aria-invalid');
+    document.getElementById(id+'Error').hidden=true;
+  });
+}
 async function doLogin() {
   if (loginPending) return;
   const u = document.getElementById('loginUser').value.trim();
@@ -332,10 +316,19 @@ async function doLogin() {
   const db = loadDB();
   const uLower = u.toLowerCase();
   errBox.hidden = true;
-  if (!u || !p) { errBox.textContent = 'Enter your username/email and password.'; errBox.hidden = false; return; }
+  clearLoginFieldErrors();
+  if (!u || !p) {
+    [['loginUser',u,'Enter your username or email.'],['loginPass',p,'Enter your password.']].forEach(([id,value,message])=>{
+      if(value)return;
+      document.getElementById(id).setAttribute('aria-invalid','true');
+      const error=document.getElementById(id+'Error');error.textContent=message;error.hidden=false;
+    });
+    document.getElementById(!u?'loginUser':'loginPass').focus();
+    return;
+  }
   let user, token;
   loginPending = true;
-  const signIn = document.querySelector('button[onclick="doLogin()"]');
+  const signIn = document.getElementById('staffSignIn');
   if (signIn) { signIn.disabled = true; signIn.textContent = 'Signing in...'; }
   try {
     const turnstileToken=await LoginTurnstile.getToken();
@@ -345,7 +338,7 @@ async function doLogin() {
     });
     const result = await response.json();
     if(response.status===429)throw new Error('Too many sign-in attempts. Please wait '+(response.headers.get('Retry-After')||60)+' seconds, then try again.');
-    if (!response.ok) throw new Error(response.status >= 500 ? 'The login service is unavailable. Check MySQL and the backend server.' : result.message || 'Login failed.');
+    if (!response.ok) throw new Error(response.status >= 500 ? 'Sign in is temporarily unavailable. Please try again later.' : result.message || 'Unable to sign in. Check your username and password, then try again.');
     user = result.user;
     token = result.token;
     if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role) || !token) throw new Error('Invalid login response.');
@@ -353,7 +346,7 @@ async function doLogin() {
     if (index >= 0) db.users[index] = user;
     else db.users.push(user);
   } catch (error) {
-    errBox.textContent = error instanceof TypeError || error instanceof SyntaxError ? 'Cannot reach the login service. Start MySQL in XAMPP and run php artisan serve in backend.' : error.message;
+    errBox.textContent = error instanceof TypeError || error instanceof SyntaxError ? 'Unable to connect. Check your connection and try again.' : error.message;
     errBox.hidden = false;
     return;
   } finally {
@@ -361,16 +354,20 @@ async function doLogin() {
     LoginTurnstile.reset();
     if (signIn) { signIn.disabled = false; signIn.textContent = 'Sign In'; }
   }
-  if (remember) localStorage.setItem('ossuniserve_remember_user', u);
+  if (remember) {
+    localStorage.setItem('ossuniserve_remember_user', u);
+    if (window.PasswordCredential && navigator.credentials?.store) {
+      try { await navigator.credentials.store(new PasswordCredential({id:u,password:p,name:user.fullName||u})); }
+      catch (_) { /* Browser credential saving must not block sign-in. */ }
+    }
+  }
   else localStorage.removeItem('ossuniserve_remember_user');
   logActivity(db, user, 'Logged in', { category: 'Authentication' });
   saveDB(db);
   saveSession({ currentUser: user, token });
   location.href = user.role === 'SUPER_ADMIN' ? '../Super Admin/superadmin.html' : '../Admin/admin.html';
 }
-['loginUser', 'loginPass'].forEach(id => {
-  document.getElementById(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-});
+// The login form handles Enter through its native submit event.
 
 
 function showForgotPassword() {
@@ -402,11 +399,19 @@ async function submitForgotPassword() {
  if(window.CodeCooldown?.remaining(key)){window.CodeCooldown.bind(button,key,'Send code');return;}
  window.CodeCooldown?.unbind(button);
  staffResetBusy=true;err.hidden=true;button.disabled=true;button.textContent='Sending…';
- try{const result=await staffResetRequest('/password/reset-code',{email});window.CodeCooldown?.start(key);showStaffResetForm(result.challengeId,result.message);const resend=document.createElement('button');resend.type='button';resend.className='btn btn-ghost btn-sm';resend.onclick=()=>{if(!window.CodeCooldown?.remaining(key)){showForgotPassword();document.getElementById('fpEmail').value=email;submitForgotPassword();}};document.querySelector('.staff-reset-form').appendChild(resend);window.CodeCooldown?.bind(resend,key);}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;if(button.isConnected){button.disabled=false;button.textContent='Send code';}}
+ try{const result=await staffResetRequest('/password/reset-code',{email});window.CodeCooldown?.start(key);showStaffResetForm(result.challengeId,result.message);const resend=document.createElement('button');resend.type='button';resend.className='btn btn-ghost btn-sm resend-text';resend.onclick=()=>{if(!window.CodeCooldown?.remaining(key)){showForgotPassword();document.getElementById('fpEmail').value=email;submitForgotPassword();}};const resendRow=document.createElement('div');resendRow.className='staff-reset-resend';resendRow.appendChild(resend);document.querySelector('.staff-reset-form').appendChild(resendRow);window.CodeCooldown?.bind(resend,key);}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;if(button.isConnected){button.disabled=false;button.textContent='Send code';}}
 }
 function showStaffResetForm(challengeId,message){
- openModal('Reset password',`<div class="staff-reset-form"><p class="field-hint">${escapeHtml(message)}</p><div id="fpErr" class="err-box" hidden></div><div class="field"><label for="fpCode">Verification code</label><input id="fpCode" class="verification-code-input" oninput="this.value=this.value.replace(/[^0-9]/g,'')" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div><div class="field"><label for="fpPass">New password</label><div class="profile-password-input"><input id="fpPass" type="password" autocomplete="new-password" aria-describedby="fpPasswordHint"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass',this)">${profilePasswordEye(false)}</button></div><p id="fpPasswordHint" class="field-hint" aria-live="polite">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p></div><div class="field"><label for="fpPass2">Confirm new password</label><div class="profile-password-input"><input id="fpPass2" type="password" autocomplete="new-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass2',this)">${profilePasswordEye(false)}</button></div></div></div>`,[{label:'Back',cls:'btn-ghost',action:showForgotPassword},{label:'Reset password',cls:'btn-primary',action:async()=>{if(staffResetBusy)return;const err=document.getElementById('fpErr');staffResetBusy=true;try{await staffResetRequest('/password/reset',{challengeId,code:document.getElementById('fpCode').value.trim(),password:document.getElementById('fpPass').value,password_confirmation:document.getElementById('fpPass2').value});closeModal();toast('Password updated. Sign in with your new password.','ok');}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;}}}]);
+ openModal('Verify your email',`<div class="staff-reset-form"><p class="field-hint">${escapeHtml(message)}</p><div id="fpErr" class="err-box" hidden></div><div class="field"><label for="fpCode">Verification code</label><input id="fpCode" class="verification-code-input" oninput="this.value=this.value.replace(/[^0-9]/g,'')" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000"></div></div>`,[{label:'Back',cls:'btn-ghost',action:showForgotPassword},{label:'Verify',cls:'btn-primary',action:async()=>{
+  if(staffResetBusy)return;const err=document.getElementById('fpErr'),code=document.getElementById('fpCode').value.trim(),button=document.getElementById('modalBtn1');
+  staffResetBusy=true;err.hidden=true;button.disabled=true;
+  try{await staffResetRequest('/password/verify-reset-code',{challengeId,code});showStaffNewPasswordForm(challengeId,code);}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;if(button.isConnected)button.disabled=false;}
+ }}]);
 }
+function showStaffNewPasswordForm(challengeId,code){
+ openModal('Reset password',`<div class="staff-reset-form"><p class="field-hint">Email verified. Choose your new password.</p><div id="fpErr" class="err-box" hidden></div><div class="field"><label for="fpPass">New password</label><div class="profile-password-input"><input id="fpPass" type="password" autocomplete="new-password" aria-describedby="fpPasswordHint"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass',this)">${profilePasswordEye(true)}</button></div><p id="fpPasswordHint" class="field-hint" aria-live="polite">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p></div><div class="field"><label for="fpPass2">Confirm new password</label><div class="profile-password-input"><input id="fpPass2" type="password" autocomplete="new-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" onclick="toggleProfilePassword('fpPass2',this)">${profilePasswordEye(true)}</button></div></div></div>`,[{label:'Back',cls:'btn-ghost',action:()=>showStaffResetForm(challengeId,'Enter the code from your email.')},{label:'Reset password',cls:'btn-primary',action:async()=>{if(staffResetBusy)return;const err=document.getElementById('fpErr');staffResetBusy=true;try{await staffResetRequest('/password/reset',{challengeId,code,password:document.getElementById('fpPass').value,password_confirmation:document.getElementById('fpPass2').value});closeModal();toast('Password updated. Sign in with your new password.','ok');}catch(e){err.textContent=e.message;err.hidden=false;}finally{staffResetBusy=false;}}}]);
+}
+
 
 function openPublicDisplay() {
   pdCalledIds = null;
@@ -583,7 +588,7 @@ function renderServicesPreview() {
     || (s.desc || '').toLowerCase().includes(q)
     || (s.requirements || []).some(r => r.toLowerCase().includes(q)));
   grid.innerHTML = list.length ? list.map(s => `
-    <article class="svc-preview-card">
+    <a class="svc-preview-card svc-preview-link" href="../User/user.html?service=${encodeURIComponent(s.key)}" aria-label="Start a visit for ${escapeHtml(s.label)}">
       <div class="svc-preview-head">
         <span class="svc-preview-ic">${icon(s.icon || 'home', 22)}</span>
         <div><h3>${escapeHtml(s.label)}</h3><div class="desc">${escapeHtml(s.desc || '')}</div></div>
@@ -594,7 +599,7 @@ function renderServicesPreview() {
           ? `<ul>${s.requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>`
           : `<div class="muted" style="font-size:.86rem;">No documents required.</div>`}
       </div>
-    </article>`).join('')
+    </a>`).join('')
     : `<div class="svc-empty">No service matches &ldquo;${escapeHtml(q)}&rdquo;. Try another word.</div>`;
 }
 
@@ -736,7 +741,6 @@ function contactHoursHtml() {
   return '<dl>'+rows.join('')+'</dl>';
 }
 
-UniServeUX.install();
 
 // Keep the mobile menu control inside the hero even when notices appear.
 (function(){
