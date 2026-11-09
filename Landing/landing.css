@@ -3036,7 +3036,7 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
  .landing-nav > .nav-menu-btn { order:-1; margin-left:0; margin-right:8px; }
 }
 @media(max-width:600px) {
- #landing .hero > .nav-menu-btn { left:20px; right:auto; }
+ #landing .hero > .nav-menu-btn { left:auto; right:20px; }
 }
 
 /* Center reset-code resend beneath the verification boxes. */
