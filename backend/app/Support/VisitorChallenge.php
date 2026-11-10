@@ -35,7 +35,12 @@ class VisitorChallenge
             abort(503,'Security verification is unavailable. Please try again.');
         }
         if(!$response->successful()){
-            Log::warning('Turnstile visitor verification HTTP failure',['status'=>$response->status()]);
+            $codes=$response->json('error-codes',[]);
+            $allowedCodes=['missing-input-secret','invalid-input-secret','missing-input-response','invalid-input-response','bad-request','timeout-or-duplicate','internal-error'];
+            Log::warning('Turnstile visitor verification HTTP failure',[
+                'status'=>$response->status(),
+                'error_codes'=>is_array($codes)?array_values(array_intersect($allowedCodes,$codes)):[],
+            ]);
             abort(503,'Security verification is unavailable. Please try again.');
         }
         $check=$response->json();
