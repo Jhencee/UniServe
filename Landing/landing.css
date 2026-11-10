@@ -3023,7 +3023,7 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
 #loginScreen .auth-body > .btn-primary { min-height:42px; padding:9px 14px; border-radius:6px; font-size:.82rem; font-weight:500; line-height:1.4; box-shadow:none; }
 @media(max-width:480px) {
  #loginScreen .auth-wrap { padding:12px; }
- #loginScreen .auth-card { max-width:360px; padding:18px; }
+ #loginScreen .auth-card { max-width:360px; padding:18px 14px; }
  #loginScreen .auth-head { margin:8px 0 16px; }
  #loginScreen .auth-head h2 { font-size:1rem; }
  #loginScreen .auth-head p { font-size:.74rem; }
@@ -3032,6 +3032,12 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
  #loginScreen #loginTurnstile { margin:10px 0 12px; }
  #loginScreen .auth-body > .btn-primary { min-height:44px; }
  #loginScreen .field .input-ic input { height:44px; font-size:16px; }
+}
+
+/* Keep 300px available for Turnstile's horizontal widget on small phones. */
+@media(max-width:340px) {
+ #loginScreen .auth-wrap { padding:12px 4px; }
+ #loginScreen .auth-card { padding:18px 5px; }
 }
 
 html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border); }

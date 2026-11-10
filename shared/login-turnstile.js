@@ -18,7 +18,7 @@
         script.onload=resolve;script.onerror=()=>{script.remove();reject(Error('Cannot load Cloudflare. Check your connection and try signing in again.'));};document.head.appendChild(script);
       });
       if(widget===undefined)widget=window.turnstile.render('#loginTurnstileWidget',{
-        sitekey:config.siteKey,action:'staff-login',theme:document.documentElement.dataset.theme==='dark'?'dark':'light',size:(document.getElementById('loginTurnstileWidget')?.getBoundingClientRect?.().width||300)<300?'compact':'flexible',
+        sitekey:config.siteKey,action:'staff-login',theme:document.documentElement.dataset.theme==='dark'?'dark':'light',size:'flexible',
         callback:value=>{token=value;status().textContent='';},
         'expired-callback':()=>{token='';status().textContent='Security check expired. Please complete it again.';},
         'error-callback':code=>{
