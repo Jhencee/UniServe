@@ -3363,7 +3363,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visitor-history-actions .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 7px 8px; border: 0; border-radius: 6px; color: var(--accent-strong); background: transparent; font-size: .74rem; font-weight: 500; box-shadow: none; }
 .visitor-history-actions .btn:hover { background: var(--surface-2); }
 .visitor-history-footer { margin-top: 18px; }
-.visitor-history-footer .btn { min-height: 36px; padding: 7px 0; border: 0; background: transparent; color: var(--text-soft); font-size: .75rem; font-weight: 500; box-shadow: none; }
+.history-page .visitor-history-footer .btn { min-height: 36px; padding: 7px 0; border: 0; background: transparent; color: var(--text-soft); font-size: .75rem; font-weight: 500; box-shadow: none; }
 .visitor-history-footer .btn:hover { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
 @media(max-width:600px) { .visitor-history-item, .visitor-history-item:last-child { grid-template-columns: 32px minmax(0,1fr); gap: 10px; } .visitor-history-actions { grid-column: 2; } }
 
