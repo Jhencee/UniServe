@@ -228,10 +228,18 @@ function saveDB(s) {
 }
 let sharedQueueLoading = false;
 async function loadSharedQueue() {
+  const snapshotsAtStart = new Map(sharedQueueSnapshot);
   const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/queue', { signal: AbortSignal.timeout(15000), headers: { Accept: 'application/json', Authorization: 'Bearer ' + (loadSession().token || '') } });
   const result = await response.json();
   if (!response.ok) throw new Error(result.message || 'Could not load the queue.');
   const db = loadDB();
+  // A read started before a confirmed action must not restore its older status.
+  result.queues = result.queues.map(q => {
+    if (sharedQueueSnapshot.get(q.id) !== snapshotsAtStart.get(q.id)) {
+      return db.queues.find(cached => cached.id === q.id) || q;
+    }
+    return q;
+  });
   db.queues = db.queues.filter(q => !q.shared && !result.queues.some(server => server.id === q.id || (server.visitId && server.visitId === q.visitId))).concat(result.queues);
   for (const q of result.queues) sharedQueueSnapshot.set(q.id, JSON.stringify(q));
   if(window.SecureState)SecureState.persist(db);else localStorage.setItem(DB_KEY,JSON.stringify(db));

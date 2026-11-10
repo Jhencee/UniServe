@@ -1,5 +1,28 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.resolve(__dirname,'../../../Admin/admin.js'),'utf8');
+
+test('an in-flight queue refresh cannot restore Serving after completion is confirmed',async()=>{
+ let resolveRead;
+ const serving={id:'q',shared:true,status:'Serving'},completed={...serving,status:'Completed',completedAt:'2026-11-10T08:00:00Z'};
+ let db={queues:[serving]};
+ const c={DB_KEY:'fixture',AbortSignal,window:{},loadDB:()=>structuredClone(db),loadSession:()=>({token:'fixture'}),
+  localStorage:{setItem:(key,value)=>{db=JSON.parse(value);}},
+  fetch:()=>new Promise(resolve=>{resolveRead=resolve;})};
+ vm.createContext(c);
+ vm.runInContext('const sharedQueueSnapshot=new Map();'+source.slice(source.indexOf('async function loadSharedQueue()'),source.indexOf('function loadSession()')),c);
+ c.serving=serving;c.completed=completed;
+ vm.runInContext("sharedQueueSnapshot.set('q',JSON.stringify(serving))",c);
+ const pending=c.loadSharedQueue();
+ db={queues:[completed]};
+ vm.runInContext("sharedQueueSnapshot.set('q',JSON.stringify(completed))",c);
+ resolveRead({ok:true,json:async()=>({queues:[serving]})});await pending;
+ assert.equal(db.queues[0].status,'Completed');
+ assert.equal(db.queues[0].completedAt,completed.completedAt);
+ // A fresh read still accepts subsequent server updates.
+ const next=c.loadSharedQueue();
+ resolveRead({ok:true,json:async()=>({queues:[{...completed,feedback:{rating:5}}]})});await next;
+ assert.equal(db.queues[0].feedback.rating,5);
+});
 test('redacting a cached completed confidential queue does not send a PATCH or display an alert',async()=>{
  const calls=[],alerts=[],c={DB_KEY:'fixture',localStorage:{setItem(){}},fetch:async(url,options)=>{calls.push({url,options});return {ok:false,json:async()=>({message:'Confidential case access and an active unlock are required.'})};},loadSession:()=>({token:'fixture'}),toast:message=>alerts.push(message),escapeHtml:String};vm.createContext(c);
  vm.runInContext(source.slice(source.indexOf('const sharedQueueSnapshot ='),source.indexOf('let sharedQueueLoading =')),c);
