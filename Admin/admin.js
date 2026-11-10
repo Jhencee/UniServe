@@ -1102,7 +1102,7 @@ function appointmentViewSwitchHtml() {
 }
 function dashboardScheduledVisitors(db) {
   const rows = db.appointments.filter(a => !a.restricted && a.date === OfficeCalendar.parts().date && a.status === 'Booked').sort(visitorTimeSort);
-  return `<section class="card"><div class="card-head"><div><h3>Today's scheduled visitors</h3><div class="desc">Confirmed visits awaiting check-in</div></div></div><div class="card-pad">${rows.length ? rows.slice(0, 4).map(arrivalVisitorHtml).join('') : emptyChart('No visitors awaiting check-in today.')}</div><div class="analytics-footer"><span>${rows.length} awaiting check-in</span><button type="button" class="analytics-link" onclick="openVisitorSchedule()">View schedule</button></div></section>`;
+  return `<section class="card"><div class="card-head"><div><h3>Today's scheduled visitors</h3><div class="desc">Confirmed visits awaiting check-in</div></div></div><div class="card-pad">${rows.length ? rows.slice(0, 4).map(r => arrivalVisitorHtml(r, { readOnly: true })).join('') : emptyChart('No visitors awaiting check-in today.')}</div><div class="analytics-footer"><span>${rows.length} awaiting check-in</span><button type="button" class="analytics-link" onclick="openVisitorSchedule()">View schedule</button></div></section>`;
 }
 function visitorTimeSort(a, b) {
   return String(UniServeUX.appointmentTime(a.time) || '99:99').localeCompare(String(UniServeUX.appointmentTime(b.time) || '99:99'));
@@ -1169,10 +1169,10 @@ function renderAppointments(keep) {
   if (appointmentView === 'calendar') renderVisitorCalendar();
   if(arrivalFocused)document.getElementById('arrivalVisitId').focus();
 }
-function arrivalVisitorHtml(r) {
+function arrivalVisitorHtml(r, options = {}) {
   const canCheckIn=r.shared&&r.status==='Booked'&&r.date===today()&&OfficeCalendar.status().open&&!UniServeUX.conflict(r);
   const note=r.status==='Booked'?(r.date!==today()?'Check in on the appointment day.':!OfficeCalendar.status().open?'Check-in is available during office hours.':UniServeUX.conflict(r)?'This appointment needs rescheduling.':'Confirm the visitor has arrived before checking in.'):r.status==='Requested'?'Staff approval is required before check-in.':r.status==='Checked-in'?'Already checked in.':'Check-in is unavailable for this visit.';
-  return '<article class="arrival-visitor"><div class="arrival-visitor-details"><strong>'+escapeHtml(r.name)+'</strong><span class="mono">'+escapeHtml(r.visitId||r.code||r.id)+'</span><span>'+escapeHtml(r.service||'')+'</span><span>'+escapeHtml(r.date===today()?(r.time?UniServeUX.timeLabel(r.time):'Time not set'):(r.date||'Not scheduled')+' · '+(r.time?UniServeUX.timeLabel(r.time):'Time not set'))+'</span>'+(!canCheckIn?'<small>'+escapeHtml(note)+'</small>':'')+'</div><div class="arrival-visitor-actions">'+(!canCheckIn?statusPill(r.status):'')+'<button type="button" class="btn '+(canCheckIn?'btn-primary':'btn-ghost')+'" data-arrival-id="'+escapeHtml(r.id)+'" onclick="openApptDetail(this.dataset.arrivalId'+(canCheckIn?'':',false,true')+')">'+(canCheckIn?'Check in':'Details')+'</button></div></article>';
+  return '<article class="arrival-visitor"><div class="arrival-visitor-details"><strong>'+escapeHtml(r.name)+'</strong><span class="mono">'+escapeHtml(r.visitId||r.code||r.id)+'</span><span>'+escapeHtml(r.service||'')+'</span><span>'+escapeHtml(r.date===today()?(r.time?UniServeUX.timeLabel(r.time):'Time not set'):(r.date||'Not scheduled')+' · '+(r.time?UniServeUX.timeLabel(r.time):'Time not set'))+'</span>'+(!canCheckIn?'<small>'+escapeHtml(note)+'</small>':'')+'</div><div class="arrival-visitor-actions">'+(!canCheckIn || options.readOnly?statusPill(r.status):'')+(options.readOnly?'':'<button type="button" class="btn '+(canCheckIn?'btn-primary':'btn-ghost')+'" data-arrival-id="'+escapeHtml(r.id)+'" onclick="openApptDetail(this.dataset.arrivalId'+(canCheckIn?'':',false,true')+')">'+(canCheckIn?'Check in':'Details')+'</button>')+'</div></article>';
 }
 function renderTodayArrivals() {
   const container=document.getElementById('todayArrivalsList');if(!container)return;
