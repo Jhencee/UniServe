@@ -2070,6 +2070,12 @@ a.is-disabled:hover {
     margin-bottom: 28px;
 }
 
+.pd-top > button.btn {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
 .pd-top .brandline .name {
     font-family: var(--font-display);
     font-weight: 700;
