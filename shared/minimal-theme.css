@@ -1,8 +1,10 @@
 /* Common surfaces and controls across the four UniServe portals. */
 /* Shared return navigation: color-only hover, with visible keyboard focus. */
 body .system-back-link,
+body .btn.system-back-link,
 body #loginScreen .system-back-link,
 body .back-to-transactions,
+body .btn.back-to-transactions,
 body .pass-actions-footer > button:first-child {
  display:inline-flex; align-items:center; justify-content:flex-start;
  min-height:44px; padding:8px 0; border:0; border-radius:0;
@@ -12,8 +14,14 @@ body .pass-actions-footer > button:first-child {
  transition:color .15s ease;
 }
 body .system-back-link:hover,
+body .btn.system-back-link:hover,
+body .btn.system-back-link:active,
+body .btn.system-back-link:focus,
 body #loginScreen .system-back-link:hover,
 body .back-to-transactions:hover,
+body .btn.back-to-transactions:hover,
+body .btn.back-to-transactions:active,
+body .btn.back-to-transactions:focus,
 body .pass-actions-footer > button:first-child:hover {
  background:transparent; color:var(--accent-strong);
  text-decoration:none; box-shadow:none; transform:none;
