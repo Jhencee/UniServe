@@ -1,13 +1,10 @@
 # The API lives below the repository root; the frontend deploys separately.
 load("//anybuild/tools:php.bzl", "php_build", "php_config", "php_serve")
 
-app_subdir = "backend"
-
 config = php_config(
     schema = 1,
-    app_subdir = app_subdir,
     php_framework = "laravel",
-    php_version = "8.3.29",
+    php_version = "8.4.16",
     composer_enable = True,
     php_public_dir = "public",
     commands = {
@@ -17,4 +14,13 @@ config = php_config(
 )
 
 build = php_build(config)
-php_serve(config, build, name = "uniserve-api")
+# Copy the Laravel application before the provider's Composer install step.
+# A subdirectory marker alone did not populate /app in the Wasmer build.
+php_serve(
+    config,
+    build,
+    name = "uniserve-api",
+    build_pre = [
+        copy("backend/", "/app", ignore = [".env", ".env.*", "vendor", "node_modules", "storage/logs/*"]),
+    ],
+)
