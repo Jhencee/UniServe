@@ -793,7 +793,7 @@ function renderVisitChoose() {
         <p>Choose your preferred date and an available slot. Staff approve or reschedule your request.</p>
         <span class="svc-go">Request an appointment</span>
       </button>
-    </div><div class="visitor-page-wrap visit-calendar-link"><span class="field-hint">Planning an appointment? Check opening days.</span><button class="btn btn-ghost btn-sm" onclick="UniServeUX.visitorCalendar()">View office calendar</button></div>
+    </div><div class="visitor-page-wrap visit-calendar-link"><span class="field-hint">Planning an appointment? Check opening days. <button type="button" class="visit-calendar-icon" onclick="UniServeUX.visitorCalendar()" aria-label="View office calendar" title="View office calendar">${icon('calendar', 17)}</button></span></div>
     </section>`;
 }
 function selectedBarHtml(ic, title, svc) {

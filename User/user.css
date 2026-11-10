@@ -2845,6 +2845,9 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visit-entry-heading { margin-bottom:18px; }
 .visit-entry-heading p { font-size:.82rem; color:var(--text-soft); line-height:1.6; margin-top:6px; }
 .visit-calendar-link { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; flex-wrap:wrap; }
+.visit-calendar-icon { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; border:0; border-radius:4px; background:transparent; color:var(--accent-strong); vertical-align:middle; cursor:pointer; }
+.visit-calendar-icon:hover { background:var(--surface-2); }
+.visit-calendar-icon:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .entry-method-grid { grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; }
 @media(max-width:600px) { .entry-method-grid { grid-template-columns:minmax(0,1fr); } }
 .visitor-form-help { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); font-size:.82rem; color:var(--text-soft); }
