@@ -1131,7 +1131,7 @@ async function renderQueueTicket() {
     sharedTicketLoading = true;
     try {
       const api=globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api';
-      const [response,capacity]=await Promise.all([fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'}}),fetch(api+'/walk-in-capacity').then(r=>r.ok?r.json():null).catch(()=>null)]);
+      const [response,capacity]=await Promise.all([fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)}),fetch(api+'/walk-in-capacity',{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null)]);
       window.UniServeWalkInCapacity=capacity;
       const result = await response.json();
       if (response.ok) {
@@ -1268,9 +1268,17 @@ async function cancelMyQueue() {
 }
 function startTicketPolling() {
   stopTicketPolling();
-  ticketPollTimer = setInterval(() => { if ((!window.UniServeRealtime?.connected || document.visibilityState === 'hidden') && (visitorView === 'visit' || visitorView === 'checkvisit') && myActiveQueueId) renderQueueTicket(); }, 3000);
+  // Socket subscriptions can survive a missed event or a phone going to sleep.
+  // Keep a server check active even while realtime reports a connection.
+  ticketPollTimer = setInterval(refreshActiveVisitorTicket, 3000);
 }
 function stopTicketPolling() { if (ticketPollTimer) { clearInterval(ticketPollTimer); ticketPollTimer = null; } }
+function refreshActiveVisitorTicket() {
+  if (document.visibilityState === 'hidden') return;
+  if ((visitorView === 'visit' || visitorView === 'checkvisit') && myActiveQueueId && !visitorHubOpen) renderQueueTicket();
+}
+document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
+window.addEventListener('pageshow', refreshActiveVisitorTicket);
 
 function renderCheckVisitScreen() {
   document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID to see your pass, queue status or appointment.</p></div><div class="field"><label for="cvInput">Visit ID</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where is my Visit ID?</summary><p>Find it on your Visit Pass or confirmation email. Each visit has its own ID. You can enter older Visit IDs too.</p></details></div>`;
