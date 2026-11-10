@@ -4,7 +4,8 @@ load("//anybuild/tools:php.bzl", "php_build", "php_config", "php_serve")
 config = php_config(
     schema = 1,
     php_framework = "laravel",
-    php_version = "8.4.16",
+    # Anybuild maps the minor version to Wasmer's published PHPix package.
+    php_version = "8.4",
     composer_enable = True,
     php_public_dir = "public",
     commands = {
