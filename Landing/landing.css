@@ -3092,3 +3092,32 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
  .landing-nav .nav-link-primary { margin-left:4px; padding:9px 10px; }
  .landing-nav .nav-sep { margin:0 4px; }
 }
+
+/* Give the phone layout its own readable hierarchy and spacing. */
+@media screen and (max-width:600px) {
+ .landing-nav { padding:12px 20px; }
+ .landing-nav .brandline { gap:9px; }
+ .landing-nav .crest, .landing-nav #crestSlotA img { width:36px; height:36px; }
+ .landing-nav .brandline .name .brand-title { font-size:1.2rem; line-height:1.2; }
+ .landing-nav .name small { font-size:.65rem; line-height:1.4; white-space:normal; }
+ .landing-nav .brand-campus, .landing-nav .brand-separator { display:none; }
+ #landing .hero { padding:72px 24px 36px; }
+ #landing .hero::after { background:linear-gradient(110deg,rgba(42,0,0,.94),rgba(42,0,0,.76)); }
+ #landing .hero-flock { display:none; }
+ #landing .hero .eyebrow { font-size:.65rem; letter-spacing:.14em; margin-bottom:16px; gap:10px; }
+ #landing .hero .eyebrow::before { width:24px; }
+ #landing .hero h1 { font-size:clamp(2rem,8vw,2.7rem); line-height:1.14; letter-spacing:-.025em; text-wrap:balance; margin-bottom:16px; }
+ #landing .hero p { font-size:.9375rem; line-height:1.7; max-width:34ch; }
+ #landing .hero-actions { display:grid; grid-template-columns:minmax(0,1fr); width:100%; max-width:100%; gap:12px; margin-top:24px; }
+ #landing .hero-actions .btn { width:100%; height:auto; min-height:48px; padding:12px 16px; font-size:.875rem; }
+ #landing .status-wrap { margin-top:0; padding:24px 20px 0; }
+ #landing .status-bar { grid-template-columns:minmax(0,1fr); padding:0; border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,.05); }
+ #landing .status-main { grid-column:1; padding:18px; }
+ #landing .status-title { font-size:1.125rem; }
+ #landing .status-sub { font-size:.75rem; line-height:1.6; margin-top:4px; }
+ #landing .status-cell:not(.status-main) { display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; gap:16px; padding:12px 18px; border-left:0; border-bottom:1px solid var(--border); }
+ #landing .status-cell:last-child { border-bottom:0; }
+ #landing .status-lbl { font-size:.75rem; letter-spacing:0; text-transform:none; flex-shrink:0; }
+ #landing .status-num, #landing .status-num.long { font-size:.875rem; white-space:normal; overflow-wrap:anywhere; text-align:right; }
+ #landing .section-pad { padding:36px 20px; }
+}
