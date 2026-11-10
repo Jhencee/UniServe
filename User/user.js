@@ -1590,4 +1590,4 @@ if (initialService) {
 
 window.addEventListener('office-calendar-change', () => { renderHubOfficeNotice(); if (!isOfficeHours()) renderClosedScreen(); else checkPortalHours(); });
 
-function disabilityPriorityHtml(prefix) { return '<div class="field disability-priority"><label for="'+prefix+'PWD"><input type="checkbox" id="'+prefix+'PWD"> Person with disability (PWD)</label><div class="field-hint">Priority service for students and guests with disabilities.</div></div>'; }
+function disabilityPriorityHtml(prefix) { return '<div class="field disability-priority"><label for="'+prefix+'PWD"><input type="checkbox" id="'+prefix+'PWD"> Person with disability (PWD)</label></div>'; }
