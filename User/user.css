@@ -3365,7 +3365,16 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visitor-history-footer { margin-top: 18px; }
 .history-page .visitor-history-footer .btn { min-height: 36px; padding: 7px 0; border: 0; background: transparent; color: var(--text-soft); font-size: .75rem; font-weight: 500; box-shadow: none; }
 .visitor-history-footer .btn:hover { color: var(--accent-strong); text-decoration: underline; text-underline-offset: 3px; }
-@media(max-width:600px) { .visitor-history-item, .visitor-history-item:last-child { grid-template-columns: 32px minmax(0,1fr); gap: 10px; } .visitor-history-actions { grid-column: 2; } }
+@media(max-width:600px) {
+ .visitor-history-item, .visitor-history-item:last-child { grid-template-columns: 26px minmax(0,1fr) auto; gap: 8px; align-items: center; }
+ .visitor-history-icon { width:26px; height:26px; }
+ .visitor-history-title { gap:4px 6px; }
+ .visitor-history-title b { font-size:.76rem; }
+ .visitor-history-title .pill { font-size:.6rem; padding:2px 5px; }
+ .visitor-history-meta { gap:3px 6px; font-size:.65rem; }
+ .visitor-history-actions { grid-column:3; grid-row:1; flex-wrap:nowrap; }
+ .history-page .visitor-history-actions .btn { padding:7px 0; font-size:.7rem; white-space:nowrap; }
+}
 
 /* Keep each uploaded file and its review together. */
 .appointment-requirements { margin-top: 24px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
