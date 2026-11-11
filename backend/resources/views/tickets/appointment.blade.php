@@ -11,7 +11,7 @@
  if(!empty($ticket['isPWD']))$visitor.=' - PWD priority';
  $fields=[
   'Office'=>$ticket['office']??'Office of Student Services',
-  'Scheduled'=>$at ? $at->format('M j, Y - g:i A') : 'Pending',
+  'Scheduled'=>$at ? $at->format('m/d/y - g:i A') : 'Pending',
   'Reference'=>$reference,
   'Visitor'=>$ticket['name']??'Visitor',
   'Status'=>$ticket['status']??'Requested',
