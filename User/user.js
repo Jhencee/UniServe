@@ -615,9 +615,12 @@ function maintenanceOn() { return !!loadDB().systemSettings.maintenanceMode; }
 function renderMaintenanceNotice() {
   document.getElementById('visitorContent').innerHTML = `
     <div class="card card-pad visitor-page-wrap">
-      <div class="info-banner warn">${icon('alert', 14)} The visitor portal is closed for maintenance.</div>
-      <p style="font-size:.9rem; line-height:1.6; color:var(--text-soft); margin-bottom:16px;">New visits are unavailable during maintenance. You can still check an existing visit or view your history. Please contact the front desk for assistance.</p>
-      <a class="btn system-back-link" href="../Landing/landing.html">Back to home</a>
+      <div class="visitor-maint-banner" role="status">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.5" r=".75" fill="currentColor" stroke="none"/></svg>
+        <span class="visitor-maint-desktop">Visitor Portal is temporarily closed for maintenance.</span>
+        <span class="visitor-maint-mobile">Visitor Portal under maintenance.</span>
+      </div>
+      <p style="font-size:.9rem; line-height:1.6; color:var(--text-soft); margin-bottom:16px;">New visits are paused. You can still check your visit or history. For help, contact the front desk.</p>
     </div>`;
 }
 
@@ -632,7 +635,7 @@ function renderHubOfficeNotice() {
   const notice = document.getElementById('visitorHubOfficeNotice');
   if (!notice) return;
   notice.hidden = isOfficeHours();
-  notice.innerHTML = notice.hidden ? '' : `${icon('clock',18)}<span><strong>The office is closed.</strong> You can still request an appointment or check your visit.</span>`;
+  notice.innerHTML = notice.hidden ? '' : `${icon('clock',18)}<span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment or check your visit.'}</span>`;
 }
 function updateVisitorBackButton() {
   const button=document.querySelector('#visitorSectionBar button');
@@ -718,7 +721,7 @@ function renderVisitPicker() {
   document.getElementById('visitorContent').innerHTML = `
     <section class="visit-start-page" aria-label="Start your visit">
     ${stepperHtml(1)}
-    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span class="visit-closed-icon" aria-hidden="true">${icon('clock',18)}</span><span><strong>The office is closed.</strong> You can still request an appointment.</span></div>`:''}
+    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span class="visit-closed-icon" aria-hidden="true">${icon('clock',18)}</span><span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment.'}</span></div>`:''}
     <div class="visit-entry-heading visitor-page-wrap"><h3>Choose a service</h3><p>Select your visitor type, then choose the service you need.</p></div>
     <div class="ux-filters">
       <div class="ux-field">
