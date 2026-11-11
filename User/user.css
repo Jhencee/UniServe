@@ -3583,25 +3583,19 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
 .modal:has(.visitor-terms-content) .modal-head,
 .modal:has(.visitor-terms-content) .modal-foot { flex-shrink: 0; }
 
-/* Visit actions share one aligned row, with cancellation kept at the end. */
-#visitorContent .appointment-pass-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding-top:16px; margin-top:18px; }
+/* Use the same stacked visit actions on desktop and mobile. */
+#visitorContent .appointment-pass-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:10px; padding-top:16px; margin-top:18px; }
 #visitorContent .appointment-pass-actions .pass-actions-main,
-#visitorContent .appointment-pass-actions .pass-actions-secondary { display:flex; align-items:center; flex:0 1 auto; gap:10px; }
+#visitorContent .appointment-pass-actions .pass-actions-secondary { display:grid; grid-template-columns:minmax(0,1fr); width:100%; gap:10px; }
 #visitorContent .appointment-pass-actions .btn { box-sizing:border-box; min-height:40px; padding:9px 14px; border-radius:6px; line-height:1.4; font-size:.78rem; }
+#visitorContent .appointment-pass-actions .pass-actions-main .btn,
+#visitorContent .appointment-pass-actions .pass-actions-secondary .btn { width:100%; min-height:44px; }
 #visitorContent .appointment-pass-actions .pass-actions-secondary .btn { border:1px solid var(--border); background:var(--surface); color:var(--text); text-decoration:none; }
 #visitorContent .appointment-pass-actions .pass-actions-secondary .btn:hover { background:var(--surface-2); border-color:var(--accent); text-decoration:none; }
-#visitorContent .appointment-pass-actions .pass-actions-footer { display:flex; flex:1 1 auto; justify-content:flex-end; align-items:center; gap:12px; margin:0 0 0 auto; padding:0; }
-#visitorContent .appointment-pass-actions .pass-actions-footer .btn-danger-ghost { border:0; background:transparent; color:var(--danger); }
-@media(max-width:520px) {
- #visitorContent .appointment-pass-actions .pass-actions-main,
- #visitorContent .appointment-pass-actions .pass-actions-secondary { flex:1 1 calc(50% - 10px); }
- #visitorContent .appointment-pass-actions .pass-actions-main .btn,
- #visitorContent .appointment-pass-actions .pass-actions-secondary .btn { width:100%; min-height:44px; }
- #visitorContent .appointment-pass-actions .pass-actions-footer { flex-basis:100%; justify-content:space-between; margin:2px 0 0; }
- #visitorContent .appointment-pass-actions .pass-actions-footer > .btn { padding-left:0; padding-right:0; }
- #visitorContent .appointment-pass-actions .pass-actions-footer > .btn:first-child { text-align:left; justify-content:flex-start; }
- #visitorContent .appointment-pass-actions .pass-actions-footer > .btn-danger-ghost { margin-left:auto; text-align:right; justify-content:flex-end; }
-}
+#visitorContent .appointment-pass-actions .pass-actions-footer { display:flex; width:100%; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin:2px 0 0; padding:0; }
+#visitorContent .appointment-pass-actions .pass-actions-footer > .btn { width:auto; padding-left:0; padding-right:0; }
+#visitorContent .appointment-pass-actions .pass-actions-footer > .btn:first-child { text-align:left; justify-content:flex-start; }
+#visitorContent .appointment-pass-actions .pass-actions-footer > .btn-danger-ghost { margin-left:auto; text-align:right; justify-content:flex-end; border:0; background:transparent; color:var(--danger); }
 
 /* Compact ticket branding, with the crest matching the two university-name lines. */
 .printable-ticket .ticket-v2-logo { box-sizing:border-box; width:31.2px; height:31.2px; align-self:start; padding:0; }
