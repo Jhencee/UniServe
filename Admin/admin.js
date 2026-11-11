@@ -1224,7 +1224,7 @@ function renderApptTable() {
     <td>${readinessPillHtml(computeReadiness(findService(db, r.service), r.attachments), true)}</td>
     <td><div class="appointment-status-list">${statusPill(r.status)} ${arrivalStatusPill(r)} ${r.earlierSlotOptIn?'<span class="appointment-status-note">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</div></td>
     <td class="act-cell appointment-action-cell">${appointmentActionsHtml(r)}</td></tr>`;
-  }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters. <button type="button" class="btn btn-ghost btn-sm" onclick="resetStaffTableFilters(\'appt\')">Reset filters</button>':'No appointments yet.'}</td></tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
 }
 function appointmentActionsHtml(r){
   if(r.restricted)return '<span class="muted">Confidential access required</span>';
@@ -1625,7 +1625,7 @@ function renderTxnTable() {
     <td class="act-cell appointment-action-cell"><button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
       <div class="kebab-menu" id="kebab_${r.id}" hidden>
         ${isConfidentialTxn(r)&&!currentUser.confidentialApprover&&!(window.isAssignedConfidentialRecord?.(r.id)) ? `<button class="kebab-item" onclick="closeKebabs();requestTransactionAccess('${r.id}')">Request access</button>` : `<button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button><button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button>`}</div></td></tr>`;
-  }).join('') : `<tr class="empty-row"><td colspan="${showService ? 9 : 8}">${db.transactions.length?'No transactions match these filters. <button type="button" class="btn btn-ghost btn-sm" onclick="resetStaffTableFilters(\'txn\')">Reset filters</button>':'No transactions yet.'}</td></tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="${showService ? 9 : 8}">${db.transactions.length?'No transactions match these filters.':'No transactions yet.'}</td></tr>`;
 }
 function closeKebabs() { document.querySelectorAll('.kebab-menu').forEach(m => { m.hidden = true; }); }
 function toggleKebab(ev, id) {
