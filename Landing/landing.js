@@ -489,7 +489,7 @@ function renderPublicDisplay() {
     <div class="qd-bar">
       <div class="qd-bar-item qd-state"><span class="qd-dot ${open ? 'open' : 'closed'}" aria-hidden="true"></span><b>${open ? 'Office open' : 'Office closed'}</b></div>
       <div class="qd-bar-item"><span class="qd-bar-lbl">Waiting</span><b>${waitingAll.length}</b></div>
-      <div class="qd-bar-item"><span class="qd-bar-lbl">${open ? 'Estimated wait' : availability.lunch ? 'Back at' : 'Reopens'}</span><b>${open ? (callable ? (Number.isFinite(intake?.waitEstimates?.[waitingAll[0]?.id]) ? fmtWaitDuration(intake.waitEstimates[waitingAll[0].id]) : 'Unavailable') : 'None') : escapeHtml(reopening)}</b></div>
+      <div class="qd-bar-item ${open ? '' : 'qd-reopening'}"><span class="qd-bar-lbl">${open ? 'Estimated wait' : availability.lunch ? 'Back at' : 'Reopens'}</span><b>${open ? (callable ? (Number.isFinite(intake?.waitEstimates?.[waitingAll[0]?.id]) ? fmtWaitDuration(intake.waitEstimates[waitingAll[0].id]) : 'Unavailable') : 'None') : escapeHtml(reopening)}</b></div>
       <div class="qd-bar-item qd-bar-end">
         <span class="qd-clock">${fmtTime(new Date())}</span>
         <button class="qd-voice ${pdVoice ? 'on' : ''}" onclick="togglePdVoice()" aria-pressed="${pdVoice}" ${open ? '' : 'disabled'}>Voice announcements: ${open ? (pdVoice ? 'On' : 'Off') : 'Paused'}</button>

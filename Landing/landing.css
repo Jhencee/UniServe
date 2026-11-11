@@ -3207,3 +3207,20 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
  #landing .status-num, #landing .status-num.long { font-size:.875rem; white-space:normal; overflow-wrap:anywhere; text-align:right; }
  #landing .section-pad { padding:36px 20px; }
 }
+
+/* Keep the phone queue summary compact; the closure notice contains reopening details. */
+@media screen and (max-width:600px) {
+ #publicDisplay .pd-top { margin-bottom:12px; }
+ #publicDisplay .pd-content, #publicDisplay .qd-cols { gap:12px; }
+ #publicDisplay .qd-bar { gap:10px 12px; padding-bottom:12px; }
+ #publicDisplay .qd-bar .qd-reopening { display:none; }
+ #publicDisplay .qd-bar:has(.qd-reopening) .qd-state { grid-column:1; }
+ #publicDisplay .qd-bar:has(.qd-reopening) .qd-bar-item:nth-child(2) { flex-direction:row; align-items:center; justify-content:flex-end; gap:8px; }
+ #publicDisplay .qd-bar-end { gap:8px; }
+ #publicDisplay .qd-voice:disabled { min-height:28px; padding-block:0; font-size:.7rem; }
+ #publicDisplay .qd-panel { padding:14px; }
+ #publicDisplay .qd-panel .qd-label { margin-bottom:8px; }
+ #publicDisplay .qd-empty { margin:0; padding:4px 0; font-size:.8125rem; line-height:1.5; }
+ #publicDisplay .qd-closed { padding:10px 12px; }
+ #publicDisplay .qd-closed b { line-height:1.5; }
+}
