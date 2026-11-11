@@ -61,7 +61,7 @@ window.downloadVisitorTicket = async function(button) {
       img.src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read the ticket logo.'));reader.readAsDataURL(blob);});
     }));
     // Rasterize at export size so text and the embedded logo retain their detail.
-    const scale=4;
+    const scale=2;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('width',width*scale);svg.setAttribute('height',height*scale);
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
