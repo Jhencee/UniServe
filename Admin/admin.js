@@ -323,7 +323,7 @@ function readinessPillHtml(r, short) {
   const status = r.status || r;
   const label = short ? (status === 'READY' ? 'Ready' : status === 'FOR_REVIEW' ? 'For review' : 'Incomplete') : (r.label || r);
   const cls = status === 'READY' ? 'ready' : (status === 'FOR_REVIEW' ? 'review' : 'incomplete');
-  return `<span class="readiness-pill ${cls}">${cls === 'incomplete' ? '' : icon(status === 'READY' ? 'check' : 'alert', 12) + ' '}${escapeHtml(label)}</span>`;
+  return `<span class="readiness-pill ${cls}">${escapeHtml(label)}</span>`;
 }
 const STARS = n => '&#9733;'.repeat(n) + '&#9734;'.repeat(5 - n);
 function feedbackReadoutHtml(q) {
