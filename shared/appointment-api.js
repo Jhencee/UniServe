@@ -76,7 +76,7 @@
           try { challenge=await request('/history/code','POST',{email,turnstileToken}); }
           finally { VisitorTurnstile.reset('appointmentSecurity'); }
           window.CodeCooldown?.start(cooldownKey);
-          openModal('Verify your email', `<p class="field-hint">A verification code has been requested for ${escapeHtml(email)}. Check your inbox or spam folder.</p><div class="field"><label for="appointmentCode">Verification code</label><input id="appointmentCode" class="verification-code-input" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div><div id="appointmentResend" style="display:flex;justify-content:center;margin-top:12px"></div>`,[
+          openModal('Verify your email', `<p class="field-hint">A verification code has been requested for ${escapeHtml(email)}.</p><div class="field"><label class="verification-code-label" for="appointmentCode">Verification code</label><input id="appointmentCode" class="verification-code-input" placeholder="000000" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div><div id="appointmentResend" style="display:flex;justify-content:center;margin-top:12px"></div>`,[
             {label:'Cancel',cls:'btn-ghost',action:closeModal},
             {label:'Verify',cls:'btn-primary',action:async()=>{
               try {const result=await request('/history/verify','POST',{challengeId:challenge.challengeId,code:document.getElementById('appointmentCode').value.trim()});sessionStorage.setItem('ossuniserve_visitor_token',result.visitorToken);cache(result);closeModal();await onSuccess();}catch(e){toast(escapeHtml(e.message),'err');}

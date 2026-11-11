@@ -12,7 +12,7 @@ class StaffPasswordResetController extends Controller {
   $id=(string)Str::uuid();$u=DB::table('staff_users')->whereRaw('LOWER(email) = ?',[$email])->where('is_active',true)->first();
   abort_unless($u,422,'This email is not linked to an active staff account.');
   if($u){$code=(string)random_int(100000,999999);Cache::put('staff-reset:'.$id,['user'=>$u->id,'credential'=>hash('sha256',$u->password_hash),'hash'=>hash_hmac('sha256',$code,config('app.key')),'attempts'=>0,'expires'=>time()+300],300);\App\Jobs\SendPasswordResetCode::dispatch($id,$email,$code);SystemAudit::record($u,'Authentication','Password reset requested');}
-  return response()->json(['challengeId'=>$id,'message'=>'A verification code has been requested. Check your inbox or spam folder.']);
+  return response()->json(['challengeId'=>$id,'message'=>'A verification code has been requested.']);
  }
  public function verify(Request $r){
   $d=$r->validate(['challengeId'=>'required|uuid','code'=>['required','regex:/^[0-9]{6}$/']]);

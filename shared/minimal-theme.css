@@ -224,3 +224,14 @@ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-prev
  body .svc-manage-card, body .svc-manage-card::before, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]), body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { transition:none; }
  body .svc-manage-card:hover, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:none; }
 }
+
+/* Center labels above verification code inputs across all verification modals. */
+.field > label.verification-code-label { display:block; text-align:center; }
+
+/* Keep verification dialogs compact while separating the code label from the note. */
+body :is(.modal, .history-code-page):has(.verification-code-label) .modal-head { padding:14px 26px; }
+body :is(.modal, .history-code-page):has(.verification-code-label) .modal-body { padding:18px 26px 14px; }
+body :is(.modal, .history-code-page):has(.verification-code-label) .modal-foot { padding:12px 26px; }
+body .field:has(> .verification-code-label) { margin-top:14px; margin-bottom:0; }
+body .field:has(> .verification-code-label) .code-boxes { margin:10px auto 8px; }
+body :is(.modal, .history-code-page):has(.verification-code-label) .resend-text { min-height:32px; padding:4px 10px; }
