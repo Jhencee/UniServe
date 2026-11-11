@@ -130,9 +130,7 @@ function migrateConfidentialAccess(db) {
 
 function freshState() {
   return {
-    users: [
-      { id: 'u1', username: 'admin', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
-    ],
+    users: [],
     services: DEFAULT_SERVICES.map(s => ({ ...s, requirements: [...s.requirements] })),
     transactions: [], appointments: [], chats: [],
     activityLog: [], queues: [], queueCounters: {}, visitorLog: [], visitCounter: 0,

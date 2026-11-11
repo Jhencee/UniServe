@@ -52,3 +52,11 @@ it('validates duplicate accounts and protects reserved super admin identifiers',
     $this->postJson('/api/admins', $data, superAdminHeaders())->assertUnprocessable();
     $this->patchJson('/api/admins/u1', ['active' => false], superAdminHeaders())->assertNotFound();
 });
+
+it('lists database super admins without exposing credentials or allowing account management edits', function () {
+    $headers = superAdminHeaders();
+    $response = $this->getJson('/api/admins', $headers)->assertOk()->assertJsonCount(1, 'users')
+        ->assertJsonPath('users.0.id', 'u1')->assertJsonPath('users.0.role', 'SUPER_ADMIN');
+    expect($response->json('users.0'))->not->toHaveKeys(['password', 'password_hash']);
+    $this->deleteJson('/api/admins/u1', [], $headers)->assertNotFound();
+});

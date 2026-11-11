@@ -12,7 +12,7 @@ async function adminRequest(path = '', method = 'GET', data) {
 }
 function cacheAdmins(users) {
   const db = loadDB();
-  db.users = db.users.filter(user => user.role === 'SUPER_ADMIN').concat(users);
+  db.users = users;
   saveDB(db);
 }
 async function refreshAdmins() {

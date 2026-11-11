@@ -16,7 +16,7 @@ class AdminManagementController extends Controller
         StaffAuth::user($request, 'SUPER_ADMIN');
         $query = DB::table('staff_users')->where('role', 'ADMIN');
         if ($request->isMethod('get')) {
-            return response()->json(['users' => $query->orderBy('full_name')->get()->map(fn ($user) => $this->present($user))]);
+            return response()->json(['users' => DB::table('staff_users')->whereIn('role', ['ADMIN', 'SUPER_ADMIN'])->orderBy('full_name')->get()->map(fn ($user) => $this->present($user))]);
         }
         if ($id !== null) {
             abort_unless((clone $query)->where('id', $id)->exists(), 404, 'Admin account not found.');
@@ -72,7 +72,7 @@ class AdminManagementController extends Controller
     private function present(object $user): array
     {
         return ['id' => $user->id, 'username' => $user->username, 'fullName' => $user->full_name,
-            'email' => $user->email, 'role' => 'ADMIN', 'active' => (bool) $user->is_active,
+            'email' => $user->email, 'role' => $user->role, 'active' => (bool) $user->is_active,
             'confidentialAccess' => (bool) $user->confidential_access,
             'confidentialApprover' => (bool) ($user->confidential_approver ?? false)];
     }

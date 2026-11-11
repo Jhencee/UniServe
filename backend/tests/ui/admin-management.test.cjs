@@ -30,7 +30,7 @@ function setup() {
     closeModal: () => { closed++; },
     fetch: async (url, options) => {
       calls.push({ url, ...options });
-      return { ok: true, json: async () => options.method === 'GET' ? { users: database.users.filter(user => user.role === 'ADMIN') } : { user: {} } };
+      return { ok: true, json: async () => options.method === 'GET' ? { users: database.users } : { user: {} } };
     }
   };
   vm.createContext(context);
@@ -100,3 +100,12 @@ test('account deactivation requires confirmation before PATCH', async () => {
   await app.modal().buttons[1].action();assert.equal(app.calls[0].method,'PATCH');
   assert.equal(JSON.parse(app.calls[0].body).active,false);
 });
+
+ test('database refresh removes stale browser Super Admin entries', async () => {
+  const app = setup();
+  app.context.loadDB().users.push({id:'placeholder',role:'SUPER_ADMIN',fullName:'System Administrator'});
+  app.context.fetch = async () => ({ok:true,json:async()=>({users:[{id:'real',role:'SUPER_ADMIN',fullName:'Real Super Admin',active:true}]})});
+  await app.context.refreshAdmins();
+  assert.deepEqual(Array.from(app.context.loadDB().users, u=>u.id), ['real']);
+  assert.ok(!app.elements.get('userBody').innerHTML.includes('System Administrator'));
+ });

@@ -103,9 +103,7 @@ function migrateConfidentialAccess(db) {
 
 function freshState() {
   return {
-    users: [
-      { id: 'u1', username: 'admin', fullName: 'System Administrator', role: 'SUPER_ADMIN', active: true, email: 'sysadmin@oss.edu.ph', confidentialAccess: false },
-    ],
+    users: [],
     services: DEFAULT_SERVICES.map(s => ({ ...s, requirements: [...s.requirements] })),
     transactions: [], appointments: [], chats: [],
     activityLog: [], queues: [], queueCounters: {}, visitorLog: [], visitCounter: 0,
@@ -342,6 +340,7 @@ async function doLogin() {
     user = result.user;
     token = result.token;
     if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role) || !token) throw new Error('Invalid login response.');
+    db.users = db.users.filter(x => x.role !== 'SUPER_ADMIN' || x.id === user.id);
     const index = db.users.findIndex(x => x.id === user.id);
     if (index >= 0) db.users[index] = user;
     else db.users.push(user);
