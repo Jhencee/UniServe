@@ -3590,17 +3590,17 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
 #visitorContent .appointment-pass-actions .btn { box-sizing:border-box; min-height:40px; padding:9px 14px; border-radius:6px; line-height:1.4; font-size:.78rem; }
 #visitorContent .appointment-pass-actions .pass-actions-secondary .btn { border:1px solid var(--border); background:var(--surface); color:var(--text); text-decoration:none; }
 #visitorContent .appointment-pass-actions .pass-actions-secondary .btn:hover { background:var(--surface-2); border-color:var(--accent); text-decoration:none; }
-#visitorContent .appointment-pass-actions .pass-actions-footer { display:flex; flex:1 1 100%; justify-content:space-between; align-items:center; gap:12px; margin:0; padding:0; }
-#visitorContent .appointment-pass-actions .pass-actions-footer > .btn { padding-left:0; padding-right:0; }
-#visitorContent .appointment-pass-actions .pass-actions-footer > .btn:first-child { text-align:left; justify-content:flex-start; }
-#visitorContent .appointment-pass-actions .pass-actions-footer > .btn-danger-ghost { margin-left:auto; text-align:right; justify-content:flex-end; }
+#visitorContent .appointment-pass-actions .pass-actions-footer { display:flex; flex:1 1 auto; justify-content:flex-end; align-items:center; gap:12px; margin:0 0 0 auto; padding:0; }
 #visitorContent .appointment-pass-actions .pass-actions-footer .btn-danger-ghost { border:0; background:transparent; color:var(--danger); }
 @media(max-width:520px) {
  #visitorContent .appointment-pass-actions .pass-actions-main,
  #visitorContent .appointment-pass-actions .pass-actions-secondary { flex:1 1 calc(50% - 10px); }
  #visitorContent .appointment-pass-actions .pass-actions-main .btn,
  #visitorContent .appointment-pass-actions .pass-actions-secondary .btn { width:100%; min-height:44px; }
- #visitorContent .appointment-pass-actions .pass-actions-footer { flex-basis:100%; margin:2px 0 0; }
+ #visitorContent .appointment-pass-actions .pass-actions-footer { flex-basis:100%; justify-content:space-between; margin:2px 0 0; }
+ #visitorContent .appointment-pass-actions .pass-actions-footer > .btn { padding-left:0; padding-right:0; }
+ #visitorContent .appointment-pass-actions .pass-actions-footer > .btn:first-child { text-align:left; justify-content:flex-start; }
+ #visitorContent .appointment-pass-actions .pass-actions-footer > .btn-danger-ghost { margin-left:auto; text-align:right; justify-content:flex-end; }
 }
 
 /* Compact ticket branding, with the crest matching the two university-name lines. */
