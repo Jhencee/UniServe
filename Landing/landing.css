@@ -656,37 +656,40 @@ a.is-disabled:hover {
 }
 
 .maint-banner {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    justify-content: start;
+    gap: 10px;
     padding: 12px 6vw;
     background: var(--warn-bg);
-    color: #785018;
-    border-bottom: 1px solid #ead9b7;
-    font-size: .8125rem;
+    color: var(--warn);
+    border-bottom: 1px solid var(--warn);
+    font-size: .9rem;
     line-height: 1.5;
-}
-
-.maint-banner-icon {
-    flex: 0 0 20px;
-    margin-top: 1px;
-}
-
-.maint-banner-copy {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 2px 12px;
-    min-width: 0;
+    text-align: left;
 }
 
 .maint-banner b {
-    font-weight: 600;
+    font-weight: 500;
 }
 
-html[data-theme="dark"] .maint-banner {
-    color: #f3d49b;
-    border-bottom-color: #705421;
+.maint-banner-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+@media (max-width: 600px) {
+    .maint-banner {
+        align-items: start;
+        font-size: .8125rem;
+        line-height: 1.5;
+    }
+
+    .maint-banner-icon {
+        margin-top: 1px;
+    }
 }
 
 .hero {
@@ -2972,12 +2975,13 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
   #publicDisplay .qd-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
   #publicDisplay .qd-state { grid-column: 1 / -1; }
   #publicDisplay .qd-bar-item:not(.qd-state):not(.qd-bar-end) { flex-direction: column; align-items: flex-start; gap: 6px; }
-  #publicDisplay .qd-bar-item b { font-size: 1.2rem; line-height: 1.3; overflow-wrap: anywhere; }
+  #publicDisplay .qd-bar-item b { font-size: 1rem; line-height: 1.4; overflow-wrap: normal; }
   #publicDisplay .qd-state b { font-size: .95rem; }
   #publicDisplay .qd-bar-lbl { font-size: .68rem; letter-spacing: .06em; }
   #publicDisplay .qd-bar-end { grid-column: 1 / -1; margin-left: 0; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
-  #publicDisplay .qd-clock { font-size: 1.1rem; }
-  #publicDisplay .qd-voice { min-height: 44px; max-width: 100%; padding: 8px 12px; white-space: normal; }
+  #publicDisplay .qd-clock { font-size: .9rem; }
+  #publicDisplay .qd-voice { min-height: 44px; max-width: 100%; padding: 8px 10px; white-space: normal; font-size: .75rem; }
+  #publicDisplay .qd-voice:disabled { border-color: transparent; background: transparent; padding-inline: 0; opacity: 1; color: var(--text-soft); }
   #publicDisplay .qd-call,
   #publicDisplay .qd-panel { padding: 18px 16px; }
   #publicDisplay .qd-call-card { flex-direction: column; align-items: flex-start; gap: 12px; }
@@ -3003,10 +3007,10 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
   #publicDisplay .qd-next .qd-tag { grid-column: 2; grid-row: 2; width: fit-content; }
   #publicDisplay .qd-next li .qd-eta { display: block; grid-column: 2; grid-row: 3; text-align: left; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
   #publicDisplay .qd-next li .qd-eta::before { content: 'Estimated wait: '; }
-  #publicDisplay .qd-label { line-height: 1.6; margin-bottom: 12px; }
+  #publicDisplay .qd-label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; line-height: 1.6; margin-bottom: 12px; }
   #publicDisplay .qd-paused { margin-left: 0; }
-  #publicDisplay .qd-closed { padding: 14px 16px; font-size: .9rem; }
-  #publicDisplay .qd-closed strong { font-size: 1.1rem; }
+  #publicDisplay .qd-closed { padding: 12px 14px; font-size: .8125rem; }
+  #publicDisplay .qd-closed strong { font-family: var(--font-body); font-size: .9375rem; }
   #publicDisplay .qd-help { padding-top: 18px; gap: 12px; }
   #publicDisplay .qd-steps p { font-size: .9rem; }
   #publicDisplay .qd-legend,

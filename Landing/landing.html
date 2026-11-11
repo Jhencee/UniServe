@@ -21,7 +21,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261111-maintenance-notice">
+    <link rel="stylesheet" href="landing.css?v=20261111-banner-alignment">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
@@ -60,15 +60,14 @@
         </nav>
 
         <div id="maintBanner" class="maint-banner" hidden role="status">
-            <svg class="maint-banner-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+            <svg class="maint-banner-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+                aria-hidden="true" focusable="false">
                 <circle cx="12" cy="12" r="9" />
-                <path d="M12 11v5M12 8h.01" />
+                <path d="M12 11v5" />
+                <circle cx="12" cy="7.5" r=".75" fill="currentColor" stroke="none" />
             </svg>
-            <div class="maint-banner-copy">
-                <b>Visitor Portal maintenance</b>
-                <span>New visits are paused. Visit tracking and staff sign-in are still available.</span>
-            </div>
+            <b>Visitor Portal is temporarily closed for maintenance.</b>
         </div>
 
 
@@ -390,7 +389,7 @@
     <script src="../shared/ui-components.js?v=20261109-in-app-notifications"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261111-database-accounts"></script>
+    <script src="landing.js?v=20261111-mobile-queue"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
     <script src="../shared/portal-api.js?v=20261109-consistency-pass"></script>

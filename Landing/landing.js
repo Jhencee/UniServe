@@ -474,7 +474,7 @@ function renderPublicDisplay() {
   const open = availability.open && !maintenance;
   const intake = window.UniServeWalkInCapacity;
   const intakeClosed = open && intake?.accepting === false;
-  const reopening = maintenance ? 'Awaiting maintenance completion' : availability.lunch ? OfficeCalendar.clock(OfficeCalendar.get().lunch.end) : availability.nextLabel;
+  const reopening = maintenance ? 'To be announced' : availability.lunch ? OfficeCalendar.clock(OfficeCalendar.get().lunch.end) : availability.nextLabel;
   if (!open && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 
   if (open && pdCalledIds) called.filter(q => !pdCalledIds.has(q.id)).forEach(speakCall);
@@ -495,9 +495,9 @@ function renderPublicDisplay() {
         <button class="qd-voice ${pdVoice ? 'on' : ''}" onclick="togglePdVoice()" aria-pressed="${pdVoice}" ${open ? '' : 'disabled'}>Voice announcements: ${open ? (pdVoice ? 'On' : 'Off') : 'Paused'}</button>
       </div>
     </div>
-    ${!open ? `<div class="qd-closed" role="status"><strong>${maintenance ? 'Closed for maintenance' : availability.lunch ? 'Lunch break' : 'Office closed'}</strong><span>${escapeHtml(maintenance ? 'Service is temporarily paused.' : availability.reason)}</span><b>${maintenance ? 'Reopening time will be announced.' : (availability.lunch ? 'Back at ' : 'Reopens ') + escapeHtml(reopening)}</b><small>Existing visits remain recorded. Service and call announcements are paused.</small></div>` : ''}
+    ${!open ? `<div class="qd-closed" role="status"><strong>${maintenance ? 'Closed for maintenance' : availability.lunch ? 'Lunch break' : 'Office closed'}</strong>${maintenance ? '<span>Service and announcements are paused. Existing visits are saved.</span>' : `<span>${escapeHtml(availability.reason)}</span><b>${(availability.lunch ? 'Back at ' : 'Reopens ') + escapeHtml(reopening)}</b><small>Existing visits remain recorded. Service and call announcements are paused.</small>`}</div>` : ''}
     ${open ? `<div class="qd-closed" role="status"><strong>${intakeClosed ? 'Walk-in intake closed' : intake?.accepting === true ? 'Walk-ins available' : 'Walk-in intake status unavailable'}</strong><span>${intakeClosed ? 'Existing visits are still being served. New walk-ins are no longer accepted today.' : intake?.accepting === true ? (intake.override ? 'Additional walk-ins are allowed today by the Head Admin.' : 'Intake may close early when the queue reaches today’s service capacity.') : 'Check with the OSS counter before starting a walk-in.'}</span>${intake?.closedTime ? `<small>Intake closed at ${escapeHtml(intake.closedTime)}.</small>` : intake?.scheduledCutoff && intake.manualCutoffTime ? `<small>Scheduled walk-in cutoff: ${escapeHtml(intake.manualCutoffTime)}.</small>` : ''}${intake?.cutoff ? `<small>Normal walk-in cutoff: ${escapeHtml(intake.cutoff)}</small>` : ''}${intakeClosed ? '<small>You can still book an appointment or check in for your scheduled appointment.</small>' : ''}</div>` : ''}
-    <section class="qd-call ${open && called.length ? 'active' : ''}" aria-live="${open ? 'assertive' : 'off'}" aria-label="Now calling">
+    <section class="qd-call ${open && called.length ? 'active' : ''}" ${!open && !called.length ? 'hidden' : ''} aria-live="${open ? 'assertive' : 'off'}" aria-label="Now calling">
       <h2 class="qd-label">${open ? 'Now calling' : 'Calling paused'}</h2>
       ${called.length ? `
         <div class="qd-call-list ${called.length > 1 ? 'multi' : ''}">
@@ -538,7 +538,7 @@ function renderPublicDisplay() {
         : `<p class="qd-empty">${open ? (intakeClosed ? 'No one is waiting. Walk-in intake is closed for today.' : intake?.accepting === true ? 'No one is waiting. You may proceed to the counter.' : 'No one is waiting. Check walk-in availability with the OSS counter.') : 'No visits are waiting. New visits resume when the office opens.'}</p>`}
       </section>
     </div>
-    <aside class="qd-help" aria-label="How to use this board">
+    <aside class="qd-help" ${!open ? 'hidden' : ''} aria-label="How to use this board">
       <ol class="qd-steps">
         <li><span class="qd-step-n">1</span><p>Find your number or Visit ID on your pass.</p></li>
         <li><span class="qd-step-n">2</span><p>Wait for it to appear under <b>Now calling</b>.</p></li>
