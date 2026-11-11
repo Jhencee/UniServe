@@ -1040,9 +1040,15 @@ async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, i
 function canDownloadAppointmentTicket(appt) {
   return Boolean(appt && ['Booked','Checked-in'].includes(appt.status) && appt.date && appt.time && !appt.needsRescheduling && !UniServeUX.conflict(appt));
 }
+function ticketScheduleLabel(date, time) {
+  if (!date) return 'Pending';
+  const [year, month, day] = date.split('-');
+  const formattedDate = month + '/' + day + '/' + year.slice(-2);
+  return time ? formattedDate + ' - ' + UniServeUX.timeLabel(time) : formattedDate;
+}
 function appointmentPassHtml(appt) {
   if (appt.ticketHtml) return `<div class="printable-ticket" data-download-approved="${canDownloadAppointmentTicket(appt)}">${appt.ticketHtml.replace(/ style="[^"]*"/g, '')}</div>`;
-  const slot = appt.date ? `${appt.date} &middot; ${escapeHtml(UniServeUX.timeLabel(appt.time))}` : 'Pending';
+  const slot = escapeHtml(ticketScheduleLabel(appt.date, appt.time));
   const seniorNote = (appt.isSenior && appt.guestClass !== 'Senior Citizen' ? ' &middot; Senior' : '') + (appt.isPWD ? ' &middot; PWD priority' : '');
   return `
     <div class="printable-ticket" data-download-approved="${canDownloadAppointmentTicket(appt)}">
@@ -1181,7 +1187,7 @@ async function renderQueueTicket() {
   const seniorNote = (q.isSenior && q.guestClass !== 'Senior Citizen' ? ' &middot; Senior' : '') + (q.isPWD ? ' &middot; PWD priority' : '');
   const dupBadge = q.possibleDuplicate ? `<div class="qt-source-note ticket-v2-dup">${icon('alert', 11)} Flagged for OSS review as a possible duplicate visit</div>` : '';
   const firstField = isAppt
-    ? `<span class="tvf-lbl">${icon('calendar', 13)} Scheduled</span><span class="tvf-val">${q.scheduledAt ? fmtDateTime(q.scheduledAt) : '&mdash;'}</span>`
+    ? `<span class="tvf-lbl">${icon('calendar', 13)} Scheduled</span><span class="tvf-val">${q.scheduledAt ? escapeHtml((()=>{const slot=OfficeCalendar.parts(new Date(q.scheduledAt));return ticketScheduleLabel(slot.date,slot.time);})()) : '&mdash;'}</span>`
     : `<span class="tvf-lbl">${icon('ticket', 13)} Visit ID</span><span class="tvf-val">${escapeHtml(q.visitId)}</span>`;
   const serving = servingQueueEntries(db);
   const nowServing = `<div class="qt-nowserving"><div class="qt-nowserving-head"><span class="qt-live-dot"></span><div class="qt-nowserving-lbl">Now Serving</div></div>
