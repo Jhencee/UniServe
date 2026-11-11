@@ -1388,11 +1388,10 @@ function renderHistoryScreen() {
 }
 function renderHistoryStep() {
   const f=historyFlow,wrap=document.getElementById('visitorContent');
-  const stages=`<div class="visitor-history-stages" aria-label="History verification progress">${[['email','Email'],['code','Verify code'],['verified','Your visits']].map(([key,label])=>`<span class="${f.step===key?'current':''}" ${f.step===key?'aria-current="step"':''}>${label}</span>`).join('')}</div>`;
-  const head=f.step==='code'?`<div class="modal-head"><h3>Verify your email</h3><button type="button" class="close-x" aria-label="Cancel verification" onclick="changeHistoryEmail()">&times;</button></div>`:`<div class="chat-contact-head"><h3>${f.step==='verified'?'Your visit history':f.step==='code'?'Verify your email':'Find your visit history'}</h3><p>${f.step==='verified'?'Visits associated with '+escapeHtml(f.email):'Verify your email to view your past visits.'}</p></div>${f.step==='verified'?'':stages}`;
+  const head=f.step!=='verified' ? `<div class="modal-head"><h3>Verify your email</h3><button type="button" class="close-x" aria-label="Cancel verification" onclick="${f.step==='code'?'changeHistoryEmail()':'visitorSectionBack()'}">&times;</button></div>` : `<div class="chat-contact-head"><h3>Your visit history</h3><p>Visits associated with ${escapeHtml(f.email)}</p></div>`;
   const error='<div class="field-error" id="historyInlineError" role="alert" hidden></div>';
   let body='';
-  if(f.step==='email')body=`<div class="field"><label for="hsEmail">Email</label><input id="hsEmail" type="email" autocomplete="email" placeholder="name@gmail.com" value="${escapeHtml(f.email)}" aria-describedby="historyInlineError" onkeydown="if(event.key==='Enter')sendHistoryCode()">${error}</div><button class="btn btn-primary btn-block" onclick="sendHistoryCode()">Send verification code</button><p class="field-hint">Use the email address you provided when starting your visit.</p>`;
+  if(f.step==='email')body=`<div class="modal-body"><p class="field-hint">Verify your email to view your past visits.</p><div class="field"><label for="hsEmail">Email</label><input id="hsEmail" type="email" autocomplete="email" placeholder="name@gmail.com" value="${escapeHtml(f.email)}" aria-describedby="historyInlineError" onkeydown="if(event.key==='Enter')sendHistoryCode()">${error}</div>${VisitorTurnstile.markup('historySecurity')}<p class="field-hint">Use the email address you provided when starting your visit.</p></div><div class="modal-foot"><button type="button" class="btn btn-ghost" onclick="visitorSectionBack()">Cancel</button><button type="button" id="historySendCodeButton" class="btn btn-primary" onclick="sendHistoryCode()">Send Code</button></div>`;
   else if(f.step==='code')body=`<div class="modal-body"><div class="history-code-note"><p>A verification code has been requested for ${escapeHtml(f.email)}.</p></div><div class="field history-code-field"><label class="verification-code-label" for="hsCode">Verification code</label><input id="hsCode" class="verification-code-input" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" aria-describedby="historyInlineError" oninput="clearHistoryCodeError(this)" onkeydown="if(event.key==='Enter')verifyHistoryCode()">${error}</div><div class="history-resend-row"><button class="btn btn-ghost btn-sm resend-text" onclick="resendHistoryCode()">Resend code</button></div></div><div class="modal-foot"><button class="btn btn-ghost" onclick="changeHistoryEmail()">Cancel</button><button id="hsVerifyButton" class="btn btn-primary history-verify-button" onclick="verifyHistoryCode()">Verify</button></div>`;
   else {
     const db=loadDB(),rows=visitorHistoryFor(db,f.email);
@@ -1402,8 +1401,7 @@ function renderHistoryStep() {
     }).join('')}</div>`:'<p class="field-hint">No visits were found for this email yet.</p>';
     body+='<div class="visitor-history-footer"><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different email</button></div>';
   }
-  if(f.step==='email')body=body.replace('<button class="btn btn-primary btn-block" onclick="sendHistoryCode()">',VisitorTurnstile.markup('historySecurity')+'<button class="btn btn-primary btn-block" onclick="sendHistoryCode()">');
-  wrap.innerHTML=`<div class="card card-pad visitor-page-wrap history-page${f.step==='code'?' history-code-page':''}">${head}${body}</div>`;
+  wrap.innerHTML=`<div class="card card-pad visitor-page-wrap history-page${f.step!=='verified'?' history-code-page':''}">${head}${body}</div>`;
   if(f.step==='email')VisitorTurnstile.mount('historySecurity');
   if(f.step==='code')window.CodeCooldown?.bind(document.querySelector('#visitorContent button[onclick="resendHistoryCode()"]'),'visitor:'+f.email);
   document.getElementById(f.step==='code'?'hsCode':'hsEmail')?.focus();
@@ -1417,7 +1415,8 @@ async function issueHistoryCode() {
   historyRequestBusy = true; const f = historyFlow;
   const buttons=Array.from(document.querySelectorAll('#visitorContent button'));
   const labels=buttons.map(button=>button.textContent);buttons.forEach(button=>button.disabled=true);
-  if(buttons[0])buttons[0].textContent='Preparing code…';
+  const sendButton=document.getElementById('historySendCodeButton');
+  if(sendButton)sendButton.textContent='Preparing code...';
   try {
     const turnstileToken=await VisitorTurnstile.getToken('historySecurity');
     let result;
