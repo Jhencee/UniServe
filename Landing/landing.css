@@ -1532,6 +1532,61 @@ a.is-disabled:hover {
     .contact-card, .contact-card:nth-child(4), .contact-card:nth-child(5) { grid-column: 1; }
 }
 
+/* One quiet panel keeps contact information visually grouped. */
+#landing #contact .contact-grid {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr .85fr 1fr 1.25fr;
+    grid-auto-rows: auto;
+    gap: 0;
+    align-items: start;
+    padding: 20px 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+}
+#landing #contact .contact-card {
+    grid-column: auto;
+    padding: 0 20px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+#landing #contact .contact-card + .contact-card { border-left: 1px solid var(--border); }
+#landing #contact .svc-preview-head { gap: 8px; min-height: 24px; }
+#landing #contact .svc-preview-ic { width: 24px; height: 24px; border-radius: 6px; }
+#landing #contact .svc-preview-ic svg { width: 14px; height: 14px; }
+#landing #contact h3 { font-size: .8125rem; }
+#landing #contact .svc-bring { margin: 10px 0 0; padding: 0; border: 0; }
+#landing #contact .desc { margin-top: 3px; font-size: .75rem; line-height: 1.6; }
+#landing #contact .office-hours-row { padding: 1px 0; gap: 4px 8px; font-size: .75rem; }
+#landing #contact .office-hours-lunch { margin: 3px 0 0; padding-top: 3px; border: 0; }
+#landing #contact .contact-calendar-button {
+    justify-content: flex-start;
+    width: auto;
+    margin-top: 6px;
+    min-height: 36px;
+    padding: 4px 0;
+    border: 0;
+    background: transparent;
+    font-size: .75rem;
+}
+@media (max-width: 1100px) {
+    #landing #contact .contact-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
+    #landing #contact .contact-card { padding: 16px 20px; }
+    #landing #contact .contact-card + .contact-card { border-left: 0; }
+    #landing #contact .contact-card:nth-child(even) { border-left: 1px solid var(--border); }
+    #landing #contact .contact-card:nth-child(n+3) { border-top: 1px solid var(--border); }
+    #landing #contact .contact-card:last-child { grid-column: 1 / -1; }
+    #landing #contact .office-hours { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+    #landing #contact .office-hours-lunch { margin: 0; padding: 1px 0; }
+}
+@media (max-width: 600px) {
+    #landing #contact .contact-grid { grid-template-columns: minmax(0, 1fr); }
+    #landing #contact .contact-card { padding: 14px 16px; }
+    #landing #contact .contact-card:nth-child(even) { border-left: 0; }
+    #landing #contact .contact-card + .contact-card { border-top: 1px solid var(--border); }
+    #landing #contact .svc-bring { margin-top: 5px; margin-left: 32px; }
+}
 .footer-drive { --gate-position:24%; position:relative; height:132px; overflow:hidden; color:var(--text-soft); }
 .footer-school { position:absolute; right:22px; bottom:7px; width:120px; height:74px; pointer-events:none; }
 .footer-campus-trees { position:absolute; inset:0; pointer-events:none; }
