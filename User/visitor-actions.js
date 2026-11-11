@@ -61,7 +61,7 @@ window.downloadVisitorTicket = async function(button) {
       img.src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read the ticket logo.'));reader.readAsDataURL(blob);});
     }));
     // Rasterize at export size so text and the embedded logo retain their detail.
-    const scale=2;
+    const scale=4;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('width',width*scale);svg.setAttribute('height',height*scale);
     svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
@@ -77,6 +77,27 @@ window.downloadVisitorTicket = async function(button) {
     if(!context)throw Error('Your browser could not create the ticket image.');
     context.fillStyle='#ffffff';context.fillRect(0,0,canvas.width,canvas.height);
     context.drawImage(picture,0,0,canvas.width,canvas.height);
+    // Draw the source crest directly, avoiding the SVG foreignObject image rasterization.
+    for (const logo of ticket.querySelectorAll('.ticket-v2-logo')) {
+      const rect=logo.getBoundingClientRect(),style=getComputedStyle(logo);
+      const insetLeft=parseFloat(style.paddingLeft)+parseFloat(style.borderLeftWidth);
+      const insetTop=parseFloat(style.paddingTop)+parseFloat(style.borderTopWidth);
+      const availableWidth=rect.width-insetLeft-parseFloat(style.paddingRight)-parseFloat(style.borderRightWidth);
+      const availableHeight=rect.height-insetTop-parseFloat(style.paddingBottom)-parseFloat(style.borderBottomWidth);
+      const ratio=Math.min(availableWidth/logo.naturalWidth,availableHeight/logo.naturalHeight);
+      const logoWidth=logo.naturalWidth*ratio,logoHeight=logo.naturalHeight*ratio;
+      const x=rect.left-bounds.left+insetLeft+(availableWidth-logoWidth)/2;
+      const y=rect.top-bounds.top+insetTop+(availableHeight-logoHeight)/2;
+      context.save();
+      context.beginPath();
+      context.ellipse((rect.left-bounds.left+rect.width/2)*scale,(rect.top-bounds.top+rect.height/2)*scale,rect.width*scale/2,rect.height*scale/2,0,0,Math.PI*2);
+      context.clip();
+      context.imageSmoothingEnabled=true;
+      context.imageSmoothingQuality='high';
+      context.drawImage(logo,x*scale,y*scale,logoWidth*scale,logoHeight*scale);
+      context.restore();
+    }
+
     const png=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(Error('Could not save the ticket image.')),'image/png'));
     const reference=ticket.querySelector('.ticket-v2-number')?.textContent.trim()||'ticket';
     const url=URL.createObjectURL(png),link=document.createElement('a');
