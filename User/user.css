@@ -3604,14 +3604,14 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
 }
 
 /* Match the crest height to the two university-name lines, above the campus details. */
-.printable-ticket .ticket-v2-header { display:grid; grid-template-columns:35.1px minmax(0,1fr); align-items:start; column-gap:10px; row-gap:8px; margin-bottom:20px; }
+.printable-ticket .ticket-v2-header { display:grid; grid-template-columns:35.1px minmax(0,1fr) auto; align-items:start; column-gap:10px; row-gap:8px; margin-bottom:20px; }
 .printable-ticket .ticket-v2-logo { box-sizing:border-box; width:35.1px; height:35.1px; align-self:start; padding:0; border:0; object-fit:contain; }
 .printable-ticket .ticket-v2-org-uni { font-family:Arial,sans-serif; font-size:13px; font-weight:600; line-height:1.35; overflow-wrap:normal; }
 .printable-ticket .ticket-v2-org-uni span, .printable-ticket .ticket-v2-org-sub span { display:block; }
 .printable-ticket .ticket-v2-org-sub { margin-top:5px; font-family:Arial,sans-serif; font-size:10px; line-height:1.5; font-weight:400; text-transform:none; letter-spacing:0; color:#f0dddd; }
-.printable-ticket .ticket-v2-issued { grid-column:2; text-align:left; margin:0; font-size:9px; line-height:1.5; letter-spacing:0; }
+.printable-ticket .ticket-v2-issued { grid-column:3; grid-row:1; align-self:start; text-align:right; margin:0; max-width:80px; font-size:9px; line-height:1.5; letter-spacing:0; }
 @media(max-width:400px) {
- .printable-ticket .ticket-v2-header { grid-template-columns:32.4px minmax(0,1fr); gap:8px 10px; }
+ .printable-ticket .ticket-v2-header { grid-template-columns:32.4px minmax(0,1fr) 58px; gap:8px 10px; }
  .printable-ticket .ticket-v2-logo { width:32.4px; height:32.4px; }
  .printable-ticket .ticket-v2-org-uni { font-size:12px; }
 }
