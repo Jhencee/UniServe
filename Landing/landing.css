@@ -680,15 +680,25 @@ a.is-disabled:hover {
     height: 18px;
 }
 
+.maint-message-mobile {
+    display: none;
+}
+
 @media (max-width: 600px) {
     .maint-banner {
-        align-items: start;
-        font-size: .8125rem;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 16px;
+        font-size: .75rem;
         line-height: 1.5;
     }
 
-    .maint-banner-icon {
-        margin-top: 1px;
+    .maint-message-desktop {
+        display: none;
+    }
+
+    .maint-message-mobile {
+        display: inline;
     }
 }
 
