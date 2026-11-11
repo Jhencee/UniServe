@@ -3603,9 +3603,15 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
  #visitorContent .appointment-pass-actions .pass-actions-footer { flex-basis:100%; margin:2px 0 0; }
 }
 
-/* Align the crest with the university name without changing ticket typography or spacing. */
-.printable-ticket .ticket-v2-logo { box-sizing:border-box; width:35.776px; height:35.776px; align-self:start; padding:0; }
+/* Compact ticket branding, with the crest matching the two university-name lines. */
+.printable-ticket .ticket-v2-logo { box-sizing:border-box; width:31.2px; height:31.2px; align-self:start; padding:0; }
+.printable-ticket .ticket-v2-header { gap:10px; }
+.printable-ticket .ticket-v2-org-uni { font-size:12px; line-height:1.3; }
+.printable-ticket .ticket-v2-org-sub { font-size:8.5px; }
+.printable-ticket .ticket-v2-issued { font-size:8.5px; }
 @media screen and (max-width:600px) {
- .printable-ticket .ticket-v2-header { grid-template-columns:23.4px minmax(0,1fr) 58px; }
+ .printable-ticket .ticket-v2-header { grid-template-columns:23.4px minmax(0,1fr) 58px; gap:6px; }
+ .printable-ticket .ticket-v2-org-uni { font-size:9px; }
+ .printable-ticket .ticket-v2-org-sub, .printable-ticket .ticket-v2-issued { font-size:8px; }
  .printable-ticket .ticket-v2-logo { width:23.4px; height:23.4px; }
 }
