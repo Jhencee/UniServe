@@ -84,8 +84,11 @@ window.downloadVisitorTicket = async function(button) {
       const insetTop=parseFloat(style.paddingTop)+parseFloat(style.borderTopWidth);
       const availableWidth=rect.width-insetLeft-parseFloat(style.paddingRight)-parseFloat(style.borderRightWidth);
       const availableHeight=rect.height-insetTop-parseFloat(style.paddingBottom)-parseFloat(style.borderBottomWidth);
-      const ratio=Math.min(availableWidth/logo.naturalWidth,availableHeight/logo.naturalHeight);
-      const logoWidth=logo.naturalWidth*ratio,logoHeight=logo.naturalHeight*ratio;
+      const sourceResponse=await fetch(logo.currentSrc||logo.src);
+      if(!sourceResponse.ok)throw Error('Could not load the original ticket logo.');
+      const sourceLogo=await createImageBitmap(await sourceResponse.blob());
+      const ratio=Math.min(availableWidth/sourceLogo.width,availableHeight/sourceLogo.height);
+      const logoWidth=sourceLogo.width*ratio,logoHeight=sourceLogo.height*ratio;
       const x=rect.left-bounds.left+insetLeft+(availableWidth-logoWidth)/2;
       const y=rect.top-bounds.top+insetTop+(availableHeight-logoHeight)/2;
       context.save();
@@ -94,7 +97,8 @@ window.downloadVisitorTicket = async function(button) {
       context.clip();
       context.imageSmoothingEnabled=true;
       context.imageSmoothingQuality='high';
-      context.drawImage(logo,x*scale,y*scale,logoWidth*scale,logoHeight*scale);
+      context.drawImage(sourceLogo,x*scale,y*scale,logoWidth*scale,logoHeight*scale);
+      sourceLogo.close();
       context.restore();
     }
 
