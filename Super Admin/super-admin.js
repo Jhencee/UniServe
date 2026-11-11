@@ -664,7 +664,7 @@ function renderActivityLog() {
   const db = loadDB(), users = [...new Set(db.activityLog.map(r => r.user))].sort();
   document.getElementById('content').innerHTML = `
     <div class="card">
-      <div class="card-head"><div><h3>Audit Trail <span class="badge-role">${icon('lock', 12)} Super Admin</span></h3><div class="desc" id="auditCount"></div></div>
+      <div class="card-head"><div><h3>Audit Trail <span class="badge-role">Super Admin</span></h3><div class="desc" id="auditCount"></div></div>
         <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="verifyAuditIntegrity()">${icon('check', 14)} Verify integrity</button><button class="btn btn-primary btn-sm" onclick="printAuditReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="exportAuditExcel()">${icon('download', 14)} Download Excel</button></div></div>
       <div class="filter-bar">${dateRangeHtml('audit')}
         <select class="filter-select" aria-label="Category" onchange="auditState.cat=this.value;auditState.page=1;renderLogTable()"><option value="">All categories</option>${AUDIT_CATEGORIES.map(c => `<option ${auditState.cat === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
@@ -677,7 +677,7 @@ function renderActivityLog() {
 }
 function auditCatPill(cat) {
   const map = { Confidential: 'pill-danger', Authentication: 'pill-info', Accounts: 'pill-gold', Settings: 'pill-warn', Data: 'pill-ok', Transactions: 'pill-info', Queue: 'pill-info', Appointments: 'pill-info', System: 'pill-danger' };
-  return `<span class="pill ${map[cat] || 'pill-info'}">${cat === 'Confidential' ? icon('lock', 11) + ' ' : ''}${escapeHtml(cat)}</span>`;
+  return `<span class="pill ${map[cat] || 'pill-info'}">${escapeHtml(cat)}</span>`;
 }
 function auditDetailsHtml(r) {
   const parts = [];

@@ -32,6 +32,7 @@
 window.downloadVisitorTicket = async function(button) {
   const ticket = document.querySelector('#visitorContent .printable-ticket');
   if (!ticket) { toast('Open a ticket before downloading it.', 'err'); return; }
+  if (ticket.dataset.downloadApproved === 'false') { toast('Your ticket will be available after OSS approves your schedule.', 'err'); return; }
   if(button)button.disabled=true;
   try {
     await document.fonts?.ready;

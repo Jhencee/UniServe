@@ -1037,12 +1037,15 @@ async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, i
   showPassModalReadonly(appt, true);
 }
 
+function canDownloadAppointmentTicket(appt) {
+  return Boolean(appt && ['Booked','Checked-in'].includes(appt.status) && appt.date && appt.time && !appt.needsRescheduling && !UniServeUX.conflict(appt));
+}
 function appointmentPassHtml(appt) {
-  if (appt.ticketHtml) return `<div class="printable-ticket">${appt.ticketHtml.replace(/ style="[^"]*"/g, '')}</div>`;
+  if (appt.ticketHtml) return `<div class="printable-ticket" data-download-approved="${canDownloadAppointmentTicket(appt)}">${appt.ticketHtml.replace(/ style="[^"]*"/g, '')}</div>`;
   const slot = appt.date ? `${appt.date} &middot; ${escapeHtml(UniServeUX.timeLabel(appt.time))}` : 'Pending';
   const seniorNote = (appt.isSenior && appt.guestClass !== 'Senior Citizen' ? ' &middot; Senior' : '') + (appt.isPWD ? ' &middot; PWD priority' : '');
   return `
-    <div class="printable-ticket">
+    <div class="printable-ticket" data-download-approved="${canDownloadAppointmentTicket(appt)}">
       <div class="ticket-v2-card">
         <div class="ticket-v2-main">
           <div class="ticket-v2-top">
@@ -1336,7 +1339,7 @@ function showPassModalReadonly(apptIn, embedded = false) {
   notes.Completed = 'Your visit is complete. Open your visit to leave feedback about the service.';
   notes['Checked-in'] = 'You are checked in. Follow your queue status and wait for OSS to call you.';
   const note = bookingConflict ? 'Contact OSS before travelling to the office; your scheduled slot is unavailable.' : linked ? (linked.status === 'Completed' ? notes.Completed : notes['Checked-in']) : (notes[appt.status] || (appt.status === 'Booked' && !canCheckIn ? 'Show your Visit ID at the OSS counter on your appointment day. An Admin will check you in when you arrive.' : '') || 'Show your Visit ID at the OSS counter. An Admin will check you in when you arrive.');
-  const buttons = appt.status==='Completed'||linked?.status==='Completed'?[]:[{label:'Download ticket',cls:'btn-ghost',action:()=>downloadVisitorTicket()}];
+  const buttons = appt.status==='Completed'||linked?.status==='Completed'?[]:[{label:'Download ticket',cls:'btn-ghost',disabled:!canDownloadAppointmentTicket(appt),action:()=>{if(canDownloadAppointmentTicket(appt))return downloadVisitorTicket();}}];
   if (appt.shared && ['Requested','Booked'].includes(appt.status)) buttons.push({label:'Cancel appointment',cls:'btn-danger-ghost',action:()=>cancelSharedAppointment(appt.id)});
   if(appt.shared&&['Requested','Booked','No-show','Unfinished'].includes(appt.status)) buttons.push({label:appt.rescheduleRequested?'Update reschedule request':'Request new schedule',cls:'btn-ghost',action:()=>requestNewSchedule(appt.id)});
   if (bookingConflict) buttons.push({label:'Contact OSS',cls:'btn-primary',action:()=>navigateVisitor('chat')});
@@ -1358,11 +1361,14 @@ function showPassModalReadonly(apptIn, embedded = false) {
     visitorPassActions = [...buttons, {label:'Refresh status',cls:canCheckIn || linked || bookingConflict ? 'btn-ghost' : 'btn-primary',action:refreshAppointmentPass}];
     const primaryAction = visitorPassActions.findIndex(button=>button.cls==='btn-primary');
     const primaryIndex = primaryAction < 0 ? visitorPassActions.length-1 : primaryAction;
-    const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" onclick="runVisitorPassAction(${i})">${button.label}</button>`;
+    const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" ${button.disabled ? 'disabled title="Available after OSS approves your schedule"' : ''} onclick="runVisitorPassAction(${i})">${button.label}</button>`;
     const secondaryActions = visitorPassActions.map((button,i)=>i!==primaryIndex&&!button.cls.includes('danger')?actionButton(button,i):'').join('');
     const cancelActions = visitorPassActions.map((button,i)=>button.cls.includes('danger')?actionButton(button,i):'').join('');
     document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Keep your ${appt.visitId ? 'Visit ID' : 'request reference'} to return to this status screen.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'Back to records':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
-  } else openModal(`Visit Pass &mdash; ${escapeHtml(appt.visitId || appt.code)}`, body, buttons);
+  } else {
+    openModal(`Visit Pass &mdash; ${escapeHtml(appt.visitId || appt.code)}`, body, buttons);
+    if(buttons[0]?.disabled)document.getElementById('modalBtn0')?.setAttribute('disabled','');
+  }
 }
 const HISTORY_RESEND_COOLDOWN_MS = 60 * 1000;
 let historyFlow = null;

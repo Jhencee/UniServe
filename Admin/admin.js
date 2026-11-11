@@ -1011,7 +1011,7 @@ function renderMyQueueCard(db, q) {
         <div class="muted" style="font-size:.8rem;">${escapeHtml(q.name || q.visitorType)} &middot; ${escapeHtml(serviceQueueLabel(db, q))} &middot; ${escapeHtml(entryMethodLabel(q))}</div>
         <div class="muted mono" style="font-size:.7rem; margin-top:2px;">${q.number ? escapeHtml(q.visitId || '') : (q.scheduledAt ? 'Scheduled ' + fmtTime(q.scheduledAt) : '')}${reqCount ? ` &middot; ${reqCount} requirement(s)` : ''}</div>
         </div>
-      <div class="qd-serving-status">${delayed ? `<span class="pill delay-pill">${icon('alert', 11)} Delayed</span>` : (called ? `<span class="pill pill-warn">Called &mdash; awaiting arrival</span>` : `<span class="pill pill-ok">Processing</span>`)}
+      <div class="qd-serving-status">${delayed ? `<span class="pill delay-pill">Delayed</span>` : (called ? `<span class="pill pill-warn">Called &mdash; awaiting arrival</span>` : `<span class="pill pill-ok">Processing</span>`)}
         ${!called && q.servingAt ? `<div class="qd-service-clock" data-serving-since="${new Date(q.servingAt).getTime()}" aria-label="Service time elapsed">0:00</div>` : ''}</div>
     </div>
     ${queueRequirementsHtml(db,q)}

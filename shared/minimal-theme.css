@@ -161,7 +161,9 @@ body .modal-foot { background:var(--surface); }
 body .modal-head h3 { font-size:1rem; }
 body table th { font-weight:500; letter-spacing:.02em; }
 body .pill,
-body .readiness-pill {
+body .readiness-pill,
+body .badge-role,
+body .qd-tag {
  display:inline-flex; align-items:center; gap:5px; padding:3px 8px;
  border:0; border-radius:5px; box-shadow:none;
  font-size:.7rem; font-weight:500; line-height:1.4; letter-spacing:0;
