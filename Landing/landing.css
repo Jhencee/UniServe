@@ -657,19 +657,36 @@ a.is-disabled:hover {
 
 .maint-banner {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 14px 6vw;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 6vw;
     background: var(--warn-bg);
-    color: var(--warn);
-    border-bottom: 1px solid var(--warn);
-    border-left: 6px solid var(--warn);
-    font-size: .9rem;
+    color: #785018;
+    border-bottom: 1px solid #ead9b7;
+    font-size: .8125rem;
     line-height: 1.5;
 }
 
+.maint-banner-icon {
+    flex: 0 0 20px;
+    margin-top: 1px;
+}
+
+.maint-banner-copy {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    min-width: 0;
+}
+
 .maint-banner b {
-    font-weight: 700;
+    font-weight: 600;
+}
+
+html[data-theme="dark"] .maint-banner {
+    color: #f3d49b;
+    border-bottom-color: #705421;
 }
 
 .hero {

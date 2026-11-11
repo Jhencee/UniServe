@@ -21,7 +21,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261110-mobile-hero">
+    <link rel="stylesheet" href="landing.css?v=20261111-maintenance-notice">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
@@ -60,9 +60,15 @@
         </nav>
 
         <div id="maintBanner" class="maint-banner" hidden role="status">
-            <b>The Visitor Portal is temporarily closed for maintenance.</b>
-            <span>New visits can't be started right now. You can still check an existing visit, and staff can still sign
-                in.</span>
+            <svg class="maint-banner-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 11v5M12 8h.01" />
+            </svg>
+            <div class="maint-banner-copy">
+                <b>Visitor Portal maintenance</b>
+                <span>New visits are paused. Visit tracking and staff sign-in are still available.</span>
+            </div>
         </div>
 
 
