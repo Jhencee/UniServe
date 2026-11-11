@@ -140,14 +140,6 @@ it('queues encrypted verification mail without waiting for SMTP and escapes emai
  \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SendVerificationCode::class,fn($job)=>$job instanceof \Illuminate\Contracts\Queue\ShouldBeEncrypted&&$job->queue==='mail-verification');
  $html=\App\Support\OfficeMail::html('Your visit','<script>alert(1)</script>');expect($html)->toContain('&lt;script&gt;')->not->toContain('<script>');
 });
-it('embeds the PUP logo inside styled emails without depending on a localhost image URL',function(){
- config(['mail.default'=>'array']);
- \App\Support\OfficeMail::send('visitor@gmail.com','Your verification code','Enter your code.','123456');
- $message=Mail::mailer('array')->getSymfonyTransport()->messages()->last()->getOriginalMessage();
- expect($message->getHtmlBody())->toContain('cid:')->not->toContain('cid:uniserve-pup');
- expect($message->getAttachments())->toHaveCount(1);
- expect($message->getAttachments()[0]->getMediaType())->toBe('image');
-});
 it('locks the verification challenge after five wrong attempts',function(){
     config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
     \Illuminate\Support\Facades\Cache::flush();$code=null;

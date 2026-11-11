@@ -21,3 +21,11 @@ it('retains browser appointment ticket rendering',function(){
  $html=view('tickets.appointment',['ticket'=>$ticket,'logoSrc'=>'pup.jpg'])->render();
  expect($html)->toContain('ticket-v2-card','APT-TEST','Pending','Requested');
 });
+
+it('loads the PUP logo from HTTPS without attaching it to emails',function(){
+ config(['mail.default'=>'array']);
+ \App\Support\OfficeMail::send('visitor@gmail.com','Your verification code','Enter your code.','123456');
+ $message=Mail::mailer('array')->getSymfonyTransport()->messages()->last()->getOriginalMessage();
+ expect($message->getHtmlBody())->toContain('https://oss.uniserve.vercel.app/User/pup.jpg')->not->toContain('cid:');
+ expect($message->getAttachments())->toHaveCount(0);
+});

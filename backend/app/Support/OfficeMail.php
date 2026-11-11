@@ -6,9 +6,8 @@ class OfficeMail
     public static function send(string $recipient,string $subject,string $body,?string $code=null):void
     {
         $html=self::html($subject,$body,$code);
-        \Illuminate\Support\Facades\Mail::html($html,function($mail)use($recipient,$subject,$html){
-            $logo=$mail->embed(resource_path('images/pup.jpg'));
-            $mail->html(str_replace('cid:uniserve-pup',$logo,$html))->to($recipient)->subject($subject);
+        \Illuminate\Support\Facades\Mail::html($html,function($mail)use($recipient,$subject){
+            $mail->to($recipient)->subject($subject);
         });
     }
     public static function html(string $title,string $body,?string $code=null):string

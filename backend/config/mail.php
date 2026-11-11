@@ -110,6 +110,8 @@ return [
     |
     */
 
+    'logo_url' => env('MAIL_LOGO_URL', 'https://oss.uniserve.vercel.app/User/pup.jpg'),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
