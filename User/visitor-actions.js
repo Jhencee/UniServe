@@ -60,15 +60,18 @@ window.downloadVisitorTicket = async function(button) {
       img.removeAttribute('srcset');
       img.src=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(Error('Could not read the ticket logo.'));reader.readAsDataURL(blob);});
     }));
+    // Rasterize at export size so text and the embedded logo retain their detail.
+    const scale=2;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    svg.setAttribute('width',width);svg.setAttribute('height',height);
+    svg.setAttribute('width',width*scale);svg.setAttribute('height',height*scale);
+    svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
     const content=document.createElementNS('http://www.w3.org/2000/svg','foreignObject');
-    content.setAttribute('width','100%');content.setAttribute('height','100%');
+    content.setAttribute('width',width);content.setAttribute('height',height);
     content.appendChild(copy);svg.appendChild(content);
     const serialized=new XMLSerializer().serializeToString(svg);
     const picture=new Image();
     await new Promise((resolve,reject)=>{picture.onload=resolve;picture.onerror=()=>reject(Error('Could not create the ticket image. Please try again.'));picture.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(serialized);});
-    const scale=2,canvas=document.createElement('canvas');
+    const canvas=document.createElement('canvas');
     canvas.width=width*scale;canvas.height=height*scale;
     const context=canvas.getContext('2d');
     if(!context)throw Error('Your browser could not create the ticket image.');
