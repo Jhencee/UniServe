@@ -46,7 +46,7 @@ function nextOpeningLabel(d = new Date()) { return OfficeCalendar.status(d).next
 function officeHoursBannerHtml(kind) {
   const action = kind === 'chat' ? 'send a message to' : 'submit a request to';
   return isOfficeHours()
-    ? `<div class="info-banner">${icon('clock', 14)} OSS is open now. ${officeHoursLabel()}</div>`
+    ? `<div class="info-banner success">${icon('clock', 14)} OSS is open now. ${officeHoursLabel()}</div>`
     : `<div class="info-banner warn">${icon('alert', 14)} ${escapeHtml(OfficeCalendar.status().message)}. Next opening: ${escapeHtml(nextOpeningLabel())}.</div>`;
 }
 function graceMinutes(db) { return Number(db.systemSettings.gracePeriodMinutes) || DEFAULT_GRACE_MINUTES; }
@@ -635,7 +635,7 @@ function renderHubOfficeNotice() {
   const notice = document.getElementById('visitorHubOfficeNotice');
   if (!notice) return;
   notice.hidden = isOfficeHours();
-  notice.innerHTML = notice.hidden ? '' : `${icon('clock',18)}<span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment or check your visit.'}</span>`;
+  notice.innerHTML = notice.hidden ? '' : `<span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment or check your visit.'}</span>`;
 }
 function updateVisitorBackButton() {
   const button=document.querySelector('#visitorSectionBar button');
@@ -721,7 +721,7 @@ function renderVisitPicker() {
   document.getElementById('visitorContent').innerHTML = `
     <section class="visit-start-page" aria-label="Start your visit">
     ${stepperHtml(1)}
-    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span class="visit-closed-icon" aria-hidden="true">${icon('clock',18)}</span><span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment.'}</span></div>`:''}
+    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment.'}</span></div>`:''}
     <div class="visit-entry-heading visitor-page-wrap"><h3>Choose a service</h3><p>Select your visitor type, then choose the service you need.</p></div>
     <div class="ux-filters">
       <div class="ux-field">

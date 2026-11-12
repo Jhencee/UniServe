@@ -738,7 +738,7 @@ function verifyAuditIntegrity() {
   logActivity(db, currentUser, `Verified audit trail integrity (${bad.length ? bad.length + ' problem(s)' : 'no problems'})`, { category: 'System' });
   saveDB(db);
   openModal('Audit Integrity Check', `
-    <div class="alert-banner ${bad.length ? 'danger' : 'warn'}" style="${bad.length ? '' : 'background:var(--ok-bg);color:var(--ok);border-color:var(--ok);'}"><div><b>${bad.length ? `${bad.length} problem${bad.length === 1 ? '' : 's'} found` : 'No tampering detected'}</b>${r.total - r.unsealed} of ${r.total} entries checked${r.unsealed ? `; ${r.unsealed} older entr${r.unsealed === 1 ? 'y has' : 'ies have'} no seal yet and will be sealed on the next recorded action` : ''}.</div></div>
+    <div class="alert-banner ${bad.length ? 'danger' : 'success'}"><div><b>${bad.length ? `${bad.length} problem${bad.length === 1 ? '' : 's'} found` : 'No tampering detected'}</b>${r.total - r.unsealed} of ${r.total} entries checked${r.unsealed ? `; ${r.unsealed} older entr${r.unsealed === 1 ? 'y has' : 'ies have'} no seal yet and will be sealed on the next recorded action` : ''}.</div></div>
     ${bad.slice(0, 20).map(([e, why]) => `<div class="kv"><span class="mono">${fmtDateTime(e.ts)}</span><span>${escapeHtml(e.user)}: ${escapeHtml(auditActionLabel(e.action))}<div class="muted" style="font-size:.74rem;">${why}</div></span></div>`).join('')}
     <p class="field-hint" style="margin-top:12px;">This is a tamper-evident checksum kept in the browser. It shows that the log was altered, but it is not a substitute for a server-side log.</p>`, []);
 }

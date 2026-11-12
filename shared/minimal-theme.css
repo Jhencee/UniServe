@@ -237,3 +237,30 @@ body :is(.modal, .history-code-page):has(.verification-code-label) .modal-foot {
 body .field:has(> .verification-code-label) { margin-top:14px; margin-bottom:0; }
 body .field:has(> .verification-code-label) .code-boxes { margin:10px auto 8px; }
 body :is(.modal, .history-code-page):has(.verification-code-label) .resend-text { min-height:32px; padding:4px 10px; }
+
+/* Shared icon-free banner shape; colors communicate the message state. */
+:is(#visitorApp, #landing, #publicDisplay, #content, #activeModal, body) :is(.info-banner, .alert-banner, .visitor-hub-office-notice, .visitor-maint-banner, .maint-banner, .cf-notice, .qd-closed, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) {
+ box-sizing:border-box; padding:16px 20px; border:0; border-radius:10px;
+ background:var(--banner-background,color-mix(in srgb,#2563eb 8%,var(--surface))) !important;
+ color:var(--banner-foreground,#1d4ed8) !important; box-shadow:none;
+ font-family:var(--font-body); font-size:.85rem; line-height:1.6;
+}
+:is(#visitorApp, #landing, #publicDisplay, #content, #activeModal, body) :is(.info-banner, .alert-banner, .visitor-hub-office-notice, .visitor-maint-banner, .maint-banner, .cf-notice, .qd-closed, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) :is(strong, b, h3) { font-family:var(--font-body); font-size:inherit; font-weight:600; color:inherit; }
+:is(#visitorApp, #landing, #publicDisplay, #content, #activeModal, body) :is(.info-banner, .alert-banner, .visitor-hub-office-notice, .visitor-maint-banner, .maint-banner, .cf-notice, .qd-closed, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) :is(p, small) { font-size:inherit; line-height:inherit; color:inherit; }
+body :is(.info-banner, .alert-banner, .visitor-hub-office-notice, .visitor-maint-banner, .maint-banner, .cf-notice, .qd-closed, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) > svg,
+body :is(.info-banner, .alert-banner, .cf-notice) > :is(b, strong) > svg,
+body :is(.queue-service-notice-icon, .dashboard-attention-icon, .reschedule-note-icon, .maint-banner-icon),
+body .overdue-followup-banner > summary > .waitlist-icon { display:none; }
+body .queue-service-notice .btn { margin-left:0; max-width:100%; }
+@media(max-width:600px) {
+ :is(#visitorApp, #landing, #publicDisplay, #content, #activeModal, body) :is(.info-banner, .alert-banner, .visitor-hub-office-notice, .visitor-maint-banner, .maint-banner, .cf-notice, .qd-closed, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) { padding:12px 14px; font-size:.8rem; }
+}
+
+/* Preserve meaning while sharing the same banner layout. */
+body :is(.info-banner, .alert-banner, .qd-closed):is(.warn, .warning),
+body :is(.visitor-maint-banner, .maint-banner, .cf-notice, .queue-service-notice, .staff-scheduling-notice, .reschedule-notice, .reschedule-pending-note, .dashboard-attention, .intake-hours-notice, .overdue-followup-banner) { --banner-background:var(--warn-bg); --banner-foreground:var(--warn); }
+body :is(.visitor-hub-office-notice, .visit-closed-notice),
+body :is(.info-banner, .alert-banner, .qd-closed):is(.danger, .error) { --banner-background:var(--danger-bg); --banner-foreground:var(--danger); }
+body :is(.info-banner, .alert-banner, .qd-closed):is(.success, .ok) { --banner-background:var(--ok-bg); --banner-foreground:var(--ok); }
+body .visitor-maint-banner { grid-template-columns:minmax(0,1fr); }
+html[data-theme="dark"] body :is(.info-banner, .alert-banner, .qd-closed):not(.warn):not(.warning):not(.danger):not(.error):not(.success):not(.ok) { --banner-foreground:#93c5fd; }

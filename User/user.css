@@ -2992,8 +2992,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visit-start-page > .ux-search,
 .visit-start-page > .svc-list { width: 100%; max-width: none; }
 .visit-start-page .info-banner { margin: 0; padding: 14px 0; border: 0; border-radius: 0; background: transparent; color: var(--text-soft); font-size: .8rem; }
-.visit-start-page .visit-closed-notice { display:flex; align-items:center; gap:12px; margin:0 0 20px; padding:16px 18px; border:0; border-radius:10px; background:color-mix(in srgb, var(--accent) 7%, var(--surface)); color:var(--text); font-size:.85rem; line-height:1.6; }
-.visit-closed-icon { display:inline-flex; flex-shrink:0; color:var(--accent-strong); }
+.visit-start-page .visit-closed-notice { display:flex; align-items:flex-start; gap:9px; margin:0 0 16px; padding:10px 12px; border:0; border-left:3px solid var(--accent); border-radius:4px; background:var(--surface-2); color:var(--text); font-size:.8rem; line-height:1.5; }
 .visit-start-page .visit-closed-notice strong { font-weight:600; }
 .visit-start-page .stepper { padding: 16px 0; margin-bottom: 24px; border-bottom: 1px solid var(--border); }
 .visit-start-page .stepper .stepper-i { flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; }
