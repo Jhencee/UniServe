@@ -1,13 +1,13 @@
 /* One calendar palette for office schedules and date-selection dialogs. */
 /* Compact weekly tiles with opening and closing times on separate lines. */
 body #content .calendar-page .calendar-week { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:10px; }
-body #content .calendar-page .calendar-weekday { display:flex; flex-direction:column; align-items:flex-start; min-width:0; padding:14px; border:0; border-bottom:2px solid var(--accent); border-radius:6px; background:color-mix(in srgb,var(--accent) 3%,var(--surface)); text-align:left; }
+body #content .calendar-page .calendar-weekday { display:flex; flex-direction:column; align-items:flex-start; min-width:0; padding:14px; border:1px solid var(--border); border-radius:6px; background:var(--surface); text-align:left; }
 body #content .calendar-page .calendar-weekday-name { margin:0 0 12px; font-size:.78rem; font-weight:600; color:var(--text); }
-body #content .calendar-page .calendar-time-range { display:flex; flex-direction:column; align-items:flex-start; gap:4px; font-size:.78rem; line-height:1.5; color:var(--text); font-variant-numeric:tabular-nums; }
+body #content .calendar-page .calendar-time-range { display:flex; flex-direction:column; align-items:stretch; gap:8px; font-size:.78rem; line-height:1.5; color:var(--text); font-variant-numeric:tabular-nums; }
 body #content .calendar-page .calendar-time-range time { white-space:nowrap; }
 body #content .calendar-page .calendar-time-range > span { display:none; }
-body #content .calendar-page .calendar-time-range time:last-child { color:var(--text-soft); }
-body #content .calendar-page .calendar-weekday.is-closed { background:var(--surface-2); border-bottom-color:var(--border); }
+body #content .calendar-page .calendar-time-range time:last-child { color:var(--text); }
+body #content .calendar-page .calendar-weekday.is-closed { background:var(--surface-2); border-color:transparent; }
 body #content .calendar-page .calendar-weekday.is-closed .calendar-weekday-name,
 body #content .calendar-page .calendar-closed-label { color:var(--text-soft); }
 body #content .calendar-page .calendar-lunch { justify-content:flex-start; gap:10px; margin-top:16px; padding-top:14px; font-size:.76rem; }
@@ -157,3 +157,10 @@ body:is(:has(#visitorApp),:has(#landing)) .office-calendar-modal .ux-calendar-da
 .calendar-page .calendar-upcoming .pill-info { color:var(--cal-holiday); background:color-mix(in srgb,var(--cal-holiday) 8%,var(--surface)); }
 .calendar-page .calendar-upcoming .pill-danger { color:var(--cal-closed); background:color-mix(in srgb,var(--cal-closed) 8%,var(--surface)); }
 .calendar-page .calendar-upcoming .pill-warn { color:var(--cal-special); background:color-mix(in srgb,var(--cal-special) 8%,var(--surface)); }
+/* Clear opening and closing labels in the weekly hours summary. */
+body #content .calendar-hours-card .calendar-weekday-hours { width:100%; }
+body #content .calendar-hours-card .calendar-time-range time { display:flex; justify-content:space-between; flex-wrap:wrap; gap:2px 8px; }
+body #content .calendar-hours-card .calendar-time-range time::before { content:'Opens'; color:var(--text-soft); font-size:.7rem; }
+body #content .calendar-hours-card .calendar-time-range time:last-child::before { content:'Closes'; }
+body #content .calendar-hours-card .card-head .btn { border:0; background:transparent; color:var(--accent-strong); }
+body #content .calendar-hours-card .card-head .btn:hover { background:var(--surface-2); }

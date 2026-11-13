@@ -27,7 +27,7 @@ function renderCalendar() {
   const upcoming = Object.entries(cfg.days).filter(([date, day]) => date >= todayKey && day.type !== 'open').sort(([a],[b]) => a.localeCompare(b)).slice(0, 6);
   document.getElementById('content').innerHTML = `
     <div class="calendar-page">
-      <div class="card">
+      <div class="card calendar-hours-card">
         <div class="card-head"><div><h3>Daily hours</h3><div class="desc">Weekly schedule</div></div><button class="btn btn-ghost btn-sm" onclick="calendarEditHours()">${icon('edit',14)} Edit hours</button></div>
         <div class="card-pad calendar-schedule"><div class="calendar-week">${cfg.weekly.map((day,i) => `<div class="calendar-weekday${day.open ? '' : ' is-closed'}"><span class="calendar-weekday-name">${names[i]}</span><div class="calendar-weekday-hours">${day.open ? '<div class="calendar-time-range"><time>' + OfficeCalendar.clock(day.start) + '</time><span aria-hidden="true">?</span><time>' + OfficeCalendar.clock(day.end) + '</time></div>' : '<span class="calendar-closed-label">Closed</span>'}</div></div>`).join('')}</div>
           <div class="calendar-lunch"><span>${icon('clock',14)} Lunch break</span><span>${cfg.lunch.enabled ? OfficeCalendar.clock(cfg.lunch.start) + ' &ndash; ' + OfficeCalendar.clock(cfg.lunch.end) : 'Disabled'}</span></div>

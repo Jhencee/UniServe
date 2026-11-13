@@ -3608,3 +3608,30 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
  .printable-ticket .ticket-v2-org-sub, .printable-ticket .ticket-v2-issued { font-size:8px; }
  .printable-ticket .ticket-v2-logo { width:23.4px; height:23.4px; }
 }
+/* Compact mobile entry choices without repeating each card's action label. */
+@media(max-width:600px) {
+ #visitorApp .visit-choose-page .svc-selected-bar { margin-bottom:14px; }
+ #visitorApp .visit-choose-page .req-box { margin-bottom:20px; padding:12px; }
+ #visitorApp .visit-choose-page .visit-entry-heading { margin-bottom:14px; }
+ #visitorApp .visit-choose-page .visit-entry-heading h3 { font-size:1rem; line-height:1.4; }
+ #visitorApp .visit-choose-page .visit-entry-heading p { display:none; }
+ #visitorApp .visit-choose-page .entry-method-grid { gap:12px; }
+ #visitorApp .visit-choose-page .entry-method-card {
+  display:grid;
+  grid-template-columns:32px minmax(0,1fr) 12px;
+  grid-template-rows:auto auto;
+  grid-template-areas:"ic title arrow" ". desc arrow";
+  gap:6px 12px;
+  min-height:0;
+  padding:16px;
+  text-align:left;
+ }
+ #visitorApp .visit-choose-page .entry-method-card .svc-ic { width:32px; height:32px; border-radius:6px; align-self:start; }
+ #visitorApp .visit-choose-page .entry-method-card .svc-ic svg { width:18px; height:18px; }
+ #visitorApp .visit-choose-page .entry-method-card h3 { margin:0; font-size:.88rem; line-height:1.4; min-width:0; }
+ #visitorApp .visit-choose-page .entry-method-card p { margin:0; font-size:.78rem; line-height:1.6; }
+ #visitorApp .visit-choose-page .entry-method-card .svc-go { display:none; }
+ #visitorApp .visit-choose-page .entry-method-card::after { content:'\203A'; grid-area:arrow; align-self:center; justify-self:end; color:var(--text-soft); font-size:1.3rem; }
+ #visitorApp .visit-choose-page .visit-calendar-link { margin-top:16px; padding-top:12px; }
+ #visitorApp .visit-choose-page .visit-calendar-link .field-hint { font-size:.73rem; line-height:1.6; }
+}

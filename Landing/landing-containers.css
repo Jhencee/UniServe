@@ -1,0 +1,118 @@
+/* Container refinements only: preserve the existing hero, palette and content. */
+body #landing :is(.svc-preview-grid, .steps, .feat-grid) {
+ gap:20px;
+ align-items:stretch;
+}
+body #landing :is(.svc-preview-grid > .svc-preview-card, .step, .feat-card) {
+ box-sizing:border-box;
+ min-width:0;
+ height:100%;
+ padding:24px;
+ border:1px solid var(--border);
+ border-radius:8px;
+ background:var(--surface);
+ box-shadow:none;
+}
+body #landing .svc-preview-grid > .svc-preview-card {
+ display:flex;
+ flex-direction:column;
+ gap:20px;
+}
+body #landing .svc-preview-grid .svc-preview-head {
+ align-items:flex-start;
+ gap:14px;
+ margin:0;
+ flex:1;
+}
+body #landing .svc-preview-grid .svc-preview-head > div { min-width:0; }
+body #landing .svc-preview-grid .svc-preview-ic { flex-shrink:0; }
+body #landing .svc-preview-grid h3 { margin:0 0 6px; }
+body #landing .svc-preview-grid .desc { margin:0; }
+body #landing .svc-preview-grid .svc-bring {
+ margin:0;
+ padding:16px 0 0;
+ border-top:1px solid var(--border);
+}
+body #landing .svc-preview-grid .svc-bring ul { margin:10px 0 0; }
+body #landing .svc-preview-grid .svc-bring li + li { margin-top:6px; }
+body #landing .svc-preview-link:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
+body #landing .step h3 { margin:0 0 10px; }
+body #landing .step p { margin:0; }
+body #landing :is(.faq-list, .fb-top, .fb-empty, #contact .contact-grid) {
+ box-sizing:border-box;
+ border:1px solid var(--border);
+ border-radius:8px;
+ box-shadow:none;
+}
+body #landing :is(.fb-top, .fb-empty) { padding:24px; }
+body #landing .faq-item summary { padding:20px 24px; }
+body #landing .faq-body { padding:0 24px 24px; }
+body #landing #contact .contact-grid { align-items:stretch; }
+body #landing #contact .contact-card { min-width:0; }
+body #landing #contact .desc { overflow-wrap:anywhere; }
+@media(max-width:600px) {
+ body #landing :is(.svc-preview-grid, .steps, .feat-grid) { gap:14px; }
+ body #landing :is(.svc-preview-grid > .svc-preview-card, .step, .feat-card, .fb-top, .fb-empty) { padding:20px; }
+ body #landing .svc-preview-grid > .svc-preview-card { gap:16px; }
+ body #landing .faq-item summary { padding:18px 20px; }
+ body #landing .faq-body { padding:0 20px 20px; }
+}
+/* Lift cards on hover without changing their border or background colors. */
+body #landing :is(#services, #how, #feedback, #contact) :is(.svc-preview-card, .step, .feat-card, .fb-top):hover {
+ border-color:var(--border);
+ background:var(--surface);
+ box-shadow:none;
+}
+body #landing #contact .contact-card:hover { border-color:var(--border); background:transparent; }
+body #landing #services .svc-preview-card::before { display:none; }
+@media(hover:hover) and (prefers-reduced-motion:no-preference) {
+ body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top) { transition:transform .2s ease; }
+ body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top):hover { transform:translateY(-4px); }
+}
+@media(prefers-reduced-motion:reduce) {
+ body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top) { transition:none; transform:none; }
+}
+/* Keep the footer identity legible on its original maroon background. */
+body #landing .footer-brand .fb-row { gap:12px; align-items:center; }
+body #landing .footer-brand .fb-row img {
+ box-sizing:border-box;
+ width:40px;
+ height:40px;
+ flex-shrink:0;
+ object-fit:contain;
+ background:#fff;
+ border:0;
+ border-radius:4px;
+ padding:0;
+}
+body #landing .footer-brand p {
+ text-align:left;
+ word-spacing:normal;
+ line-height:1.75;
+ margin:0;
+}
+/* Give the footer's closing row comfortable spacing and simple link states. */
+body #landing .footer-main {
+ gap:16px 28px;
+ line-height:1.7;
+ align-items:center;
+}
+body #landing .footer-main :is(nav, .footer-links) {
+ display:flex;
+ flex-wrap:wrap;
+ gap:12px 24px;
+ align-items:center;
+}
+body #landing .footer-bottom a {
+ display:inline-block;
+ color:inherit;
+ text-decoration:none;
+ text-underline-offset:5px;
+}
+body #landing .footer-bottom a:hover { text-decoration:underline; }
+body #landing .footer-bottom a:focus-visible { outline:2px solid #fff; outline-offset:4px; }
+body #landing .privacy-note { text-align:left; }
+@media(max-width:600px) {
+ body #landing .footer-main { align-items:flex-start; gap:14px; font-size:.78rem; }
+ body #landing .footer-main > span { flex-basis:100%; }
+}

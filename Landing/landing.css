@@ -3249,3 +3249,24 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
  #publicDisplay .qd-closed { padding:10px 12px; }
  #publicDisplay .qd-closed b { line-height:1.5; }
 }
+/* Share the landing and public queue brand proportions at every viewport size. */
+body :is(.landing-nav, #publicDisplay .pd-top) {
+ --brand-logo-width:40px;
+ --brand-heading-size:1.5rem;
+ --brand-heading-line:1.1;
+ --brand-subtitle-size:.78rem;
+ --brand-subtitle-line:1.15;
+ --brand-gap:10px;
+}
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline { align-items:center; gap:var(--brand-gap); }
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name { display:flex; flex-direction:column; justify-content:center; gap:2px; line-height:var(--brand-heading-line); }
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name .brand-title { font-family:var(--font-display); font-size:var(--brand-heading-size); line-height:var(--brand-heading-line); font-weight:700; letter-spacing:-.01em; }
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name small { margin:0; padding:0; font-size:var(--brand-subtitle-size); line-height:var(--brand-subtitle-line); letter-spacing:normal; text-transform:none; }
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) { position:relative; align-self:stretch; flex-shrink:0; width:var(--brand-logo-width); height:auto; line-height:0; }
+body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) img { position:absolute; top:50%; left:50%; width:135%; height:135%; max-width:none; object-fit:contain; transform:translate(-50%,-50%); }
+@media(min-width:961px) and (max-width:1399px) {
+ body :is(.landing-nav, #publicDisplay .pd-top) { --brand-heading-size:1.25rem; --brand-subtitle-size:.62rem; --brand-gap:8px; }
+}
+@media(max-width:600px) {
+ body :is(.landing-nav, #publicDisplay .pd-top) { --brand-logo-width:36px; --brand-heading-size:1.2rem; --brand-heading-line:1.2; --brand-subtitle-size:.65rem; --brand-subtitle-line:1.4; --brand-gap:9px; }
+}

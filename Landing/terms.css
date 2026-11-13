@@ -1,5 +1,5 @@
 .terms-page .terms-brand { text-decoration: none; min-width: 0; }
-.terms-page .crest img { width: 52px; height: 52px; }
+.terms-page .crest img { width: 52px; height: 52px; object-fit: contain; border-radius: 0; }
 .terms-page .landing-nav { gap: 20px; }
 .terms-page .landing-nav > .nav-link { flex-shrink: 0; }
 .terms-content { width: min(100%, 840px); margin: 0 auto; padding: 56px 24px 64px; }
