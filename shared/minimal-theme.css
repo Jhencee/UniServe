@@ -264,3 +264,55 @@ body :is(.info-banner, .alert-banner, .qd-closed):is(.danger, .error) { --banner
 body :is(.info-banner, .alert-banner, .qd-closed):is(.success, .ok) { --banner-background:var(--ok-bg); --banner-foreground:var(--ok); }
 body .visitor-maint-banner { grid-template-columns:minmax(0,1fr); }
 html[data-theme="dark"] body :is(.info-banner, .alert-banner, .qd-closed):not(.warn):not(.warning):not(.danger):not(.error):not(.success):not(.ok) { --banner-foreground:#93c5fd; }
+/* Keep the application logo artwork uncropped; printed seals use their own styles. */
+body .sidebar-brand .crest img.uniserve-app-logo,
+body #crestSlotF img.uniserve-app-logo {
+ display:block;
+ object-fit:contain;
+ border-radius:0;
+ border:0;
+ padding:0;
+ background:transparent;
+ transform:scale(1.28);
+}
+
+/* Group the staff identity on the left and keep its menu control separate. */
+body .app-shell .sidebar .sidebar-brand {
+ gap:12px;
+ padding-left:16px;
+ padding-right:16px;
+}
+body .sidebar .sidebar-brand > .crest { order:0; }
+body .sidebar .sidebar-brand > .name { order:1; min-width:0; }
+body .app-shell .sidebar .sidebar-brand > .sidebar-toggle {
+ order:2;
+ width:32px;
+ min-width:32px;
+ height:32px;
+ margin:0 0 0 auto;
+ padding:0;
+}
+@media(min-width:881px) {
+ body .app-shell.collapsed .sidebar .sidebar-brand { gap:0; padding-left:0; padding-right:0; }
+ body .app-shell.collapsed .sidebar .sidebar-brand > .sidebar-toggle { width:40px; min-width:40px; height:40px; margin:0; }
+}
+
+/* Match the white logo tile to the two-line staff header. */
+body .sidebar-brand .crest:has(img.uniserve-app-logo) {
+ width:32px;
+ height:32px;
+ flex-shrink:0;
+ overflow:hidden;
+ border-radius:3px;
+ background:#fff;
+}
+body .sidebar-brand .crest img.uniserve-app-logo {
+ box-sizing:border-box;
+ width:32px;
+ height:32px;
+ border:0;
+ border-radius:0;
+ background:transparent;
+ box-shadow:none;
+ transform:scale(1.12);
+}

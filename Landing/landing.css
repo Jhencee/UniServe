@@ -148,7 +148,7 @@ a {
     width: 64px;
     object-fit: contain;
     display: block;
-    border-radius: 50%;
+    border-radius: 0;
 }
 
 #crestSlotA img {
@@ -538,6 +538,31 @@ section[id] {
 .landing-nav .brandline .name {
     justify-content: center;
     gap: 2px;
+}
+
+/* Keep the visible artwork aligned with the title and subtitle together. */
+.landing-nav .brandline {
+    gap: 10px;
+}
+
+.landing-nav #crestSlotA {
+    position: relative;
+    align-self: stretch;
+    width: 40px;
+    height: auto;
+    flex-shrink: 0;
+    line-height: 0;
+}
+
+.landing-nav .brandline #crestSlotA img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 135%;
+    height: 135%;
+    max-width: none;
+    object-fit: contain;
+    transform: translate(-50%, -50%);
 }
 
 .landing-nav .brandline .name .brand-title {
@@ -1703,10 +1728,10 @@ a.is-disabled:hover {
     width: 52px;
     height: 52px;
     object-fit: contain;
-    border-radius: 50%;
-    background: #fff;
-    padding: 3px;
-    border: 2px solid rgba(255, 255, 255, .65);
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+    border: 0;
 }
 
 .footer-brand .fb-name {
@@ -1969,9 +1994,9 @@ a.is-disabled:hover {
 #crestSlotB img {
     width: 60px;
     height: 60px;
-    background: #fff;
-    padding: 3px;
-    border: 2px solid var(--border);
+    background: transparent;
+    padding: 0;
+    border: 0;
 }
 
 .auth-head h2 {
@@ -3183,7 +3208,7 @@ html[data-theme="dark"] #loginScreen .auth-card { border-top-color:var(--border)
 @media screen and (max-width:600px) {
  .landing-nav { padding:12px 20px; }
  .landing-nav .brandline { gap:9px; }
- .landing-nav .crest, .landing-nav #crestSlotA img { width:36px; height:36px; }
+ .landing-nav #crestSlotA { width:36px; height:auto; }
  .landing-nav .brandline .name .brand-title { font-size:1.2rem; line-height:1.2; }
  .landing-nav .name small { font-size:.65rem; line-height:1.4; white-space:normal; }
  .landing-nav .brand-campus, .landing-nav .brand-separator { display:none; }

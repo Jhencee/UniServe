@@ -521,7 +521,7 @@ function findVisitByRef(db, ref) {
   return db.queues.find(q => (q.visitId || '').toUpperCase() === ref) || db.appointments.find(a => (a.visitId || '').toUpperCase() === ref) || null;
 }
 
-document.getElementById('crestSlotF').innerHTML = `<img src="pup.jpg" alt="PUP logo" style="width:44px;height:44px;object-fit:contain;">`;
+document.getElementById('crestSlotF').innerHTML = `<img class="uniserve-app-logo" src="../Landing/uniserve.png" alt="UniServe logo" style="width:44px;height:44px;object-fit:contain;">`;
 
 const VISITOR_NAV = [
   { key: 'visit', label: 'Start a Visit', ic: 'ticket' },
