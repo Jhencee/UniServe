@@ -316,3 +316,36 @@ body .sidebar-brand .crest img.uniserve-app-logo {
  box-shadow:none;
  transform:scale(1.12);
 }
+/* Queue guidance is a routine instruction rather than a warning. */
+body #content .queue-service-notice {
+ --banner-background:var(--surface);
+ --banner-foreground:var(--text);
+ gap:16px;
+ padding:14px 16px;
+ border:1px solid var(--border);
+ border-left:3px solid var(--accent);
+ border-radius:6px;
+}
+body #content .queue-service-notice-copy h3 { margin:0 0 4px; font-size:.82rem; }
+body #content .queue-service-notice-copy p { color:var(--text-soft); font-size:.78rem; line-height:1.5; }
+body #content .queue-service-notice .btn {
+ min-height:34px;
+ padding:7px 12px;
+ border:0;
+ border-radius:5px;
+ background:var(--surface);
+ color:var(--accent-strong);
+}
+body #content .queue-service-notice .btn:hover { background:var(--surface-2); }
+body #content .queue-service-notice .dashboard-attention-count {
+ min-width:20px;
+ height:20px;
+ border-radius:4px;
+ background:var(--surface-2);
+ color:var(--text);
+}
+@media(max-width:700px) {
+ body #content .queue-service-notice { align-items:flex-start; gap:12px; }
+ body #content .queue-service-notice-copy { flex-basis:100%; }
+ body #content .queue-service-notice .btn { margin-left:0; max-width:100%; }
+}
