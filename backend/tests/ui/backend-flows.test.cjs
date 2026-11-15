@@ -40,7 +40,7 @@ test('Super Admin refresh replaces deleted report rows and loads current service
 
 test('ending a staff session aborts pending reads and suppresses late alerts',async()=>{
  const db={chats:[],queues:[],appointments:[],transactions:[],visitorLog:[],systemSettings:{}},alerts=[],ends=[];let finish;
- const c={state_view:'profile',currentUser:null,Headers,AbortSignal,AbortController,DOMException,Event,sessionStorage:storage(),localStorage:storage(),DB_KEY:'db',loadDB:()=>db,saveDB:()=>{},document:{addEventListener:()=>{},visibilityState:'visible'},addEventListener:()=>{},dispatchEvent:()=>{},endSession:reason=>ends.push(reason),toast:m=>alerts.push(m),fetch:async url=>url.endsWith('/settings')?{ok:true,json:async()=>({settings:{}})}:new Promise(resolve=>finish=resolve)};
+ const c={setInterval:()=>0,state_view:'profile',currentUser:null,Headers,AbortSignal,AbortController,DOMException,Event,sessionStorage:storage(),localStorage:storage(),DB_KEY:'db',loadDB:()=>db,saveDB:()=>{},document:{addEventListener:()=>{},visibilityState:'visible'},addEventListener:()=>{},dispatchEvent:()=>{},endSession:reason=>ends.push(reason),toast:m=>alerts.push(m),fetch:async url=>url.endsWith('/settings')?{ok:true,json:async()=>({settings:{}})}:new Promise(resolve=>finish=resolve)};
  c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(root,'shared/portal-api.js'),'utf8'),c);
  const pending=c.fetch('http://127.0.0.1:8000/api/reports').catch(e=>{c.toast(e.message);return e.name;});
  c.endSession();c.endSession();finish({ok:false,status:401,json:async()=>({message:'Please sign in again.'})});

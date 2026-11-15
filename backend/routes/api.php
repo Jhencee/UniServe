@@ -19,7 +19,7 @@ Route::get('/settings',[SharedFlowController::class,'settings']);
 Route::get('/attention',[\App\Http\Controllers\AttentionController::class,'index'])->middleware('throttle:60,1,attention');
 Route::get('/reports',[SharedFlowController::class,'reports'])->middleware('throttle:30,1,api-route-3');
 Route::post('/report-data',[\App\Http\Controllers\ReportDataController::class,'snapshot'])->middleware('throttle:30,1,report-output');
-Route::get('/backup',[SharedFlowController::class,'backup'])->middleware('throttle:5,1,api-route-4');
+Route::get('/backup',[\App\Http\Controllers\BackupController::class,'export'])->middleware('throttle:5,1,api-route-4');
 Route::post('/backup/preview',[\App\Http\Controllers\BackupController::class,'preview'])->middleware('throttle:5,1');
 Route::post('/backup/restore',[\App\Http\Controllers\BackupController::class,'restore'])->middleware('throttle:5,1');
 Route::put('/settings',[SharedFlowController::class,'saveSettings'])->middleware('throttle:20,1,api-route-5');
@@ -121,3 +121,14 @@ Route::get('/task-owners', function(\Illuminate\Http\Request $request) {
  \App\Support\StaffAuth::user($request,'ADMIN');
  return response()->json(['owners'=>\Illuminate\Support\Facades\DB::table('staff_users')->where('role','ADMIN')->where('is_active',true)->orderBy('full_name')->get(['id','full_name'])]);
 })->middleware('throttle:60,1,task-owners');
+
+Route::get('/system/oversight',[\App\Http\Controllers\SystemOversightController::class,'index'])->middleware('throttle:30,1,system-oversight');
+Route::get('/backup/history',[\App\Http\Controllers\BackupController::class,'history'])->middleware('throttle:20,1,backup-history');
+Route::get('/backup/files/{id}',[\App\Http\Controllers\BackupController::class,'download'])->middleware('throttle:5,1,backup-file');
+
+Route::post('/session/activity',[\App\Http\Controllers\StaffSecurityController::class,'activity'])->middleware('throttle:10,1,staff-activity');
+Route::get('/security/sessions',[\App\Http\Controllers\StaffSecurityController::class,'sessions'])->middleware('throttle:30,1,staff-sessions');
+Route::delete('/security/sessions',[\App\Http\Controllers\StaffSecurityController::class,'revoke'])->middleware('throttle:10,1,staff-revoke');
+Route::post('/system/test-email',[\App\Http\Controllers\StaffSecurityController::class,'testEmail'])->middleware('throttle:2,10,system-test-email');
+
+Route::match(['GET','POST'],'/security/mfa',[\App\Http\Controllers\StaffSecurityController::class,'mfa'])->middleware('throttle:5,1,staff-mfa');

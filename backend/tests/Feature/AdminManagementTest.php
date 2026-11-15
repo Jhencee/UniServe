@@ -18,7 +18,9 @@ beforeEach(function(){
 
 function superAdminHeaders(): array
 {
-    return ['Authorization' => 'Bearer '.\App\Support\StaffAuth::token(DB::table('staff_users')->where('role', 'SUPER_ADMIN')->first())];
+    $headers=['Authorization' => 'Bearer '.\App\Support\StaffAuth::token(DB::table('staff_users')->where('role', 'SUPER_ADMIN')->first())];
+    test()->postJson('/api/password/confirm',['password'=>'FixturePassword123!'],$headers)->assertOk();
+    return $headers;
 }
 
 it('rejects account management without super admin credentials', function () {

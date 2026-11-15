@@ -11,6 +11,9 @@ config = php_config(
     commands = {
         "install": "composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction",
         "build": "php artisan config:clear",
+        # Bounded commands for host-scheduled jobs; do not require an always-on process.
+        "scheduler": "php artisan schedule:run",
+        "worker": "php artisan queue:work --queue=mail-verification,realtime,default --stop-when-empty --max-time=45 --sleep=1 --tries=3 --timeout=30",
     },
 )
 

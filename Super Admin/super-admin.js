@@ -331,27 +331,7 @@ function buildTrendBuckets(items, start) {
   return { labels: buckets.map(b => fmtDate(b.start).slice(5)), values: buckets.map(b => b.count), unit };
 }
 function truncateLabel(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
-function svgLineChart(trend, label, unit = 'transactions') {
-  const { labels, values } = trend;
-  const gradientId = `trend-fill-${svgLineChart.gradientSequence = (svgLineChart.gradientSequence || 0) + 1}`;
-  const w = 1200, h = 220, padL = 42, padR = 24, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
-  const max = Math.max(1, ...values), stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
-  const pts = values.map((v, i) => ({ x: padL + (values.length > 1 ? i * stepX : innerW / 2), y: padT + innerH - (v / max) * innerH, v }));
-  const line = pts.map((p, i) => {
-    if (!i) return `M${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-    const previous = pts[i - 1], middle = (previous.x + p.x) / 2;
-    return `C${middle.toFixed(1)},${previous.y.toFixed(1)} ${middle.toFixed(1)},${p.y.toFixed(1)} ${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-  }).join(' ');
-  const area = pts.length > 1 ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : '';
-  const tickCount = Math.min(5, max) + 1;
-  const grid = Array.from({length:tickCount},(_,i)=>i/(tickCount-1)).map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
-  const xl = pts.map((p, i) => `<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`).join('');
-  const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="2"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
-  const total = values.reduce((sum, value) => sum + value, 0);
-  const average = values.length ? (total / values.length).toFixed(1) : '0';
-  const peak = values.length ? Math.max(...values) : 0;
-  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} ${escapeHtml(unit)}</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="${escapeHtml(label || 'Trend chart')}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.015"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
-}
+function svgLineChart(trend, label, unit = 'transactions', options = {}) { return dashboardTrendChart(trend,label,unit,options); }
 function svgBarChart(rows, opts) {
   opts = opts || {};
   const w = 380, rowH = 30, h = opts.height || rows.length * rowH + 20, max = Math.max(1, ...rows.map(r => r.count)), labelW = 120, barW = w - labelW - 50;
@@ -376,6 +356,8 @@ function icon(name, size = 17) {
     chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
     users: 'M17 21v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M13 7a4 4 0 11-8 0 4 4 0 018 0M23 21v-2a4 4 0 00-3-3.87M17 3.13a4 4 0 010 7.75',
     lock: 'M5 11h14v9H5v-9zM8 11V7a4 4 0 118 0v4',
+    shield: 'M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zM8.5 12l2.5 2.5 4.5-5',
+    heartbeat: 'M3 12h4l3-8 4 16 3-8h4',
     search: 'M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35',
     plus: 'M12 5v14M5 12h14',
     print: 'M6 9V2h12v7M6 18H4a1 1 0 01-1-1v-6a1 1 0 011-1h16a1 1 0 011 1v6a1 1 0 01-1 1h-2M6 14h12v8H6v-8z',
@@ -384,6 +366,7 @@ function icon(name, size = 17) {
     x: 'M18 6L6 18M6 6l12 12',
     check: 'M20 6L9 17l-5-5',
     home: 'M3 12l9-9 9 9M5 10v10h14V10',
+    bell: 'M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4',
     userc: 'M12 12a5 5 0 100-10 5 5 0 000 10zM3 21a9 9 0 0118 0',
     ticket: 'M4 8a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2a2 2 0 000-4V8zM10 6v2M10 11v2M10 16v2',
     log: 'M4 4h16v16H4V4zM8 8h8M8 12h8M8 16h5',
@@ -452,19 +435,24 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
   { key: 'reports', label: 'Reports', ic: 'chart' },
   { key: 'activitylog', label: 'Audit Trail', ic: 'log' },
+  { key: 'systemhealth', label: 'System Health', ic: 'heartbeat' },
   { key: 'users', label: 'Admin Management', ic: 'users' },
   { key: 'settings', label: 'System Settings', ic: 'gear' },
   { key: 'backup', label: 'Backup & Data', ic: 'download' },
   { key: 'profile', label: 'My Profile', ic: 'userc' },
+  { key: 'notifications', label: 'Notifications', ic: 'bell' },
 ];
 const TITLES = {
-  dashboard: ['Dashboard', "Overview of today's activity &mdash; view only"],
+  dashboard: ['Dashboard', "Current accounts and activity over the last 14 days"],
+  systemhealth: ['System Health', 'API, background services, configuration and recovery readiness'],
+  accessreview: ['Access Review', 'Privileged accounts and account lifecycle review'],
   reports: ['Reports', 'System oversight, accounts, security and configuration summaries'],
   activitylog: ['Audit Trail', 'Tracks user actions and changes'],
   users: ['Admin Management', 'Create and manage OSS Admin accounts &mdash; Super Admin only'],
   settings: ['System Settings', 'Office details, defaults & maintenance mode &mdash; Super Admin only'],
-  backup: ['Backup & Data', 'Export system data and manage browser records &mdash; Super Admin only'],
+  backup: ['Backup & Data', 'Verified server data exports and recovery history &mdash; Super Admin only'],
   profile: ['My Profile', 'Manage your account details'],
+  notifications: ['Notifications', 'System updates and items that need your review'],
 };
 document.getElementById('avatarInit').textContent = currentUser.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
 document.getElementById('userNameLbl').textContent = currentUser.fullName;
@@ -485,25 +473,27 @@ let state_view = 'dashboard';
 function renderSidebar() {
   const groups = [
     { label: 'Overview', keys: ['dashboard'] },
-    { label: 'Monitoring', keys: ['reports', 'activitylog'] },
+    { label: 'Monitoring', keys: ['reports', 'activitylog', 'systemhealth'] },
     { label: 'Administration', keys: ['users', 'settings', 'backup'] },
-    { label: 'Account', keys: ['profile'] }
+    { label: 'Account', keys: ['profile', 'notifications'] }
   ];
   document.getElementById('navList').innerHTML = groups.map(group =>
     `<li class="nav-category" role="presentation">${group.label}</li>` + group.keys.map(key => {
       const n = NAV.find(item => item.key === key);
-      return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span></button></li>`;
+      return `<li ${key==='notifications'?'id="sidebarNotifications"':''}><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${key==='notifications'?'<span class="notification-bell-count" hidden>0</span>':''}</button></li>`;
     }).join('')
   ).join('');
+  if(typeof window.refreshSuperNotificationBadge==='function')window.refreshSuperNotificationBadge();
 }
 function navigate(key) {
+  if (key === 'accessreview') key = 'users';
   if (!TITLES[key]) key = 'dashboard';
   state_view = key;
   document.getElementById('pageTitle').textContent = TITLES[key][0];
   document.getElementById('pageSub').innerHTML = TITLES[key][1];
   renderSidebar();
   document.getElementById('sidebar').classList.remove('open');
-  ({ dashboard: renderDashboard, reports: renderReports, activitylog: renderActivityLog, users: renderUsers, settings: renderSettings, backup: renderBackup, profile: renderProfile })[key]();
+  ({ notifications: () => window.renderSuperNotifications(), dashboard: renderDashboard, reports: renderReports, activitylog: renderActivityLog, users: renderUsers, settings: renderSettings, backup: renderBackup, systemhealth: () => renderSystemHealth(), accessreview: () => renderAccessReview(), profile: renderProfile })[key]();
 }
 function escalationPill(status) {
   if (!status || status === 'Normal') return '';
@@ -511,43 +501,74 @@ function escalationPill(status) {
 }
 
 function renderDashboard() {
-  const db = loadDB(), users = db.users || [], logs = db.activityLog || [];
-  const now = new Date(), start = new Date(); start.setHours(0,0,0,0); start.setDate(start.getDate()-13);
-  const entries = logs.filter(e => new Date(e.ts) >= start && new Date(e.ts) <= now);
-  const dates = Array.from({length:14},(_,i)=>{const d=new Date(start);d.setDate(d.getDate()+i);return fmtDate(d);});
-  const trend = {labels:dates.map(d=>d.slice(5)),values:dates.map(d=>entries.filter(e=>fmtDate(e.ts)===d).length)};
-  const category = e => e.category || inferCategory(e.action);
-  const failed = entries.filter(e=>/failed|blocked|wrong password|incorrect/i.test(auditActionLabel(e.action)));
-  const settings = entries.filter(e=>category(e)==='Settings');
-  const rows = (labels, count) => labels.map(label=>({label,count:count(label)}));
-  const accounts = rows(['Active','Disabled'],label=>users.filter(u=>label==='Active'?u.active:!u.active).length);
-  const roles = [{label:'Super Admin',count:users.filter(u=>u.role==='SUPER_ADMIN').length},{label:'Head Admin',count:users.filter(u=>u.role==='ADMIN'&&u.confidentialApprover).length},{label:'OSS Admin',count:users.filter(u=>u.role==='ADMIN'&&!u.confidentialApprover).length}];
-  const admins = users.filter(u=>u.role==='ADMIN'&&u.active);
-  const access = [{label:'Head / approver',count:admins.filter(u=>u.confidentialApprover).length},{label:'Intake access',count:admins.filter(u=>!u.confidentialApprover&&u.confidentialAccess).length},{label:'Standard access',count:admins.filter(u=>!u.confidentialApprover&&!u.confidentialAccess).length}];
-  const categories = [...new Set(entries.map(category))].map(label=>({label,count:entries.filter(e=>category(e)===label).length})).sort((a,b)=>b.count-a.count).slice(0,6);
-  const security = [{label:'Failed / blocked',count:failed.length},{label:'Authentication',count:entries.filter(e=>category(e)==='Authentication').length},{label:'Confidential access',count:entries.filter(e=>category(e)==='Confidential').length},{label:'Data / exports',count:entries.filter(e=>category(e)==='Data').length}];
-  const changes = {};
-  settings.forEach(e=>(e.changes||[]).forEach(c=>{const label=String(c.field||'Other setting');changes[label]=(changes[label]||0)+1;}));
-  const configuration = Object.entries(changes).map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count).slice(0,5);
-  const metricIcons=['users','users','check','calendar'];let metricIndex=0;
+  const db=loadDB(),users=db.users||[],logs=db.activityLog||[];
+  const now=new Date(),start=new Date(new Date(reportDateKey(now)+'T00:00:00+08:00').getTime()-13*86400000);
+  const entries=logs.filter(e=>new Date(e.ts)>=start&&new Date(e.ts)<=now);
+  const dates=Array.from({length:14},(_,i)=>reportDateKey(new Date(start.getTime()+i*86400000)));
+  const trend={labels:dates.map(d=>d.slice(5)),values:dates.map(d=>entries.filter(e=>reportDateKey(e.ts)===d).length)};
+  const failed=entries.filter(e=>/failed|blocked|denied|wrong password|incorrect|too many attempts/i.test(auditActionLabel(e.action)));
+  const settings=entries.filter(e=>(e.category||inferCategory(e.action))==='Settings');
+  const daily=list=>({labels:dates.map(d=>d.slice(5)),values:dates.map(d=>list.filter(e=>reportDateKey(e.ts)===d).length)});
+  const signInFailed=e=>/sign[- ]?in failed|failed (sign[- ]?in|login)|login failed|wrong password|incorrect.*password/i.test(auditActionLabel(e.action));
+  const outcomes=[{label:'Signed in',count:entries.filter(e=>/^(signed in|logged in)\b/i.test(auditActionLabel(e.action))).length},{label:'Sign-in failed',count:entries.filter(signInFailed).length},{label:'Access denied',count:entries.filter(e=>!signInFailed(e)&&/denied|blocked|too many attempts/i.test(auditActionLabel(e.action))).length}];
+  const categoryCounts=new Map();for(const entry of entries){const category=entry.category||inferCategory(entry.action);categoryCounts.set(category,(categoryCounts.get(category)||0)+1);}
+  const auditCategories=[...categoryCounts].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count);
+  const admins=users.filter(u=>u.role==='ADMIN'&&u.active);
+  const roles=[['Super Admin',users.filter(u=>u.role==='SUPER_ADMIN').length],['Head Admin',users.filter(u=>u.role==='ADMIN'&&u.confidentialApprover).length],['Admin',users.filter(u=>u.role==='ADMIN'&&!u.confidentialApprover).length]];
+  const access=[['Approves confidential access',admins.filter(u=>u.confidentialApprover).length],['Handles confidential visits',admins.filter(u=>!u.confidentialApprover&&u.confidentialAccess).length],['Standard service access',admins.filter(u=>!u.confidentialApprover&&!u.confidentialAccess).length]];
+  const metricIcons=['users','users','alert','calendar'];let metricIndex=0;
   const metric=(label,value,note)=>'<div class="stat-card"><span class="metric-icon" aria-hidden="true">'+icon(metricIcons[metricIndex++],16)+'</span><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
+  const chartRows=items=>items.map(([label,count])=>({label,count}));
+  const roleNames=['Super Admin','Head Admin','Admin'];
+  const roleOf=user=>user.role==='SUPER_ADMIN'?'Super Admin':user.confidentialApprover?'Head Admin':'Admin';
+  const roleSeries=[{label:'Active',color:'var(--super-chart-1)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&u.active).length)},{label:'Disabled',color:'var(--super-chart-neutral)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&!u.active).length)}];
   const card=(title,desc,body,footer='')=>'<div class="card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+desc+'</div></div></div><div class="card-pad">'+body+'</div>'+(footer?'<div class="analytics-footer">'+footer+'</div>':'')+'</div>';
-  const chart=(data,type,label)=>data.some(r=>r.count)?dashboardChart(data,type,label):emptyChart('No recorded data for this summary.');
-  document.getElementById('content').innerHTML='<div class="analytics-dashboard system-overview"><div class="analytics-heading"><div><h2>System overview</h2><p>Accounts, permissions and recent system activity.</p></div></div>'+
-    '<section class="dash-section" aria-label="System metrics"><div class="stat-grid analytics-metrics">'+
-    metric('Active staff accounts',users.filter(u=>u.active).length,'Current account snapshot')+
-    metric('Disabled accounts',users.filter(u=>!u.active).length,'Current account snapshot')+
-    metric('Failed / blocked attempts',failed.length,'Recorded events &middot; Last 14 days')+
-    metric('Configuration updates',settings.length,'Settings events &middot; Last 14 days')+'</div></section>'+
-    '<section class="dash-section" aria-labelledby="accountOverviewHeading">'+
-    '<h3 class="super-dashboard-group" id="accountOverviewHeading">Accounts and permissions</h3><div class="analytics-chart-grid dashboard-summary-grid">'+card('Account status','All staff accounts &middot; Current snapshot',chart(accounts,'donut','Active and disabled staff accounts'))+
-    card('Staff roles','All staff accounts &middot; Current snapshot',chart(roles,'donut','Staff account role distribution'))+
-    card('Confidential access','Active OSS and Head Admin accounts',chart(access,'donut','Confidential access permissions'),admins.length+' active service administrators')+
-    '</div></section>'+
-'<section class="dash-section dashboard-trend-section" aria-label="System activity"><h3 class="super-dashboard-group">Recent system activity</h3><div class="analytics-primary">'+card('System activity','Recorded audit events per day &middot; Last 14 days',entries.length?svgLineChart(trend,'System audit activity','events'):emptyChart('No audit events in the last 14 days.'))+'</div></section>'+
-    '<section class="dash-section" aria-labelledby="securityOverviewHeading"><h3 class="super-dashboard-group" id="securityOverviewHeading">Security and system activity</h3><div class="analytics-chart-grid dashboard-summary-grid">'+card('Security and sensitive activity','Recorded events &middot; Last 14 days',chart(security,'columns','Security and sensitive activity counts'),'Categories may overlap; these are recorded events, not a security health score')+
-    card('Audit activity by category','Top 6 categories &middot; Last 14 days',categories.length?dashboardBarChart(categories):emptyChart('No audit events in this period.'),entries.length+' recorded events in this period')+
-    card('Configuration changes','Most changed fields &middot; Last 14 days',configuration.length?dashboardBarChart(configuration):emptyChart('No field-level setting changes recorded.'),'Maintenance mode: '+(db.systemSettings?.maintenanceMode?'On':'Off')+' &middot; Current setting')+'</div></section></div>';
+  const categorySummary=auditCategories.slice(0,5);
+  if(auditCategories.length>5)categorySummary.push({label:'Other activity',count:auditCategories.slice(5).reduce((sum,row)=>sum+row.count,0)});
+  const settingsByWeek=[{label:'Previous 7 days',count:settings.filter(e=>new Date(e.ts)<new Date(start.getTime()+7*86400000)).length},{label:'Latest 7 days',count:settings.filter(e=>new Date(e.ts)>=new Date(start.getTime()+7*86400000)).length}];
+  document.getElementById('content').innerHTML='<div class="analytics-dashboard system-overview"><div class="analytics-heading"><div><h2>System overview</h2><p>Current staff accounts &middot; Activity charts cover the last 14 days.</p></div></div>'+
+    '<section class="dash-section" aria-label="System metrics"><div class="stat-grid analytics-metrics">'+metric('Active staff accounts',users.filter(u=>u.active).length,'Current accounts')+metric('Disabled accounts',users.filter(u=>!u.active).length,'Current accounts')+metric('Failed or denied events',failed.length,'Last 14 days')+metric('Configuration updates',settings.length,'Last 14 days')+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="securityChartHeading"><div class="super-dashboard-section-head"><h3 class="overview-section-title" id="securityChartHeading">Security</h3><button type="button" class="analytics-link" onclick="navigate(\'activitylog\')">Review activity</button></div><div class="dashboard-today-grid">'+card('Failed or blocked actions','Daily events &middot; Last 14 days',failed.length?superComparisonChart(trend.labels,[{label:'Failed sign-ins',values:daily(entries.filter(signInFailed)).values},{label:'Other blocked actions',values:daily(failed.filter(e=>!signInFailed(e))).values}],'line','Failed and denied events per day'):emptyChart('No failed or blocked actions recorded.'),'A failed action does not always mean an attack.')+card('Sign-ins and blocked access','Last 14 days',outcomes.some(r=>r.count)?dashboardBarChart(outcomes,'Successful sign-ins, failed sign-ins and denied access'):emptyChart('No sign-in activity recorded.'))+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="activityChartHeading"><h3 class="overview-section-title" id="activityChartHeading">System activity</h3><div class="dashboard-today-grid super-activity-pair">'+card('Activity over time','Daily actions &middot; Last 14 days',entries.length?svgLineChart(trend,'System audit activity','events'):emptyChart('No activity recorded.'))+card('Changes to settings','Previous 7 days and latest 7 days',(settings.length||entries.some(e=>(e.category||inferCategory(e.action))==='Accounts'))?superComparisonChart(['Previous 7 days','Latest 7 days'],[{label:'Settings',values:settingsByWeek.map(row=>row.count)},{label:'Accounts',values:[dates.slice(0,7),dates.slice(7)].map(days=>entries.filter(e=>days.includes(reportDateKey(e.ts))&&(e.category||inferCategory(e.action))==='Accounts').length)}],'grouped','Settings and account changes by week'):emptyChart('No settings changes recorded.'))+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="accountOverviewHeading"><div class="super-dashboard-section-head"><h3 class="overview-section-title" id="accountOverviewHeading">Staff access</h3><button type="button" class="analytics-link" onclick="navigate(\'users\')">Manage accounts</button></div><div class="super-account-summary-grid">'+card('Staff roles','Current accounts',superComparisonChart(roleNames,roleSeries,'stacked','Staff accounts by role'))+card('Confidential access','Permissions for active service staff',admins.length?dashboardChart(chartRows(access),'donut','Active service administrators by confidential access',['var(--super-chart-1)','var(--super-chart-2)','var(--super-chart-3)']):emptyChart('No active service staff.'),admins.length+' active service staff')+'</div></section>'+
+    '<section class="dash-section" aria-labelledby="auditChartHeading"><div class="super-dashboard-section-head"><h3 class="overview-section-title" id="auditChartHeading">Activity breakdown</h3><button type="button" class="analytics-link" onclick="navigate(\'reports\')">View reports</button></div>'+'<div class="dashboard-today-grid">'+card('Actions by category','Recorded actions &middot; Last 14 days',categorySummary.length?dashboardBarChart(categorySummary,'Audit events by category'):emptyChart('No activity recorded.'))+card('When activity happens','Weekday and hour &middot; Philippine time &middot; Last 14 days',entries.length?superActivityHeatmap(entries):emptyChart('No activity recorded.'))+'</div></section></div>';
+    const overview=document.querySelector('.system-overview');
+  const comparisons=document.createElement('section');
+  comparisons.className='dash-section';
+  const changeDays=dates.slice(-7).map(day=>({label:day.slice(5),accounts:entries.filter(e=>reportDateKey(e.ts)===day&&(e.category||inferCategory(e.action))==='Accounts').length,access:entries.filter(e=>reportDateKey(e.ts)===day&&(e.category||inferCategory(e.action))==='Confidential').length}));
+  comparisons.innerHTML=card('Account and access changes','Total events · Last 7 days',changeDays.some(r=>r.accounts||r.access)?dashboardBarChart([{label:'Account changes',count:changeDays.reduce((sum,row)=>sum+row.accounts,0)},{label:'Access events',count:changeDays.reduce((sum,row)=>sum+row.access,0)}],'Account changes and confidential access events'):emptyChart('No account or access changes in the last 7 days.'));
+  overview.append(comparisons);
+  const chartGrid=document.createElement('div');
+  chartGrid.className='super-dashboard-grid';
+  chartGrid.setAttribute('aria-label','System overview charts');
+  overview.querySelectorAll(':scope > .dash-section:not([aria-label="System metrics"])').forEach(section=>chartGrid.append(section));
+  overview.append(chartGrid);
+  arrangeSuperDashboardCharts();
+  if(typeof ResizeObserver!=='undefined'){
+    window.superDashboardTrendObserver?.disconnect();
+    const plot=overview.querySelector('[data-chart="overview"] .card-pad');
+    if(plot&&entries.length){
+      let lastWidth=0;
+      window.superDashboardTrendObserver=new ResizeObserver(()=>{
+        if(!plot.isConnected){window.superDashboardTrendObserver?.disconnect();return;}
+        const style=getComputedStyle(plot);
+        const width=Math.round(plot.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight));
+        if(width<100||width===lastWidth)return;
+        lastWidth=width;
+        plot.innerHTML=svgLineChart(trend,'System audit activity','events',{width});
+      });
+      window.superDashboardTrendObserver.observe(plot);
+    }
+  }
+  if(typeof mountSystemOversight==='function')mountSystemOversight();
+}
+
+function arrangeSuperDashboardCharts(){
+  const names={'Activity over time':'overview','Service status':'services','Staff roles':'roles','Changes to settings':'settings','Sign-ins and blocked access':'signins','Failed or blocked actions':'security','Actions by category':'categories','Confidential access':'access','When activity happens':'heatmap','Backups saved':'backups','Account and access changes':'changes'};
+  document.querySelectorAll('.super-dashboard-grid .card').forEach(card=>{
+    const name=names[card.querySelector('h3')?.textContent];
+    if(name)card.dataset.chart=name;
+  });
 }
 
 let reportPeriod = 'Daily';
@@ -560,8 +581,26 @@ function reportChangesHtml(entry) {
   return '<table class="report-diff-table"><colgroup><col style="width:34%"><col style="width:33%"><col style="width:33%"></colgroup><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>'+changes.map(change=>`<tr><th scope="row">${escapeHtml(change.field)}</th><td>${value(change.from)}</td><td>${value(change.to)}</td></tr>`).join('')+'</tbody></table>';
 }
 const changesText = e => (e.changes || []).map(c => `${c.field}: ${c.from === '' || c.from == null ? '(empty)' : c.from} → ${c.to === '' || c.to == null ? '(empty)' : c.to}`).join('; ');
-const SYSTEM_REPORT_TYPES = {overview:'System overview',accounts:'Accounts and access',security:'Security and audit',configuration:'Configuration changes'};
+const SYSTEM_REPORT_TYPES = {overview:'System overview',accounts:'Accounts and access',security:'Security and audit',configuration:'Configuration changes',recovery:'Backup and recovery'};
 let systemReportType='overview', systemReportRange={from:'',to:''};
+let systemReportRecovery=null;
+async function refreshSystemReportRecovery() {
+ systemReportRecovery=null;
+ try { systemReportRecovery=await UniServeUX.request('/backup/history'); }
+ catch (_) { systemReportRecovery={unavailable:true}; }
+}
+function systemReportValue(value) {
+ if(value===null||value===undefined||value==='')return 'Not set';
+ if(typeof value==='boolean')return value?'Yes':'No';
+ if(typeof value==='string'){try{const parsed=JSON.parse(value);if(parsed!==null&&typeof parsed==='object')return systemReportValue(parsed);}catch(_){}return value;}
+ if(Array.isArray(value))return value.map((item,index)=>{
+  if(item&&typeof item==='object'&&'open' in item)return (['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][index]||'Day '+(index+1))+': '+(item.open?(item.start||'Not set')+' to '+(item.end||'Not set'):'Closed');
+  return systemReportValue(item);
+ }).join('; ')||'None';
+ if(typeof value==='object')return Object.entries(value).map(([key,v])=>key+': '+systemReportValue(v)).join('; ');
+ return String(value);
+}
+
 function reportDateKey(value){
  const date=new Date(value);if(Number.isNaN(+date))return '';
  return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
@@ -580,7 +619,7 @@ function systemReportModel(db){
  const users=db.users||[],settings=db.systemSettings||{},sections=[];
  const add=(title,headers,rows,note='')=>sections.push({title,headers,rows,note});
  if(systemReportType==='overview'){
-  add('Period summary',['Measure','Total'],[['Audit events',entries.length],['Sign-ins',entries.filter(e=>/^logged in/i.test(auditActionLabel(e.action))).length],['Account changes',count('Accounts')],['Access events',count('Confidential')],['Configuration changes',count('Settings')]]);
+  add('Period summary',['Measure','Total'],[['Audit events',entries.length],['Sign-ins',entries.filter(e=>/^(logged in|signed in)\b/i.test(auditActionLabel(e.action))).length],['Account changes',count('Accounts')],['Access events',count('Confidential')],['Configuration changes',count('Settings')]]);
   add('Activity by category',['Category','Events'],AUDIT_CATEGORIES.map(c=>[c,count(c)]).filter(row=>row[1]));
   const daily=new Map();for(const e of entries){const key=reportDateKey(e.ts);daily.set(key,(daily.get(key)||0)+1);}
   add('Daily activity trend',['Date','Events'],[...daily].sort((a,b)=>a[0].localeCompare(b[0])),'Counts represent recorded system activity, not completed visits.');
@@ -589,21 +628,32 @@ function systemReportModel(db){
   add('Staff accounts',['Name','Role','Status','Access'],users.map(u=>[u.fullName,u.confidentialApprover?'Head Admin':ROLES[u.role]?.label||u.role,u.active?'Active':'Disabled',u.role==='ADMIN'?(u.confidentialApprover?'Approver':u.confidentialAccess?'Intake access':'No confidential access'):'System administration']));
   add('Account and access activity',['Action','Events'],groups(entries.filter(e=>['Accounts','Confidential'].includes(categoryOf(e)))),'Includes recorded access grants, requests and unlocks; case contents are excluded.');
  }else if(systemReportType==='security'){
-  const failed=entries.filter(e=>/failed|blocked|wrong password|incorrect/i.test(auditActionLabel(e.action))),integrity=auditIntegrity(db);
-  add('Security summary',['Measure','Total'],[['Failed or blocked attempts',failed.length],['Authentication events',count('Authentication')],['Confidential access events',count('Confidential')],['Export and data events',count('Data')]]);
+  const failed=entries.filter(e=>/failed|blocked|denied|wrong password|incorrect|too many attempts/i.test(auditActionLabel(e.action)));
+  add('Security summary',['Measure','Total'],[['Failed or denied events',failed.length],['Authentication events',count('Authentication')],['Confidential access events',count('Confidential')],['Export and data events',count('Data')]]);
   add('Sensitive activity summary',['Action','Events'],groups(entries.filter(e=>['Confidential','Data'].includes(categoryOf(e))||failed.includes(e))));
-  add('Audit integrity',['Measure','Result'],[['Total available entries',integrity.total],['Sealed entries checked',integrity.total-integrity.unsealed],['Unsealed entries',integrity.unsealed],['Problems detected',integrity.bad.length]],'Integrity checks cover all available audit entries, regardless of date filters. Unsealed entries are not verified.');
+  add('Audit verification limits',['Check','Result'],[['Source','Retained server audit records'],['Authenticity / tamper verification','Not performed'],['Completeness','Limited to retained records returned by the API']],'Event counts do not prove that records are complete or unchanged. Browser checksums are not server audit verification.');
+ }else if(systemReportType==='recovery'){
+  const recovery=systemReportRecovery;
+  const inPeriod=value=>{const day=reportDateKey(value);return day&&(!systemReportRange.from||day>=systemReportRange.from)&&(!systemReportRange.to||day<=systemReportRange.to);};
+  if(!recovery||recovery.unavailable){
+   add('Backup history unavailable',['Status','Next step'],[['Not loaded','Check the API connection and matching backend deployment.']],'Unavailable history does not mean that no backups exist.');
+  }else{
+   const backups=(recovery.backups||[]).filter(b=>inPeriod(b.savedAt)),restores=(recovery.restores||[]).filter(r=>inPeriod(r.created_at));
+   add('Saved backups',['Saved','Kind','Tables / rows','File status','Restore test'],backups.map(b=>[new Date(b.savedAt).toLocaleString('en-PH',{timeZone:'Asia/Manila'}),b.kind,b.tables+' tables / '+b.rows+' rows',b.fileAvailable?'Available':'Missing',b.restoreTested?'Recorded':'Not recorded']),'History includes at most the latest 20 server backup records. Availability is not an off-server copy or proof of recoverability.');
+   add('Successful restore events',['When','Performed by','Action'],restores.map(r=>[new Date(r.created_at).toLocaleString('en-PH',{timeZone:'Asia/Manila'}),r.actor_name,r.action]),'Retained successful restore audit events within the selected dates.');
+  }
+  add('Recovery assurance',['Requirement','Verification'],[['Off-server backup copy','Must be checked separately'],['Original application key','Must be preserved separately'],['Isolated restore rehearsal','Must be recorded after testing']],'A verified export is not a completed restore test.');
  }else{
   const changes=new Map();
-  for(const e of entries.filter(e=>categoryOf(e)==='Settings'))for(const c of e.changes||[]){const key=String(c.field);const existing=changes.get(key);if(!existing||new Date(e.ts)>new Date(existing.ts))changes.set(key,{...c,ts:e.ts,user:e.user});}
+  for(const e of entries.filter(e=>categoryOf(e)==='Settings'))for(const c of e.changes||[]){if(['area','result'].includes(String(c.field).toLowerCase())||systemReportValue(c.from)===systemReportValue(c.to))continue;const key=String(c.field);const existing=changes.get(key);if(!existing||new Date(e.ts)>new Date(existing.ts))changes.set(key,{...c,ts:e.ts,user:e.user});}
   add('Configuration activity',['Action','Events'],groups(entries.filter(e=>categoryOf(e)==='Settings')));
-  add('Latest change by field',['Field','Before','After','Changed by','Date'],[...changes.values()].map(c=>[c.field,c.from??'Not set',c.to??'Not set',c.user,reportDateKey(c.ts)]),'Latest recorded change per field within the selected dates. Full history is available in Activity Log.');
+  add('Latest change by field',['Field','Before','After','Changed by','Date'],[...changes.values()].map(c=>[c.field,systemReportValue(c.from),systemReportValue(c.to),c.user,reportDateKey(c.ts)]),'Latest recorded change per field within the selected dates. Full history is available in Audit Trail.');
   add('Current configuration',['Setting','Value'],[['Organization',settings.orgName||'Not set'],['Session timeout',`${settings.sessionTimeout||30} mins`],['Maintenance mode',settings.maintenanceMode?'On':'Off'],['Parallel service',settings.allowParallelService?'Enabled':'Disabled'],['Student queue prefix',settings.queuePrefixStudent||'A'],['Guest queue prefix',settings.queuePrefixGuest||'G']],'Current settings at generation time; these are not historical snapshots.');
  }
  return {title:SYSTEM_REPORT_TYPES[systemReportType],period:!systemReportRange.from&&!systemReportRange.to?'All recorded dates':`${systemReportRange.from||'Start'} to ${systemReportRange.to||'Today'}`,sections};
 }
 function renderReports(){
- document.getElementById('content').innerHTML=`<section class="card system-report-controls no-print"><div class="card-head"><div><h3>System reports</h3><p class="desc">Accounts, security and configuration summaries.</p></div><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print',14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download',14)} Download Excel</button></div></div><div class="filter-bar"><select class="filter-select" aria-label="Report type" onchange="selectSystemReport(this.value)">${Object.entries(SYSTEM_REPORT_TYPES).map(([key,label])=>`<option value="${key}" ${key===systemReportType?'selected':''}>${label}</option>`).join('')}</select><div class="date-range" role="group" aria-label="Report dates"><span class="dr-ic">${icon('calendar',15)}</span><label class="dr-field">From<input class="date-in" type="date" aria-label="Report start date" value="${systemReportRange.from}" onchange="setSystemReportDate('from',this.value)"></label><span class="dr-sep">–</span><label class="dr-field">To<input class="date-in" type="date" aria-label="Report end date" value="${systemReportRange.to}" onchange="setSystemReportDate('to',this.value)"></label><span class="dr-actions"><button class="dr-btn" onclick="setSystemReportDate('today')">Today</button><button class="dr-btn" onclick="setSystemReportDate('all')">All dates</button></span></div><button class="btn btn-ghost btn-sm report-activity-link" onclick="navigate('activitylog')">Activity Log</button></div></section><div class="card card-pad system-report-sheet" id="reportSheet"></div>`;
+ document.getElementById('content').innerHTML=`<section class="card system-report-controls no-print"><div class="card-head"><div><h3>System reports</h3><p class="desc">Accounts, security, settings and recovery summaries.</p></div><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print',14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download',14)} Download Excel</button></div></div><div class="filter-bar"><select class="filter-select" aria-label="Report type" onchange="selectSystemReport(this.value)">${Object.entries(SYSTEM_REPORT_TYPES).map(([key,label])=>`<option value="${key}" ${key===systemReportType?'selected':''}>${label}</option>`).join('')}</select><div class="date-range" role="group" aria-label="Report dates"><span class="dr-ic">${icon('calendar',15)}</span><label class="dr-field">From<input class="date-in" type="date" aria-label="Report start date" value="${systemReportRange.from}" onchange="setSystemReportDate('from',this.value)"></label><span class="dr-sep">–</span><label class="dr-field">To<input class="date-in" type="date" aria-label="Report end date" value="${systemReportRange.to}" onchange="setSystemReportDate('to',this.value)"></label><span class="dr-actions"><button class="dr-btn" onclick="setSystemReportDate('today')">Today</button><button class="dr-btn" onclick="setSystemReportDate('all')">All dates</button></span></div><button class="btn btn-ghost btn-sm report-activity-link" onclick="navigate('activitylog')">Activity Log</button></div></section><div class="card card-pad system-report-sheet" id="reportSheet"></div>`;
  buildReport();
 }
 function buildReport(){
@@ -682,11 +732,8 @@ function auditCatPill(cat) {
 function auditDetailsHtml(r) {
   const parts = [];
   if (r.target && /^(VIS-|OSS-)/.test(r.target)) parts.push(`<div class="audit-record-ref">Visit / record: <span class="mono">${escapeHtml(r.target)}</span></div>`);
-  (r.changes||[]).forEach(c=>{
-    const from=c.from==null?'':String(c.from),to=c.to==null?'':String(c.to);
-    if(/^[\[{]/.test(from)||/^[\[{]/.test(to))parts.push(`<details class="audit-extra"><summary>${escapeHtml(c.field)}</summary><div>Before: ${escapeHtml(from||'Not set')}</div><div>After: ${escapeHtml(to||'Not set')}</div></details>`);
-    else parts.push(`<details class="audit-extra"><summary>${escapeHtml(c.field)}</summary><div>Before: ${escapeHtml(from||'Not set')}</div><div>After: ${escapeHtml(to||'Not set')}</div></details>`);
-  });
+  if((r.changes||[]).length) parts.push(`<details class="audit-extra"><summary><span class="audit-view-label">View details</span><span class="audit-hide-label">Hide details</span></summary><dl class="audit-change-values">${r.changes.map(c=>`<div><dt>${escapeHtml(c.field)}</dt><dd><span><small>Before</small>${escapeHtml(c.from==null||c.from===''?'Not set':String(c.from))}</span><span><small>After</small>${escapeHtml(c.to==null||c.to===''?'Not set':String(c.to))}</span></dd></div>`).join('')}</dl></details>`);
+
   if(r.target && !/^(VIS-|OSS-|\/?api\/)/.test(r.target))parts.push(`<div class="muted">Record: ${escapeHtml(r.target)}</div>`);
   return parts.join('') || '<span class="muted">&mdash;</span>';
 }
@@ -735,12 +782,12 @@ function renderLogTable() {
 }
 function verifyAuditIntegrity() {
   const db = loadDB(), r = auditIntegrity(db), bad = r.bad;
-  logActivity(db, currentUser, `Verified audit trail integrity (${bad.length ? bad.length + ' problem(s)' : 'no problems'})`, { category: 'System' });
+  logActivity(db, currentUser, `Checked browser audit checksums (${bad.length ? bad.length + ' problem(s)' : 'no problems'})`, { category: 'System' });
   saveDB(db);
-  openModal('Audit Integrity Check', `
-    <div class="alert-banner ${bad.length ? 'danger' : 'success'}"><div><b>${bad.length ? `${bad.length} problem${bad.length === 1 ? '' : 's'} found` : 'No tampering detected'}</b>${r.total - r.unsealed} of ${r.total} entries checked${r.unsealed ? `; ${r.unsealed} older entr${r.unsealed === 1 ? 'y has' : 'ies have'} no seal yet and will be sealed on the next recorded action` : ''}.</div></div>
+  openModal('Browser Audit Checksum Check', `
+    <div class="alert-banner ${bad.length ? 'danger' : r.total > r.unsealed ? 'success' : 'warn'}"><div><b>${bad.length ? `${bad.length} checksum problem${bad.length === 1 ? '' : 's'} found` : r.total > r.unsealed ? 'No browser checksum mismatches' : 'No sealed entries available'}</b>${r.total - r.unsealed} of ${r.total} entries checked${r.unsealed ? `; ${r.unsealed} older entr${r.unsealed === 1 ? 'y has' : 'ies have'} no browser checksum and were not verified` : ''}.</div></div>
     ${bad.slice(0, 20).map(([e, why]) => `<div class="kv"><span class="mono">${fmtDateTime(e.ts)}</span><span>${escapeHtml(e.user)}: ${escapeHtml(auditActionLabel(e.action))}<div class="muted" style="font-size:.74rem;">${why}</div></span></div>`).join('')}
-    <p class="field-hint" style="margin-top:12px;">This is a tamper-evident checksum kept in the browser. It shows that the log was altered, but it is not a substitute for a server-side log.</p>`, []);
+    <p class="field-hint" style="margin-top:12px;">This checks only retained browser checksums. It does not verify server audit integrity or prove that history is unchanged. Use System Health for current server evidence and keep protected independent audit copies.</p>`, []);
 }
 function exportAuditExcel() {
   const rows = [['Timestamp', 'User', 'Role', 'Category', 'Action', 'Target', 'Changes']];
@@ -827,7 +874,7 @@ function renderSettings() {
         <div class="form-row"><div class="field"><label>Grace Period (minutes)</label><input id="stGraceMin" type="number" min="0" max="180" value="${s.gracePeriodMinutes ?? DEFAULT_GRACE_MINUTES}"></div><div class="field"><label>No-Show Threshold (minutes)</label><input id="stNoShowMin" type="number" min="5" max="480" value="${s.noShowThresholdMinutes ?? DEFAULT_NOSHOW_MINUTES}"></div></div>
         <div class="field-hint">Example: with a 15-minute grace period and a 60-minute threshold, a 10:00 AM appointment is On Time until 10:15, Late from 10:16&ndash;11:00, and automatically No-show after 11:00.</div></div>
       <div class="settings-block"><h4>Service capacity</h4><div class="field"><label for="stAppointmentOffices">Appointment offices</label><textarea id="stAppointmentOffices" rows="3">${escapeHtml((s.appointmentOffices||['Office of Student Services']).join('\n'))}</textarea><p class="field-hint">One office per line. Slots last 30 minutes and use the office calendar. Keep offices with active appointments in this list.</p></div><div class="field"><label for="stSlotCapacity">Appointments per time slot</label><input id="stSlotCapacity" type="number" min="1" max="20" value="${s.appointmentSlotCapacity??1}"><p class="field-hint">Default: one appointment per office at each time, including requests awaiting approval. Increase only when staff can handle the additional bookings. Pending requests hold capacity until staff acts; they do not expire automatically.</p></div><div class="switch-row"><div><div class="lbl">Allow parallel service</div><div class="sub">Let each Admin call or serve multiple visitors at once. This does not increase appointment slots or office capacity. Off by default.</div></div><label class="switch"><input id="stParallel" type="checkbox" ${s.allowParallelService?'checked':''}><span class="track"></span></label></div></div>
-      <div class="settings-block"><h4>Session</h4><div class="desc-txt">Admin and Super Admin sessions end automatically after this many idle minutes.</div>
+      <div class="settings-block"><h4>Session</h4><div class="desc-txt">Admin and Super Admin sessions end after this many idle minutes. API sessions also require sign-in again after one hour.</div>
         <div class="field"><label>Session Timeout (minutes)</label><input id="stTimeout" type="number" min="5" max="120" value="${Number(s.sessionTimeout) || 30}"></div></div>
       <div class="settings-block"><h4>System Maintenance</h4><div class="desc-txt">Temporarily restrict visitor-facing access while the office performs maintenance.</div>
         <div class="switch-row"><div><div class="lbl">Maintenance Mode</div><div class="sub">New visits can't be started in the Visitor Portal; checking an existing visit and staff login stay available</div></div><label class="switch"><input type="checkbox" id="stMaint" ${s.maintenanceMode ? 'checked' : ''}><span class="track"></span></label></div></div>
@@ -849,19 +896,8 @@ function saveSettings() {
   saveDB(db); toast('System settings saved.', 'ok'); renderSettings();
 }
 
-function renderBackup() {
-  const db = loadDB(), confCount = db.transactions.filter(isConfidentialTxn).length;
-  const kv = (l, n) => `<div class="kv"><span>${l}</span><span>${n}</span></div>`;
-  document.getElementById('content').innerHTML = `
-    <div class="card backup-page">
-      <div class="settings-block backup-export-block"><h4>Export Data</h4><div class="desc-txt">Download an encrypted backup of backend records. Keep the application key separately in a secure place; it is required to restore this backup.</div>
-        <button class="btn btn-primary btn-sm backup-action" onclick="exportAllData()">Download backup (.json)</button></div>
-      <div class="settings-block backup-restore-block"><h4>Restore Backup</h4><p class="super-restore-warning">Restoring replaces current server records with the selected backup. Download a current backup first. You will review record counts and confirm replacement before restoring.</p><div class="desc-txt">Choose an encrypted UniServe backup to preview before restoring. It must use this server’s application key.</div><div class="backup-file-picker"><button type="button" id="restoreBackupChoose" class="btn btn-ghost btn-sm backup-action" onclick="document.getElementById('restoreBackupFile').click()">Choose backup</button><span id="restoreBackupName" class="backup-file-name">JSON files only · Up to 30 MB</span><input id="restoreBackupFile" type="file" accept=".json,application/json" onchange="previewBackupFile(this)" hidden></div><p id="restoreBackupStatus" class="field-hint" role="status" aria-live="polite"></p></div>
-      <div class="settings-block"><h4>Storage Summary</h4><div class="desc-txt">This summary covers records cached or stored in this browser. Shared queue records, accounts, calendar settings and backend audit history are stored separately on the server.</div>
-        ${kv('Transactions', db.transactions.length)}${kv('Confidential Transactions', confCount)}${kv('Appointments', db.appointments.length)}${kv('Visitor Log Entries', db.visitorLog.length)}${kv('Queue Entries (all time)', db.queues.length)}${kv('Chat Conversations', db.chats.length)}${kv('Services in Catalog', db.services.length)}${kv('Staff Accounts', db.users.length)}${kv('Audit Trail Entries', `${db.activityLog.length} / ${AUDIT_MAX_ENTRIES}`)}</div>
-    </div>`;
-}
-async function exportAllData(){try{const data=await UniServeUX.request('/backup');const url=URL.createObjectURL(new Blob([JSON.stringify(data)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='uniserve-encrypted-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(url);toast('Encrypted backend backup downloaded. Keep the application key separately for recovery.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
+function renderBackup() { renderServerBackups(); }
+async function exportAllData(){ await downloadSystemBackup(); }
 
 function renderProfile() {
   const u = currentUser, initials = u.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
@@ -872,6 +908,7 @@ function renderProfile() {
         <div class="field"><label>Full Name</label><input id="pfName" value="${escapeHtml(u.fullName)}"></div>
         <div class="field"><label>Username</label><input id="pfUser" value="${escapeHtml(u.username)}"></div>
         <div class="field"><label>Email</label><input id="pfEmail" type="email" value="${escapeHtml(u.email || '')}"></div>
+        <section class="profile-security-section" aria-label="Account security"><h4>Account security</h4><div class="security-profile-tools"><div class="profile-security-row"><div><span>Two-step sign-in</span><small>Use an authenticator for extra sign-in protection.</small></div><button type="button" onclick="openSecurityMfa()">Manage</button></div><div class="profile-security-row"><div><span>Active sessions</span><small>Review and sign out of other sessions.</small></div><button type="button" onclick="openSecuritySessions()">View</button></div></div></section>
         </section><section class="staff-profile-password" aria-label="Password and account confirmation"><div class="field"><label>Current Password</label><div class="profile-password-input"><input id="pfCurrentPass" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfCurrentPass',this)">${profilePasswordEye(true)}</button></div></div>
         <div class="form-row"><div class="field"><label>New Password</label><div class="profile-password-input"><input id="pfPass" aria-describedby="pfPasswordHint" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass',this)">${profilePasswordEye(true)}</button></div></div><div class="field"><label>Confirm New Password</label><div class="profile-password-input"><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass2',this)">${profilePasswordEye(true)}</button></div></div></div>
         <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p><button class="btn btn-primary btn-block" onclick="saveProfile()">Save changes</button>

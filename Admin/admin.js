@@ -491,10 +491,10 @@ function buildTrendBuckets(txns, start) {
   return { labels: buckets.map(b => fmtDate(b.start).slice(5)), values: buckets.map(b => b.count), unit };
 }
 function truncateLabel(s, n) { return s.length > n ? s.slice(0, n - 1) + '…' : s; }
-function svgLineChart(trend) {
+function svgLineChart(trend, label, options = {}) {
   const { labels, values } = trend;
   const gradientId = `trend-fill-${svgLineChart.gradientSequence = (svgLineChart.gradientSequence || 0) + 1}`;
-  const w = 1200, h = 220, padL = 42, padR = 24, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
+  const w = options.width || 480, h = 220, padL = 42, padR = 24, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
   const max = Math.max(1, ...values), stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
   const pts = values.map((v, i) => ({ x: padL + (values.length > 1 ? i * stepX : innerW / 2), y: padT + innerH - (v / max) * innerH, v }));
   const line = pts.map((p, i) => {
@@ -510,8 +510,9 @@ function svgLineChart(trend) {
   const total = values.reduce((sum, value) => sum + value, 0);
   const average = values.length ? (total / values.length).toFixed(1) : '0';
   const peak = values.length ? Math.max(...values) : 0;
-  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} transactions</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.16"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.015"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
+  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} transactions</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.38"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.025"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
 }
+
 function svgBarChart(rows, opts) {
   opts = opts || {};
   const w = 380, rowH = 30, h = opts.height || rows.length * rowH + 20, max = Math.max(1, ...rows.map(r => r.count)), labelW = 120, barW = w - labelW - 50;
@@ -851,22 +852,59 @@ function renderDashboard() {
   const metric = (label, value, note) => '<div class="stat-card"><span class="metric-icon" aria-hidden="true">' + icon(metricIcons[metricIndex++],16) + '</span><div class="lbl">' + label + '</div><div class="val">' + value + '</div><div class="metric-note">' + note + '</div></div>';
   const card = (title, desc, body, footer = '') => '<div class="card"><div class="card-head"><div><h3>' + title + '</h3><div class="desc">' + desc + '</div></div></div><div class="card-pad">' + body + '</div>' + (footer ? '<div class="analytics-footer">' + footer + '</div>' : '') + '</div>';
   document.getElementById('content').innerHTML = '<div class="analytics-dashboard staff-overview">' +
-    '<div class="analytics-heading"><div><h2>Service overview</h2><p>Today at OSS and recent service activity.</p></div></div>' +
+    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Your service summary, queue and scheduled arrivals.</p></div></div>' +
     '<section class="dash-section" aria-label="Key metrics"><div class="stat-grid analytics-metrics">' +
     metric("Today's transactions", db.transactions.filter(x => fmtDate(x.createdAt) === t).length, 'Logged today') +
-    metric('Pending transactions', pending, 'All dates &middot; awaiting processing') +
+    metric('Total pending transactions', pending, 'All dates &middot; awaiting processing') +
     metric('Completed visits today', qs.completedToday, 'Finished at the counter') +
-    metric('Average wait today', qs.avgWaitMin == null ? '&mdash;' : qs.avgWaitMin + '<span class="metric-unit"> min</span>', 'Completed visits today') + '</div></section>' +
-    '<section class="dash-section" aria-labelledby="dailyWorkHeading"><h3 class="overview-section-title" id="dailyWorkHeading">Today at OSS</h3><div class="dashboard-today-grid">' +
+    metric('Average wait today', qs.avgWaitMin == null ? '&mdash;' : qs.avgWaitMin + '<span class="metric-unit"> min</span>', qs.avgWaitMin == null ? 'No wait-time data yet' : 'Based on completed visits today') + '</div></section>' +
+    '<section class="dash-section" aria-labelledby="dailyWorkHeading"><h3 class="overview-section-title" id="dailyWorkHeading">Queue and arrivals</h3><div class="dashboard-today-grid">' +
     card("Today's queue", 'Visits registered today', queue.some(r => r.count) ? dashboardChart(queue, 'donut', 'Today queue status') : emptyChart('No queue activity today.'), '<span>' + escalations + ' open escalations</span><button type="button" class="analytics-link" onclick="navigate(&quot;queue&quot;)">Open queue</button>') +
     dashboardScheduledVisitors(db) + '</div></section>' +
     '<section class="dash-section dashboard-trend-section" aria-label="Transaction analytics"><h3 class="overview-section-title">Recent transaction activity</h3><div class="analytics-primary">' +
     card('Transaction activity', 'Daily volume &middot; Last 14 days, including today', txns.length ? svgLineChart(trend, 'Daily transactions over the last 14 days') : emptyChart('No transactions in the last 14 days.')) +
     '</div></section><section class="dash-section" aria-labelledby="serviceInsightsHeading"><h3 class="overview-section-title" id="serviceInsightsHeading">Service insights</h3><div class="analytics-chart-grid dashboard-summary-grid">' +
-    card('Most requested services', 'Top 5 &middot; Last 14 days', services.length ? dashboardBarChart(services) : emptyChart('No service requests in this period.')) +
-    card('Transaction status', 'Transactions logged in the last 14 days', txns.length ? dashboardChart(statuses, 'donut', 'Transaction status') : emptyChart('No transactions in this period.')) +
+    card('Most requested services', 'Top 5 &middot; Last 14 days', services.length ? dashboardBarChart(services,'Most requested services') : emptyChart('No service requests in this period.')) +
+    card('Transaction status', 'Transactions logged &middot; Last 14 days', txns.length ? dashboardBarChart(statuses,'Transaction status') : emptyChart('No transactions in this period.')) +
 
-    card('Visitor satisfaction', 'All feedback &middot; ' + fs.n + ' responses', '<div class="satisfaction-score">' + (fs.satPct == null ? '&mdash;' : fs.satPct + '<span>%</span>') + '</div><p class="metric-note">Rated 4 or 5 stars</p>' + (fs.n ? dashboardBarChart(fs.dist) : emptyChart('No feedback received yet.')), 'Average rating: ' + (fs.avg == null ? '&mdash;' : fs.avg.toFixed(1) + ' / 5') + ' <button type="button" class="analytics-link" onclick="navigate(&quot;feedback&quot;)">View feedback</button>') + '</div></section><section class="dash-section" aria-labelledby="operationsHeading"><h3 class="overview-section-title" id="operationsHeading">Operations</h3>' + dashboardOperationalHtml(db, start, end, card) + '</section></div>';
+    card('Visitor satisfaction', 'All feedback &middot; ' + fs.n + ' responses', '<div class="satisfaction-score">' + (fs.satPct == null ? '&mdash;' : fs.satPct + '<span>%</span>') + '</div><p class="metric-note">Rated 4 or 5 stars</p>' + (fs.n ? dashboardBarChart(fs.dist) : emptyChart('No feedback received yet.')), 'Average rating: ' + (fs.avg == null ? '&mdash;' : fs.avg.toFixed(1) + ' / 5') + ' <button type="button" class="analytics-link" onclick="navigate(&quot;feedback&quot;)">View feedback</button>') + '</div></section><section class="dash-section" aria-labelledby="operationsHeading"><h3 class="overview-section-title" id="operationsHeading">Operations</h3>' + dashboardOperationalHtml(db, start, end, card) + card('When transactions are logged','Weekday and hour &middot; Philippine time &middot; Last 14 days',txns.length ? superActivityHeatmap(txns.map(item=>({ts:item.createdAt}))) : emptyChart('No transactions in this period.')) + '</section></div>';
+  const overview=document.querySelector('.staff-overview');
+  const comparisons=document.createElement('section');
+  comparisons.className='dash-section';
+  const topServices=services.slice(0,3);
+  const serviceSeries=topServices.map(service=>({label:service.label,values:dates.map(day=>txns.filter(item=>fmtDate(item.createdAt)===day&&db.services.find(s=>s.key===item.service)?.label===service.label).length)}));
+  const dayCount=(field,filter=()=>true)=>dates.map(day=>db.queues.filter(item=>item[field]&&new Date(item[field])>=start&&new Date(item[field])<=end&&fmtDate(item[field])===day&&filter(item)).length);
+  const arrivalSeries=[{label:'Arrived',values:dates.map(day=>db.queues.filter(item=>{const value=item.checkedInAt||item.createdAt;return value&&new Date(value)>=start&&new Date(value)<=end&&fmtDate(value)===day;}).length)},{label:'Completed',values:dayCount('completedAt',item=>item.status==='Completed')}];
+  const attendanceDays=dates.slice(-7).map(day=>({label:day.slice(5),accounts:db.appointments.filter(item=>item.date===day&&['Checked-in','Completed','Unfinished'].includes(item.status)).length,access:db.appointments.filter(item=>item.date===day&&item.status==='No-show').length}));
+  comparisons.innerHTML=card('Service request trends','Top 3 services · Last 14 days',serviceSeries.length?superComparisonChart(trend.labels,serviceSeries,'line','Daily requests for the top three services'):emptyChart('No service requests in this period.'))+
+    card('Arrivals and completed visits','Daily visits · Last 14 days',arrivalSeries.some(series=>series.values.some(Boolean))?superComparisonChart(trend.labels,arrivalSeries,'line','Daily arrivals and completed visits'):emptyChart('No visit activity in this period.'))+
+    card('Attended and missed appointments','Scheduled dates · Last 7 days',attendanceDays.some(day=>day.accounts||day.access)?superComparisonChart(attendanceDays.map(row=>row.label),[{label:'Attended',values:attendanceDays.map(row=>row.accounts)},{label:'No-show',values:attendanceDays.map(row=>row.access)}],'grouped','Attended and no-show appointments'):emptyChart('No attended or missed appointments in this period.'));
+  overview.append(comparisons);
+  const chartGrid=document.createElement('div');
+  chartGrid.className='admin-dashboard-grid';
+  chartGrid.setAttribute('aria-label','Service overview charts');
+  overview.querySelectorAll(':scope > .dash-section:not([aria-label="Key metrics"])').forEach(section=>chartGrid.append(section));
+  overview.append(chartGrid);
+  const chartNames={'Transaction activity':'overview',"Today's queue":'queue','Most requested services':'services','Transaction status':'status','Visitor satisfaction':'satisfaction','Appointment attendance':'attendance','Busy arrival hours':'hours','Time since request submission':'backlog','Wait and service time':'timing','When transactions are logged':'heatmap',"Today's scheduled visitors":'schedule','Service request trends':'trends','Arrivals and completed visits':'visits','Attended and missed appointments':'missed'};
+  chartGrid.querySelectorAll('.card').forEach(card=>{
+    const name=chartNames[card.querySelector('h3')?.textContent];
+    if(name)card.dataset.adminChart=name;
+  });
+  if(typeof ResizeObserver!=='undefined'){
+    window.adminDashboardTrendObserver?.disconnect();
+    const plot=document.querySelector('.staff-overview .dashboard-trend-section .card-pad');
+    if(plot&&txns.length){
+      let lastWidth=0;
+      window.adminDashboardTrendObserver=new ResizeObserver(()=>{
+        if(!plot.isConnected){window.adminDashboardTrendObserver?.disconnect();return;}
+        const style=getComputedStyle(plot),width=Math.round(plot.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight));
+        if(width<100||width===lastWidth)return;
+        lastWidth=width;
+        plot.innerHTML=svgLineChart(trend,'Daily transactions',{width});
+      });
+      window.adminDashboardTrendObserver.observe(plot);
+    }
+  }
 }
 
 

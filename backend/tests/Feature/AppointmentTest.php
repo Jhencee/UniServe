@@ -136,6 +136,7 @@ it('limits an Admin to one visitor by default including direct calls',function()
  $other=$this->postJson('/api/appointments/'.$a['id'].'/check-in',[],$headers)->assertOk()->json('queue');
  $this->postJson('/api/queue/call-next',[],$headers)->assertOk();
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 11:00','Asia/Manila'));
+ $headers=appointmentHeaders(); // A new staff session is required after the simulated idle/day boundary.
  $this->postJson('/api/queue/call-next',[],$headers)->assertConflict();
  $this->patchJson('/api/queue/'.$other['id'],['status'=>'Called'],$headers)->assertConflict();
  $this->patchJson('/api/queue/'.$q['id'],['status'=>'Serving'],$headers)->assertOk();
@@ -158,6 +159,7 @@ it('returns absent visitors with a new ordering timestamp',function(){
  $q=readyFlowVisit()['queue'];$path='/api/queue/'.$q['id'];$h=appointmentHeaders();
  $this->patchJson($path,['status'=>'Called'],$h)->assertOk();$this->patchJson($path,['status'=>'Skipped'],$h)->assertOk();
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 11:00','Asia/Manila'));
+ $h=appointmentHeaders(); // A new staff session is required after the simulated idle/day boundary.
  $returned=$this->patchJson($path,['status'=>'Waiting'],$h)->assertOk()->json('queue.queueEnteredAt');
  expect(CarbonImmutable::parse($returned)->setTimezone('Asia/Manila')->format('Y-m-d H:i'))->toBe('2026-10-13 11:00');
 });
@@ -165,6 +167,7 @@ it('recovers unfinished appointments without duplicating the queue or losing his
  $r=readyFlowVisit();$q=$r['queue'];$h=appointmentHeaders();
  $this->patchJson('/api/queue/'.$q['id'],['status'=>'Called'],$h)->assertOk();$this->patchJson('/api/queue/'.$q['id'],['status'=>'Serving'],$h)->assertOk();
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 09:00','Asia/Manila'));
+ $h=appointmentHeaders(); // A new staff session is required after the simulated idle/day boundary.
  \App\Support\QueueDayClosure::run();
  $a=DB::table('shared_appointments')->first();
  $this->patchJson('/api/appointments/'.$a->id,['date'=>'2026-10-14','time'=>'10:00','revision'=>$a->revision],$h)->assertOk();
@@ -178,6 +181,7 @@ it('arranges a follow-up under the same Visit ID and retains uploads',function()
  $a=$this->postJson('/api/queue/'.$q['id'].'/follow-up',['reason'=>'Bring the remaining requirements tomorrow'],$h)->assertOk()->assertJsonPath('appointment.visitId',$q['visitId'])->assertJsonPath('queue.status','Unfinished')->assertJsonPath('appointment.status','Requested')->json('appointment');
  $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-14','time'=>'10:00','revision'=>$a['revision']],$h)->assertOk();
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 10:00','Asia/Manila'));
+ $h=appointmentHeaders(); // A new staff session is required after the simulated idle/day boundary.
  $this->postJson('/api/appointments/'.$a['id'].'/check-in',['arrivalOverrideReason'=>'Fixture arrival reviewed by staff'],$h)->assertOk()->assertJsonPath('queue.id',$q['id']);
  expect(DB::table('queues')->count())->toBe(1);
 });
@@ -228,6 +232,7 @@ it('marks a recovered but missed booking as no-show and allows another reschedul
  $a=$this->postJson('/api/queue/'.$q['id'].'/follow-up',['reason'=>'Return with additional documents'],$h)->json('appointment');
  $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-14','time'=>'10:00','revision'=>$a['revision']],$h)->assertOk();
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 11:01','Asia/Manila'));
+ $h=appointmentHeaders(); // A new staff session is required after the simulated idle/day boundary.
  $this->artisan('appointments:no-shows')->assertSuccessful();
  $row=DB::table('shared_appointments')->where('id',$a['id'])->first();expect($row->status)->toBe('No-show');
  $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-15','time'=>'10:00','revision'=>$row->revision],$h)->assertOk();

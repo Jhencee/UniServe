@@ -19,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        \Illuminate\Support\Facades\Queue::looping(function(){
+            try { \Illuminate\Support\Facades\Cache::put('system:worker-heartbeat',now()->toIso8601String(),600); }
+            catch (\Throwable $e) { report($e); }
+        });
     }
 }

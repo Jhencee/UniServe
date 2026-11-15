@@ -7,14 +7,18 @@ function setup(token=true,admin=false,superAdmin=false){
  c.document.querySelector=selector=>selector.includes('notification-bell-count')?badge:({prepend(){attached++;}});
  return {c,button,badge,attached:()=>attached,requests:()=>requests,modal:()=>modal,poll:()=>poll(),response:r=>response=r};
 }
-test('Super Admin updates deduplicate, escape details and remember read IDs',async()=>{
- const s=setup(true,false,true);await tick();assert.equal(s.c.importantNotifications.length,1);assert.equal(Number(s.badge.textContent),3);await s.c.openImportantNotification('doc-1');assert.ok(s.modal().body.includes('&lt;PRIVATE&gt;'));assert.deepEqual(JSON.parse(s.c.sessionStorage.getItem('important-seen:admin')),['doc-1']);await s.poll();assert.equal(Number(s.badge.textContent),3);
+test('Admin updates deduplicate, escape details and remember read IDs',async()=>{
+ const s=setup(true,true,false);await tick();assert.equal(s.c.importantNotifications.length,1);assert.equal(Number(s.badge.textContent),3);await s.c.openImportantNotification('doc-1');assert.ok(s.modal().body.includes('&lt;PRIVATE&gt;'));assert.deepEqual(JSON.parse(s.c.sessionStorage.getItem('important-seen:admin')),['doc-1']);await s.poll();assert.equal(Number(s.badge.textContent),3);
 });
 test('staff updates require authorization and clear on expired sessions',async()=>{
- const anonymous=setup(false,false,true);await tick();assert.equal(anonymous.requests(),0);assert.equal(anonymous.c.importantNotifications.length,0);
- const s=setup(true,false,true);await tick();s.response({ok:false,status:401});await s.poll();assert.equal(s.c.importantNotifications.length,0);assert.equal(Number(s.badge.textContent),2);
+ const anonymous=setup(false,true,false);await tick();assert.equal(anonymous.requests(),0);assert.equal(anonymous.c.importantNotifications.length,0);
+ const s=setup(true,true,false);await tick();s.response({ok:false,status:401});await s.poll();assert.equal(s.c.importantNotifications.length,0);assert.equal(Number(s.badge.textContent),2);
 });
 
 test('Admins retain the update feed and actions without a redundant menu button',async()=>{const s=setup(true,true);await tick();assert.equal(s.attached(),0);assert.equal(s.c.importantNotifications.length,1);assert.equal(typeof s.c.openImportantNotification,'function');});
 
 test('visitor portal does not initialize update buttons or requests',async()=>{const s=setup();await tick();assert.equal(s.attached(),0);assert.equal(s.requests(),0);assert.equal(s.c.openImportantNotification,undefined);});
+
+test('Super Admin uses its dedicated notification module without initializing the legacy feed',async()=>{
+ const s=setup(true,false,true);await tick();assert.equal(s.requests(),0);assert.equal(s.c.openImportantNotification,undefined);
+});

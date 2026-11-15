@@ -44,6 +44,12 @@
     if(feedbackId&&visitor){const q=loadDB().queues.find(q=>q.id===feedbackId),token=q&&sessionStorage.getItem('visit-token:'+q.visitId);if(token)headers['X-Visit-Token']=token;}
     const response=await fetch(API+path,{method,headers,signal:AbortSignal.timeout(15000),...options,...(body?{body:JSON.stringify(body)}:{})});const data=await response.json();if(!response.ok){const e=Error(Object.values(data.errors||{}).flat().join(' ')||data.message||'Request failed.');e.status=response.status;throw e;}return data;
   }
+  if(staff){
+    let activitySentAt=0,activityPending=false;
+    const recordActivity=event=>{if(event.isTrusted)activityPending=true;};
+    ['pointerdown','pointermove','keydown','touchstart','scroll'].forEach(name=>document.addEventListener(name,recordActivity,{passive:true}));
+    setInterval(()=>{if(sessionEnding||!activityPending||document.visibilityState==='hidden'||Date.now()-activitySentAt<45000)return;activityPending=false;activitySentAt=Date.now();request('/session/activity','POST',{}).catch(()=>{});},5000);
+  }
   function cache(data){
     if(staff&&typeof sharedQueueSnapshot!=='undefined')for(const q of [...(data.queues||[]),...(data.queue?[data.queue]:[])])sharedQueueSnapshot.set(q.id,JSON.stringify(q));
     const db=loadDB();if(data.chats)db.chats=(db.chats||[]).filter(c=>!c.shared&&!data.chats.some(s=>s.id===c.id)).concat(data.chats);if(data.chat)db.chats=db.chats.filter(c=>c.id!==data.chat.id).concat(data.chat);if(data.queues)db.queues=(db.queues||[]).filter(q=>!q.shared&&!data.queues.some(s=>s.id===q.id)).concat(data.queues);if(data.queue)db.queues=db.queues.filter(q=>q.id!==data.queue.id).concat(data.queue);
@@ -158,6 +164,7 @@
   }
   if(staff&&typeof saveSettings==='function'){
     async function overview(){
+      if(state_view==='reports'&&typeof refreshSystemReportRecovery==='function')await refreshSystemReportRecovery();
       const [result,catalog]=await Promise.all([request('/reports'),request('/services'),refreshPortalSettings(),typeof refreshAdmins==='function'?refreshAdmins():Promise.resolve()]);
       const db=loadDB();
       if(result.activityLog)serverAudit=result.activityLog;

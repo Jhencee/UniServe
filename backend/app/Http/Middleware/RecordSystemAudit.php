@@ -23,6 +23,7 @@ class RecordSystemAudit
             throw $e;
         }
         if (!$request->is('api/*') || !Schema::hasTable('system_audit')) return $response;
+        if($request->is('api/login') && (json_decode($response->getContent(),true)['mfaRequired']??false))return $response;
         if($response->getStatusCode()>=400){
             $status=$response->getStatusCode();
             if(in_array($status,[401,403])||!in_array($request->method(),['GET','HEAD','OPTIONS'])){
@@ -33,6 +34,7 @@ class RecordSystemAudit
             }return $response;
         }
         if(in_array($request->method(), ['GET','HEAD','OPTIONS']) || $request->is('api/audit*','api/realtime/*','api/chats/*/read') || $request->attributes->get('system_audit_recorded'))return $response;
+        if($request->is('api/session/activity'))return $response;
         $body = json_decode($response->getContent(), true) ?? [];
         if ($request->is('api/login') && isset($body['user'])) $actor = (object) ['id'=>$body['user']['id'], 'full_name'=>$body['user']['fullName']];
         if ($request->is('api/password') && !$actor) {

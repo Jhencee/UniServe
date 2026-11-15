@@ -21,7 +21,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261113-matching-queue-header">
+    <link rel="stylesheet" href="landing.css?v=20261113-staff-login-logo">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
@@ -323,6 +323,7 @@
                 </div>
 
                 <form class="auth-body" id="staffLoginForm" method="post" onsubmit="event.preventDefault(); doLogin();">
+                    <div id="loginMfaField" class="field" hidden><label for="loginMfaCode">Authenticator or recovery code</label><input id="loginMfaCode" type="text" autocomplete="one-time-code" maxlength="80" spellcheck="false"></div>
                     <div id="loginErr" class="err-box" role="alert" hidden></div>
 
                     <div class="field">
@@ -390,10 +391,10 @@
     <script src="../shared/ui-components.js?v=20261109-in-app-notifications"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261111-semantic-banners"></script>
+    <script src="landing.js?v=20261113-security-hardening"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
-    <script src="../shared/portal-api.js?v=20261109-consistency-pass"></script>
+    <script src="../shared/portal-api.js?v=20261113-security-hardening"></script>
     <script src="../shared/realtime-updates.js?v=20261109-consistency-pass"></script>
 </body>
 

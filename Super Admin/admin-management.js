@@ -7,7 +7,7 @@ async function adminRequest(path = '', method = 'GET', data) {
     ...(data === undefined ? {} : { body: JSON.stringify(data) })
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Account action failed.');
+  if (!response.ok) {const error=new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Account action failed.');error.status=response.status;throw error;}
   return result;
 }
 function cacheAdmins(users) {
@@ -23,7 +23,7 @@ async function renderUsers() {
   document.getElementById('content').innerHTML = `<div class="card">
     <div class="card-head"><div><h3>Admin Accounts</h3><div class="desc">Create and manage OSS Admin accounts</div><div class="desc" id="confSummary"></div></div>
     <button class="btn btn-primary btn-sm" onclick="openUserForm()">${icon('plus', 14)} Add Admin</button></div>
-    <details class="super-permissions-help"><summary>Roles and confidential access</summary><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></details>
+    <section class="super-permissions-help" aria-label="Roles and confidential access"><h4>Roles and confidential access</h4><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></section>
     <div id="adminLoadError" class="err-box" hidden></div>
     <div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Confidential Access</th><th>Status</th><th>Action</th></tr></thead><tbody id="userBody"><tr><td colspan="7">Loading accounts...</td></tr></tbody></table></div></div>`;
   try { await refreshAdmins(); }
@@ -32,7 +32,7 @@ async function renderUsers() {
     document.getElementById('userBody').innerHTML = '<tr><td colspan="7">Unable to load accounts.</td></tr>';
     const error = document.getElementById('adminLoadError');
     error.hidden = false;
-    error.innerHTML = 'Cannot load accounts. Start MySQL and the backend server. <button class="btn btn-sm" onclick="renderUsers()">Retry</button>';
+    error.innerHTML = 'Cannot load accounts. Check your connection, staff session and API availability. <button class="btn btn-sm" onclick="renderUsers()">Retry</button>';
   }
 }
 function renderUserTable() {
@@ -67,7 +67,7 @@ async function saveAdminAction(id, data, action, remove = false) {
     try { await refreshAdmins(); }
     catch (_) { if (state_view === 'users') await renderUsers(); }
     toast('Account updated.', 'ok');
-  } catch (error) { toast(escapeHtml(error instanceof TypeError ? 'Cannot reach the backend server.' : error.message), 'err'); }
+  } catch (error) { if(error.status===428){confirmSuperAction(()=>saveAdminAction(id,data,action,remove));return;} toast(escapeHtml(error instanceof TypeError ? 'Cannot reach the backend server.' : error.message), 'err'); }
   finally {
     adminManagementBusy = false;
     modal?.querySelectorAll('.modal-foot button').forEach(button => button.disabled = false);
@@ -82,13 +82,26 @@ function openConfApproverModal(id) {
   ]);
 }
 function openUserForm() { openAdminForm(null); }
-function openEditUserModal(id) { const user = accountById(id); if (user) openAdminForm(user); }
+function openEditUserModal(id) {
+  const user=accountById(id);
+  if(!user)return;
+  openAdminForm(user);
+  const target=document.getElementById('accountLastSignIn');
+  if(!target)return;
+  getSystemOversight().then(data=>{
+    if(!target.isConnected)return;
+    const account=data.accounts.find(a=>String(a.id)===String(id));
+    target.textContent=account?(account.lastSignIn?oversightDate(account.lastSignIn):'No sign-in recorded'):'Sign-in history unavailable';
+    if(account?.active&&account.reviewInactive)target.textContent+=' ? Over 90 days ago; check if this account is still needed.';
+  }).catch(()=>{if(target.isConnected)target.textContent='Sign-in history unavailable';});
+}
 function accountCapital(value) { return value.replace(/(^|[\s-])([\p{L}])/gu, (_,gap,letter)=>gap+letter.toLocaleUpperCase()); }
 function capitalizeAccountInput(input) { const start=input.selectionStart,end=input.selectionEnd; input.value=accountCapital(input.value); if(start!==null)input.setSelectionRange(start,end); }
 function toggleAccountPassword(id,button) { const input=document.getElementById(id),show=input.type==='password';input.type=show?'text':'password';button.setAttribute('aria-pressed',String(show));button.setAttribute('aria-label',show?'Hide password':'Show password');button.innerHTML=profilePasswordEye(!show); }
 function openAdminForm(user) {
   const parts=(user?.fullName||'').trim().split(/\s+/),first=parts.shift()||'',last=parts.join(' ');
   openModal(user ? 'Edit Admin Account' : 'Add Admin Account', `
+    ${user ? '<div class="field"><label>Last recorded sign-in</label><p id="accountLastSignIn" class="field-hint" role="status">Loading sign-in history...</p></div>' : ''}
     <div class="form-row"><div class="field"><label for="mUsFirst">First Name</label><input id="mUsFirst" autocomplete="given-name" maxlength="60" oninput="capitalizeAccountInput(this)" value="${escapeHtml(first)}"></div><div class="field"><label for="mUsLast">Last Name</label><input id="mUsLast" autocomplete="family-name" maxlength="60" oninput="capitalizeAccountInput(this)" value="${escapeHtml(last)}"></div></div>
     <div class="form-row">
       <div class="field"><label for="mUsUser">Username</label><input id="mUsUser" oninput="capitalizeAccountInput(this)" autocomplete="off" maxlength="50" value="${escapeHtml(user?.username || '')}"></div>

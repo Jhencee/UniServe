@@ -1,7 +1,7 @@
 /* Recipient-authorized updates; only notification IDs are saved in this tab. */
 (function(){
   const staff=typeof state_view!=='undefined';
-  if(!staff)return;
+  if(!staff||currentUser?.role==='SUPER_ADMIN')return;
   const host=document.querySelector('.admin-actions-panel');if(!host)return;
   const key='important-seen:'+currentUser.id;let seen=new Set();
   try{seen=new Set(JSON.parse(sessionStorage.getItem(key)||'[]'));}catch(_){}

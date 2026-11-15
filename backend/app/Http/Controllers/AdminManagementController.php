@@ -18,6 +18,7 @@ class AdminManagementController extends Controller
         if ($request->isMethod('get')) {
             return response()->json(['users' => DB::table('staff_users')->whereIn('role', ['ADMIN', 'SUPER_ADMIN'])->orderBy('full_name')->get()->map(fn ($user) => $this->present($user))]);
         }
+        if (!$request->isMethod('get') && ($request->isMethod('delete') || $request->hasAny(['password','active','confidentialAccess','confidentialApprover']))) \App\Support\StaffSessions::requireConfirmation($request);
         if ($id !== null) {
             abort_unless((clone $query)->where('id', $id)->exists(), 404, 'Admin account not found.');
         }

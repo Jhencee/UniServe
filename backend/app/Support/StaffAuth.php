@@ -16,10 +16,13 @@ class StaffAuth
     }
     public static function token(object $user): string
     {
-        return Crypt::encryptString(json_encode([
-            'id' => $user->id, 'expires' => time() + 3600,
-            'credential' => hash('sha256', $user->password_hash),
+        $token=Crypt::encryptString(json_encode([
+            'nonce'=>bin2hex(random_bytes(16)), 'id' => $user->id, 'expires' => now()->timestamp + 3600,
+            'credential' => hash('sha256', $user->password_hash.($user->mfa_secret??'').($user->mfa_version??'')),
+            'epoch' => \Illuminate\Support\Facades\Cache::get('system:credential-epoch','initial'),
         ]));
+        StaffSessions::register($token,$user);
+        return $token;
     }
 
     public static function user(Request $request, ?string $role = null): object
@@ -31,8 +34,10 @@ class StaffAuth
             abort(401, 'Please sign in again.');
         }
         $user = DB::table('staff_users')->where('id', $payload['id'] ?? '')->first();
-        abort_unless($user && $user->is_active && ($payload['expires'] ?? 0) > time()
-            && hash_equals(hash('sha256', $user->password_hash), $payload['credential'] ?? ''), 401, 'Please sign in again.');
+        abort_unless(hash_equals((string)\Illuminate\Support\Facades\Cache::get('system:credential-epoch','initial'), (string)($payload['epoch']??'initial')),401,'Data was restored. Please sign in again.');
+        abort_unless($user && $user->is_active && ($payload['expires'] ?? 0) > now()->timestamp
+            && hash_equals(hash('sha256', $user->password_hash.($user->mfa_secret??'').($user->mfa_version??'')), $payload['credential'] ?? ''), 401, 'Please sign in again.');
+        StaffSessions::check($request,$user);
         abort_if($role !== null && $user->role !== $role, 403, $role === 'ADMIN' ? 'Admin access required.' : 'Super Admin access required.');
         abort_if(self::needsPasswordChange($user) && !$request->is('api/profile') && !$request->is('api/password') && !$request->is('api/logout'),403,'Change your default password in My Profile first.');
         return $user;

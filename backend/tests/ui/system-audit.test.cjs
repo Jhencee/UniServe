@@ -7,8 +7,8 @@ function setup(request){
 function row(id){return {id,actor_name:'System',category:'System',action:'Event '+id,created_at:'2026-10-13 08:00:00',changes:[]};}
 test('audit filters and pagination use the server, including pages beyond 500 records',async()=>{
  let called;const {c,elements}=setup(async url=>{called=url;return {data:[row(501)],current_page:17,last_page:17,total:501}});
- elements.get('centralAuditActor').value='System';vm.runInContext('centralAuditPage=17',c);await c.loadCentralAudit();
- assert.ok(called.includes('actor=System'));assert.ok(called.includes('page=17'));assert.ok(elements.get('centralAuditPager').innerHTML.includes('501 records'));assert.ok(elements.get('centralAuditBody').innerHTML.includes('Event 501'));
+ elements.get('centralAuditQ').value='System';vm.runInContext('centralAuditPage=17',c);await c.loadCentralAudit();
+ assert.ok(called.includes('q=System'));assert.ok(called.includes('page=17'));assert.ok(elements.get('centralAuditPager').innerHTML.includes('501 records'));assert.ok(elements.get('centralAuditBody').innerHTML.includes('Event 501'));
 });
 test('filtered Excel export includes every server page rather than truncating at 500',async()=>{
  const {c,getExport}=setup(async url=>{const page=Number(new URLSearchParams(url.split('?')[1]).get('page'));const count=page<17?30:21;return {data:Array.from({length:count},(_,i)=>row((page-1)*30+i)),next_page_url:page<17?'next':null}});

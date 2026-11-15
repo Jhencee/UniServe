@@ -1,4 +1,4 @@
-﻿/* Shared aggregate analytics for every staff dashboard. No visitor details are rendered. */
+/* Shared aggregate analytics for every staff dashboard. No visitor details are rendered. */
 function dashboardOperationalData(db, start, end = new Date()) {
   const dayKey = value => {
     const date = new Date(value);
@@ -33,26 +33,33 @@ function dashboardOperationalData(db, start, end = new Date()) {
 }
 function dashboardOperationalHtml(db, start, end, card) {
   const data = dashboardOperationalData(db, start, end);
-  const graph = (rows, message, label, type = 'donut') => rows.length && rows.some(r => r.count) ? dashboardChart(rows, type, label) : emptyChart(message);
+  const graph = (rows, message, label, type = 'donut') => rows.length && rows.some(r => r.count) ? (type === 'pie' ? superPieChart(rows, label) : dashboardChart(rows, type, label)) : emptyChart(message);
   return '<section class="dash-section analytics-operations" aria-label="Appointments, demand and service performance">' +
-    card('Appointment attendance', 'Scheduled dates in the last 14 days', graph(data.attendance, 'No appointment activity in this period.', 'Appointment attendance breakdown'), data.appointments + ' appointments · Booked visits may still be awaiting arrival') +
+    card('Appointment attendance', 'Scheduled dates in the last 14 days', graph(data.attendance, 'No appointment activity in this period.', 'Appointment attendance breakdown', 'columns'), data.appointments + ' appointments · Booked visits may still be awaiting arrival') +
     card('Busy arrival hours', 'Manila time · Arrivals in the last 14 days', graph(data.activeHours, 'No arrivals in this period.', 'Arrivals by hour of day', 'columns'), data.visits + ' arrivals · Hours with arrivals only') +
-    card('Time since request submission', 'Current open transactions · Time since logged', graph(data.backlog, 'No unresolved requests.', 'Open requests by days since submission', 'segments'), data.open + ' unresolved requests · Calendar days') +
+    card('Time since request submission', 'Current open transactions · Time since logged', graph(data.backlog, 'No unresolved requests.', 'Open requests by days since submission', 'columns'), data.open + ' unresolved requests · Calendar days') +
     card('Wait and service time', 'Minutes · Visits completed in the last 14 days', data.timing.length ? dashboardChart(data.timing, 'columns', 'Average wait and service time in minutes') : emptyChart('No completed visits with timing data.'), data.waitSamples + ' wait samples · ' + data.serviceSamples + ' service samples') + '</section>';
 }
 function dashboardBarChart(rows, label = 'Bar chart') {
   const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const max = Math.max(1, ...rows.map(r => r.count));
-  const shades = ['#2563eb','#00b894','#f5a623','#9b51e0','#f15a24','#00a8cc'];
+  const shades = ['var(--dashboard-chart-1, #2563eb)','var(--dashboard-chart-2, #00b894)','var(--dashboard-chart-3, #f5a623)','var(--dashboard-chart-4, #9b51e0)','var(--dashboard-chart-5, #f15a24)','var(--dashboard-chart-6, #00a8cc)'];
   return '<div class="dashboard-bars" role="img" aria-label="' + safe(label) + '">' + rows.map((r, i) =>
     '<div class="dashboard-bar-row"><span class="dashboard-bar-label" title="' + safe(r.label) + '">' + safe(r.label) + '</span><span class="dashboard-bar-track"><span class="dashboard-bar-fill" style="width:' + (r.count / max * 100).toFixed(1) + '%;background:' + shades[i % shades.length] + '"></span></span><strong>' + r.count + '</strong></div>'
   ).join('') + '</div>';
 }
-function dashboardChart(rows, type = 'donut', label = 'Chart') {
+function dashboardChart(rows, type = 'donut', label = 'Chart', colors = null) {
   const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const total = rows.reduce((sum, r) => sum + r.count, 0);
-  const shades = ['#2563eb','#00b894','#f5a623','#9b51e0','#f15a24','#00a8cc'];
+  const shades = colors || ['var(--dashboard-chart-1, #2563eb)','var(--dashboard-chart-2, #00b894)','var(--dashboard-chart-3, #f5a623)','var(--dashboard-chart-4, #9b51e0)','var(--dashboard-chart-5, #f15a24)','var(--dashboard-chart-6, #00a8cc)'];
   const legend = rows.map((r, i) => '<div class="chart-legend-row"><i style="background:' + shades[i % shades.length] + '"></i><span>' + safe(r.label) + '</span><strong>' + r.count + '</strong></div>').join('');
+  if (type === 'rings') {
+    const rings=rows.map((row,index)=>{
+      const radius=60-index*14,length=2*Math.PI*radius,track=length*.75,filled=total?track*row.count/total:0;
+      return '<g transform="rotate(135 80 80)"><circle cx="80" cy="80" r="'+radius+'" fill="none" stroke="var(--border)" stroke-width="8" stroke-dasharray="'+track+' '+length+'" stroke-linecap="round"/><circle cx="80" cy="80" r="'+radius+'" fill="none" stroke="'+shades[index%shades.length]+'" stroke-width="8" stroke-dasharray="'+filled+' '+length+'" stroke-linecap="'+(filled?'round':'butt')+'"><title>'+safe(row.label)+': '+row.count+' of '+total+' checks</title></circle></g>';
+    }).join('');
+    return '<div class="dashboard-segments dashboard-rings" role="img" aria-label="'+safe(label)+'"><svg viewBox="0 0 160 160">'+rings+'<text x="80" y="83" text-anchor="middle" fill="var(--text)" font-size="20">'+total+'</text><text x="80" y="100" text-anchor="middle" fill="var(--text-soft)" font-size="10">checks</text></svg><div class="chart-legend">'+legend+'</div></div>';
+  }
   if (type === 'donut') {
     let offset = 0;
     const arcs = rows.filter(r => r.count > 0).map(r => {
@@ -72,4 +79,26 @@ function dashboardChart(rows, type = 'donut', label = 'Chart') {
     const x = 20 + step * (i + .5), h = r.count / max * 94;
     return '<g><title>' + safe(r.label) + ': ' + r.count + '</title><rect x="' + (x - Math.min(22, step * .3)) + '" y="' + (130-h) + '" width="' + Math.min(44,step*.6) + '" height="' + h + '" rx="2" fill="' + shades[i % shades.length] + '"/><text x="' + x + '" y="' + (122-h) + '" text-anchor="middle" fill="var(--text)" font-size="11">' + r.count + '</text><text x="' + x + '" y="150" text-anchor="middle" fill="var(--text-soft)" font-size="10">' + safe(r.label) + '</text></g>';
   }).join('') + '</svg>';
+}
+
+function dashboardTrendChart(trend, label, unit = 'transactions', options = {}) {
+  const { labels, values } = trend;
+  const gradientId = `trend-fill-${dashboardTrendChart.gradientSequence = (dashboardTrendChart.gradientSequence || 0) + 1}`;
+  const w = options.width || 480, h = 220, padL = 42, padR = 24, padT = 20, padB = 34, innerW = w - padL - padR, innerH = h - padT - padB;
+  const max = Math.max(1, ...values), stepX = values.length > 1 ? innerW / (values.length - 1) : 0;
+  const pts = values.map((v, i) => ({ x: padL + (values.length > 1 ? i * stepX : innerW / 2), y: padT + innerH - (v / max) * innerH, v }));
+  const line = pts.map((p, i) => {
+    if (!i) return `M${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    const previous = pts[i - 1], middle = (previous.x + p.x) / 2;
+    return `C${middle.toFixed(1)},${previous.y.toFixed(1)} ${middle.toFixed(1)},${p.y.toFixed(1)} ${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+  }).join(' ');
+  const area = pts.length > 1 ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : '';
+  const tickCount = Math.min(5, max) + 1;
+  const grid = Array.from({length:tickCount},(_,i)=>i/(tickCount-1)).map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
+  const xl = pts.map((p, i) => `<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`).join('');
+  const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="2"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
+  const total = values.reduce((sum, value) => sum + value, 0);
+  const average = values.length ? (total / values.length).toFixed(1) : '0';
+  const peak = values.length ? Math.max(...values) : 0;
+  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} ${escapeHtml(unit)}</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="${escapeHtml(label || 'Activity over time')}"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.38"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.025"/></linearGradient></defs>${grid}${area && options.area !== false ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
 }

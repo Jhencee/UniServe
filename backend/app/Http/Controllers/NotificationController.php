@@ -81,7 +81,7 @@ class NotificationController extends Controller
     {
         $data=$request->validate(['token'=>['required','string','max:5000']]);
         try{$payload=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($data['token']),true,512,JSON_THROW_ON_ERROR);}catch(\Throwable $e){abort(403,'Invalid cancellation token.');}
-        abort_unless(($payload['purpose']??'')==='cancel-notifications' && ($payload['expires']??0)>time(),403,'Cancellation token expired.');
+        abort_unless(($payload['purpose']??'')==='cancel-notifications' && ($payload['expires']??0)>now()->timestamp,403,'Cancellation token expired.');
         $count=DB::table('notification_outbox')->where('visit_id',$payload['visitId'])->whereIn('status',['pending','paused','failed'])->update(['status'=>'cancelled','updated_at'=>now()]);
         return response()->json(['cancelled'=>$count]);
     }

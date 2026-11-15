@@ -284,6 +284,7 @@ function showLogin() {
   const savedUser = localStorage.getItem('ossuniserve_remember_user');
   document.getElementById('loginUser').value = savedUser || '';
   document.getElementById('loginPass').value = '';
+  document.getElementById('loginMfaCode').value='';document.getElementById('loginMfaField').hidden=true;
   document.getElementById('loginPass').type = 'password';
   const rememberBox = document.getElementById('loginRemember');
   if (rememberBox) rememberBox.checked = !!savedUser;
@@ -332,9 +333,10 @@ async function doLogin() {
     const turnstileToken=await LoginTurnstile.getToken();
     const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ username: u, password: p,turnstileToken })
+      body: JSON.stringify({ username: u, password: p,turnstileToken,mfaCode:document.getElementById('loginMfaCode')?.value.trim()||'' })
     });
     const result = await response.json();
+    if(result.mfaRequired){document.getElementById('loginMfaField').hidden=false;document.getElementById('loginMfaCode').focus();throw new Error(result.message);}
     if(response.status===429)throw new Error('Too many sign-in attempts. Please wait '+(response.headers.get('Retry-After')||60)+' seconds, then try again.');
     if (!response.ok) throw new Error(response.status >= 500 ? 'Sign in is temporarily unavailable. Please try again later.' : result.message || 'Unable to sign in. Check your username and password, then try again.');
     user = result.user;

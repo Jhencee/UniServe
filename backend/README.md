@@ -1,5 +1,7 @@
 # UniServe
 
+Super Admin health, access review, backup scope, deployment prerequisites and safe recovery steps are documented in [Super Admin oversight and recovery](docs/super-admin-recovery.md).
+
 Laravel API and static portals for visitors, Admin and Super Admin. Portal entry points are Landing/landing.html, User/user.html, Admin/admin.html and Super Admin/superadmin.html in the parent directory.
 
 New installations create their first account with `php artisan portal:create-super-admin`; migrations do not install default credentials.

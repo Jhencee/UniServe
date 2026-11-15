@@ -8,10 +8,10 @@ async function previewBackupFile(input){
   try{
     if(file.size>30*1024*1024)throw Error('Choose a backup smaller than 30 MB.');
     let backup;try{backup=JSON.parse(await file.text());}catch(_){throw Error('This file is not valid JSON. Select the original downloaded backup.');}
-    const preview=await UniServeUX.request('/backup/preview','POST',{backup});
+    const preview=await UniServeUX.request('/backup/preview','POST',{backup},{signal:AbortSignal.timeout(120000)});
     status.textContent='Backup checked. Review the preview before restoring.';
     const date=new Date(preview.createdAt).toLocaleString('en-PH',{timeZone:'Asia/Manila'});
-    openModal('Restore this backup?',`<p class="field-hint">Backup created ${escapeHtml(date)}.</p><p style="margin:12px 0">${escapeHtml(preview.message)}</p><div class="table-wrap"><table><thead><tr><th>Records</th><th>Current</th><th>Backup</th></tr></thead><tbody>${preview.tables.map(row=>`<tr><td>${escapeHtml(row.table.replace(/_/g,' '))}</td><td>${row.currentRows}</td><td>${row.backupRows}</td></tr>`).join('')}</tbody></table></div><div class="field" style="margin-top:16px"><label for="restoreConfirmation">Type RESTORE to confirm replacement</label><input id="restoreConfirmation" autocomplete="off" placeholder="RESTORE"></div><p id="restoreInlineError" role="alert" class="field-hint"></p>`,[
+    openModal('Restore this backup?',`<p class="field-hint">Backup created ${escapeHtml(date)}.</p><p style="margin:12px 0">${escapeHtml(preview.message)}</p><div class="table-wrap"><table><thead><tr><th>Records</th><th>Current</th><th>Backup</th></tr></thead><tbody>${preview.tables.map(row=>`<tr><td>${escapeHtml(row.table.replace(/_/g,' '))}</td><td>${row.currentRows}</td><td>${row.backupRows}</td></tr>`).join('')}</tbody></table></div><div class="field" style="margin-top:16px"><label for="restoreConfirmation">Type RESTORE to confirm replacement</label><input id="restoreConfirmation" autocomplete="off" placeholder="RESTORE"></div><div class="field"><label for="restorePassword">Super Admin password</label><input id="restorePassword" type="password" autocomplete="current-password"></div><p id="restoreInlineError" role="alert" class="field-hint"></p>`,[
       {label:'Keep current data',cls:'btn-ghost',action:closeModal},
       {label:'Restore backup',cls:'btn-danger-o',action:async()=>{
         const error=document.getElementById('restoreInlineError');
@@ -19,12 +19,16 @@ async function previewBackupFile(input){
         const button=document.getElementById('modalBtn1');button.disabled=true;button.textContent='Restoring…';
         error.textContent='Keep this window open until restoration finishes.';
         try{
-          await UniServeUX.request('/backup/restore','POST',{token:preview.token,confirmation:'RESTORE'});
+          await UniServeUX.request('/password/confirm','POST',{password:document.getElementById('restorePassword').value});
+          await UniServeUX.request('/backup/restore','POST',{token:preview.token,confirmation:'RESTORE'},{signal:AbortSignal.timeout(120000)});
           localStorage.removeItem(DB_KEY);sessionStorage.removeItem('ossuniserve_session');
           openModal('Backup restored','<p>Your records were restored and a recovery backup was saved on the server. Sign in again using an account from the restored backup.</p>',[{label:'Sign in again',cls:'btn-primary',action:()=>{location.href='../Landing/landing.html';}}]);
         }catch(e){error.textContent=e.message;button.disabled=false;button.textContent='Restore backup';}
       }}
     ]);
-  }catch(e){status.textContent=e.message;}
+  }catch(e){
+    status.textContent='Backup could not be verified. Current records have not been changed.';
+    openModal('Backup cannot be restored',`<p>${escapeHtml(e.message)}</p><p class="field-hint">Choose a complete backup that matches this database. Keep the original file if you need to recover it using its original system version.</p>`,[{label:'Close',cls:'btn-ghost',action:closeModal}]);
+  }
   finally{input.disabled=false;input.value='';choose.disabled=false;}
 }

@@ -6,7 +6,7 @@ use Carbon\CarbonImmutable;
 
 beforeEach(function(){
  Schema::create('staff_users',function(Blueprint $t){$t->string('id')->primary();$t->string('full_name');$t->string('role');$t->string('password_hash');$t->boolean('is_active');$t->boolean('confidential_access')->default(false);$t->boolean('confidential_approver')->default(false);});
- foreach(['admin','head','super'] as $id)DB::table('staff_users')->insert(['id'=>$id,'full_name'=>$id,'role'=>$id==='super'?'SUPER_ADMIN':'ADMIN','password_hash'=>'test','is_active'=>true,'confidential_access'=>$id==='head','confidential_approver'=>$id==='head']);
+ foreach(['admin','head','super'] as $id)DB::table('staff_users')->insert(['id'=>$id,'full_name'=>$id,'role'=>$id==='super'?'SUPER_ADMIN':'ADMIN','password_hash'=>\Illuminate\Support\Facades\Hash::make('RoleFixturePassword42!'),'is_active'=>true,'confidential_access'=>$id==='head','confidential_approver'=>$id==='head']);
  Schema::create('queues',function(Blueprint $t){$t->string('id')->primary();$t->string('status');$t->text('portal_payload');$t->timestamps();});
  foreach(['2026_10_12_000003_office_calendar.php','2026_10_12_000004_audit_and_notifications.php','2026_10_14_000006_shared_appointments.php','2026_10_15_000008_remaining_flows.php'] as $file)(require database_path('migrations/'.$file))->up();
  Schema::create('confidential_cases',function(Blueprint $t){$t->string('id')->primary();$t->string('code');$t->string('assigned_admin_id')->nullable();$t->timestamps();});
@@ -15,7 +15,7 @@ beforeEach(function(){
  foreach(['normal'=>'good_moral','private'=>'incident_report'] as $id=>$service){$q=['id'=>$id,'visitId'=>'VIS-'.strtoupper($id),'number'=>'A-'.$id,'status'=>'Waiting','serviceKey'=>$service,'serviceLabel'=>$service,'source'=>'Walk-in','name'=>'Private Visitor','email'=>'owner@gmail.com','contact'=>'09123456789','attachments'=>[['dataUrl'=>'private-file']],'createdAt'=>'2026-10-13T09:00:00+08:00'];DB::table('queues')->insert(['id'=>$id,'status'=>'Waiting','portal_payload'=>QueueData::write($q),'created_at'=>now(),'updated_at'=>now()]);}
 });
 afterEach(function(){CarbonImmutable::setTestNow();foreach(['confidential_requests','confidential_cases','queues','staff_users','office_calendar','calendar_audit','system_audit','notification_outbox','shared_appointments','shared_transactions','shared_visitor_log','shared_chats','shared_system_settings','service_catalog'] as $table)Schema::dropIfExists($table);});
-function roleDataHeaders($id){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
+function roleDataHeaders($id){$headers=['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];if($id==='super')test()->postJson('/api/password/confirm',['password'=>'RoleFixturePassword42!'],$headers)->assertOk();return $headers;}
 
 it('identifies locked visitor log cases and reveals details only after Head Admin unlock',function(){
  roleAuditAppointment();
@@ -160,7 +160,8 @@ it('previews and restores an encrypted backup only after explicit confirmation',
  $result=$this->postJson('/api/backup/restore',['token'=>$preview['token'],'confirmation'=>'RESTORE'],$headers)->assertOk()->assertJsonPath('restored',true)->json();
  expect(DB::table('queues')->count())->toBe(2);
  \Illuminate\Support\Facades\Storage::disk('local')->assertExists($result['recoveryBackup']);
- $this->postJson('/api/backup/restore',['token'=>$preview['token'],'confirmation'=>'RESTORE'],$headers)->assertUnprocessable();
+ $this->postJson('/api/backup/restore',['token'=>$preview['token'],'confirmation'=>'RESTORE'],$headers)->assertUnauthorized();
+ $this->postJson('/api/backup/restore',['token'=>$preview['token'],'confirmation'=>'RESTORE'],roleDataHeaders('super'))->assertUnprocessable();
 });
 
 it('rejects unauthorized or damaged backup uploads without changing records',function(){

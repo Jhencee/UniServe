@@ -12,7 +12,7 @@ beforeEach(function(){
     DB::table('confidential_cases')->insert(['id'=>'case1','code'=>'OSS-001','assigned_admin_id'=>'owner','created_at'=>now(),'updated_at'=>now()]);
 });
 afterEach(function(){foreach(['confidential_requests','confidential_cases','notification_outbox','system_audit','staff_users'] as $table)Schema::dropIfExists($table);});
-function confHeaders($id){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
+function confHeaders($id){$headers=['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];if($id==='super')test()->postJson('/api/password/confirm',['password'=>'FixturePassword123'],$headers)->assertOk();return $headers;}
 it('notifies only the requester about active approvals and removes expired or revoked approvals',function(){
  $id=$this->postJson('/api/confidential/requests',['caseId'=>'case1','scope'=>'view','reason'=>'Case review'],confHeaders('other'))->assertCreated()->json('id');
  $this->getJson('/api/confidential/approvals',confHeaders('other'))->assertOk()->assertJsonCount(0,'approvals');

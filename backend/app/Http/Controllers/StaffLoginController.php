@@ -17,6 +17,7 @@ class StaffLoginController extends Controller
         $user=StaffAuth::user($request,'SUPER_ADMIN');
         $data=$request->validate(['password'=>'required|string|max:255']);
         abort_unless(Hash::check($data['password'],$user->password_hash),422,'Incorrect Super Admin password.');
+        \Illuminate\Support\Facades\Cache::put('staff-confirmed:'.hash('sha256',$request->bearerToken()),true,300);
         return response()->json(['confirmed'=>true]);
     }
     public function challenge():JsonResponse {
@@ -88,6 +89,7 @@ class StaffLoginController extends Controller
             abort_if($hostnames&&!in_array($check['hostname']??'',$hostnames,true),422,'Security check did not match this site.');
         }
         $input = $request->validate([
+            'mfaCode' => ['nullable','string','max:80'],
             'username' => ['required', 'string', 'max:120'],
             'password' => ['required', 'string', 'max:255'],
         ]);
@@ -109,6 +111,10 @@ class StaffLoginController extends Controller
             return response()->json(['message' => 'This account has been deactivated.'], 403);
         }
 
+        if(!empty($user->mfa_secret)){
+            if(!$request->filled('mfaCode'))return response()->json(['mfaRequired'=>true,'message'=>'Enter your authenticator code or a recovery code.'],422);
+            if(!\App\Support\StaffMfa::verify($user,(string)$request->input('mfaCode'))){\Illuminate\Support\Facades\RateLimiter::hit($attemptKey,60);return response()->json(['message'=>'Invalid or already used authenticator code.'],422);}
+        }
         return response()->json(['user' => StaffAuth::present($user), 'token' => StaffAuth::token($user)]);
     }
 }
