@@ -6,7 +6,14 @@ The correct frontend origin is `https://oss.uniserve.vercel.app`, and its config
 
 The repository's `Anybuild` targets Wasmer PHP 8.4. Local Wasmer credentials belong to a namespace that did not list the UniServe app, so live volume, scheduler and worker configuration could not be verified or changed through that account. Confirm ownership in the Wasmer dashboard before deploying. Do not infer persistent backup storage merely because `/up` responds. Wasmer volume and scheduled-job setup are host-side prerequisites; none was provisioned by these changes.
 
-Wasmer apps can scale down without traffic; do not rely on an unconfigured always-on `schedule:work` or `queue:work`. The `Anybuild` now declares bounded `scheduler` (`php artisan schedule:run`) and `worker` (stop when empty, maximum 45 seconds) commands. Configure the app's Wasmer scheduled jobs to execute these commands every minute, using shared database cache for Laravel overlap locks. Keep job retries at zero for the scheduler invocation; Laravel's own commands/locks control overlapping tasks. Check the resulting host job logs. These command declarations do not create or activate host jobs themselves. Preserve existing volume names/mounts when changing deployment settings.
+Wasmer apps can scale down without traffic; do not rely on an unconfigured always-on `schedule:work` or `queue:work`. Anybuild 0.33.3 rejects arbitrary keys such as `commands.scheduler` and `commands.worker` inside `php_config`. Keep the build configuration separate from host job setup. Configure a supported host job runner to invoke these bounded commands from the Laravel application directory every minute, with the same environment and persistent storage as the API:
+
+```bash
+php artisan schedule:run
+php artisan queue:work --queue=mail-verification,realtime,default --stop-when-empty --max-time=45 --sleep=1 --tries=3 --timeout=30
+```
+
+Verify that your host's job runner supports invoking these commands; if it does not, provision a compatible worker/scheduler service. Use shared database or Redis cache for Laravel overlap locks. Keep host retries at zero for the scheduler invocation; Laravel's own commands/locks control overlapping tasks. Check the resulting host job logs. These instructions do not create host jobs. Preserve existing volume names/mounts when changing deployment settings.
 
 The frontend is static (Vercel builds it with `node scripts/build-frontend.cjs`). The API, database, scheduler, mail worker and Reverb run on the separate Laravel host. A frontend deployment alone cannot install API routes or execute backups.
 

@@ -18,7 +18,7 @@
 2. Deploy the matching backend source. In the Laravel application directory, run `php artisan migrate --force` and `php artisan config:clear`.
 3. Use persistent shared database or Redis cache. Staff sessions and confirmations must be shared between API instances. Existing staff must sign in again after this update.
 4. Ensure private Laravel storage is mounted on persistent hosting storage. Check that a saved test backup survives a redeploy.
-5. Configure the declared `scheduler` and `worker` hosting jobs to run every minute. Command declarations in Anybuild do not activate hosting jobs.
+5. Configure scheduler and worker jobs separately on the API host using the commands in the recovery runbook. Do not add custom job names to `php_config.commands`: Anybuild 0.33.3 rejects these fields.
 6. After storage is verified, enable `BACKUP_SCHEDULE_ENABLED=true` if daily backups are wanted. The configured backup schedule is 2:00 AM Asia/Manila. Configure a separate secure off-server copy process.
 7. Run `php artisan system:readiness`. Resolve every CHECK result. A passing result does not prove off-server copies, inbox delivery or restore recovery.
 8. Deploy the frontend with `UNISERVE_API_BASE=https://uniserve.wasmer.app/api`. The API must allow exactly the real frontend origin `https://oss.uniserve.vercel.app`.
