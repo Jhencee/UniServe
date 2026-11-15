@@ -262,7 +262,7 @@ body :is(.visitor-maint-banner, .maint-banner, .cf-notice, .queue-service-notice
 body :is(.visitor-hub-office-notice, .visit-closed-notice),
 body :is(.info-banner, .alert-banner, .qd-closed):is(.danger, .error) { --banner-background:var(--danger-bg); --banner-foreground:var(--danger); }
 body :is(.info-banner, .alert-banner, .qd-closed):is(.success, .ok) { --banner-background:var(--ok-bg); --banner-foreground:var(--ok); }
-body .visitor-maint-banner { grid-template-columns:minmax(0,1fr); }
+body :is(.visitor-maint-banner, .maint-banner) { grid-template-columns:minmax(0,1fr); }
 html[data-theme="dark"] body :is(.info-banner, .alert-banner, .qd-closed):not(.warn):not(.warning):not(.danger):not(.error):not(.success):not(.ok) { --banner-foreground:#93c5fd; }
 /* Keep the application logo artwork uncropped; printed seals use their own styles. */
 body .sidebar-brand .crest img.uniserve-app-logo,
