@@ -17,3 +17,9 @@ test('maintenance notification links to settings and resolved items are removed'
  const items=c.superNotificationItems(data);assert.equal(items.length,1);assert.equal(items[0].page,'settings');
  data.configuration.maintenance=false;data.alerts=[];assert.equal(c.superNotificationItems(data).length,0);
 });
+
+test('audit review context carries the notification time window without changing other destinations',()=>{
+ const c=setup(),data={checkedAt:'2026-11-15T08:00:00Z',configuration:{maintenance:false},alerts:[{title:'2 failed or denied events',page:'activitylog',auditReview:'failed'},{title:'Backup needed',page:'backup'}]};
+ const items=c.superNotificationItems(data);
+ assert.equal(items[0].auditContext.kind,'failed');assert.equal(items[0].auditContext.from,'2026-11-14T08:00:00.000Z');assert.equal(items[0].auditContext.to,data.checkedAt);assert.equal(items[1].auditContext,null);
+});

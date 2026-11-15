@@ -16,8 +16,8 @@ function oversightError(target, error, retry) {
 }
 function oversightAlerts(data) {
   const alerts = [];
-  if (data.security.failedOrDenied24h) alerts.push({title:`${data.security.failedOrDenied24h} failed or denied events`,note:'Last 24 hours. Review before deciding whether activity is suspicious.',page:'activitylog',action:'Review audit'});
-  if (data.security.structuralIssues) alerts.push({title:`${data.security.structuralIssues} audit structure issues`,note:'Recent records have an invalid changes field. This check does not prove tampering.',page:'activitylog',action:'Review records'});
+  if (data.security.failedOrDenied24h) alerts.push({title:`${data.security.failedOrDenied24h} failed or denied events`,note:'Last 24 hours. Review before deciding whether activity is suspicious.',page:'activitylog',action:'Review audit',auditReview:'failed'});
+  if (data.security.structuralIssues) alerts.push({title:`${data.security.structuralIssues} audit structure issues`,note:'Recent records have an invalid changes field. This check does not prove tampering.',page:'activitylog',action:'Review records',auditReview:'structure'});
   const inactive = data.accounts.filter(a => a.reviewInactive).length;
   if (inactive) alerts.push({title:`${inactive} accounts need inactivity review`,note:'Last retained successful sign-in was over 90 days ago. No accounts are disabled automatically.',page:'users',action:'Review accounts'});
   if (data.health.mail.failed || data.health.queue.failed) alerts.push({title:'Failed background deliveries or jobs',note:`${data.health.mail.failed} failed notification records; ${data.health.queue.failed ?? 'unknown'} failed jobs.`,page:'systemhealth',action:'Check services'});

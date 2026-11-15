@@ -40,6 +40,10 @@ async function page(){
    if(pathname.endsWith('/admins'))return {users:[user,{id:'staff-fixture',username:'Staff',fullName:'Service Staff',role:'ADMIN',active:true,confidentialAccess:true}]};
    if(pathname.endsWith('/security/mfa'))return req.method==='GET'?{enabled:false}:{secret:'JBSWY3DPEHPK3PXP',enabled:true,recoveryCodes:['fixture-recovery-code'],token:'fixture-mfa-token'};
    if(pathname.endsWith('/password/confirm'))return {confirmed:true};
+   if(pathname.endsWith('/audit')){
+    const query=new URL(req.url).searchParams;
+    return {data:[{id:'review-1',actor_name:'Fixture staff',category:'Authentication',action:'Sign-in failed',source:'server',created_at:now,changes:[]},{id:'review-2',actor_name:'Fixture staff',category:'System',action:'Access denied',source:'server',created_at:now,changes:[]}],current_page:1,last_page:1,total:2,...(query.get('review')?{reviewScope:{kind:query.get('review')}}:{})};
+   }
    if(pathname.endsWith('/security/sessions'))return {sessions:[{id:'fixture-session',started:now,current:true}]};
    if(pathname.endsWith('/services'))return {services:[]};
    if(pathname.endsWith('/queue'))return {queues:[]};
@@ -119,6 +123,16 @@ async function page(){
   await p.run("navigate('dashboard')");await pause(350);
   assert.ok(await p.run("document.documentElement.scrollWidth<=innerWidth+1"));
   await p.screenshot('super-dashboard-mobile');
+  await p.run("navigate('notifications')");await pause(250);
+  await p.run("Array.from(document.querySelectorAll('[data-super-notification]')).find(button=>button.textContent==='Review audit').click()");await pause(350);
+  assert.equal(await p.run('state_view'),'activitylog');
+  assert.equal(await p.run("document.getElementById('centralAuditReviewBanner')"),null);
+  assert.equal(await p.run("document.querySelectorAll('.audit-notification-match').length"),2);
+  assert.ok(await p.run("document.activeElement.classList.contains('audit-notification-match')"));
+  await p.screenshot('super-audit-notification-review');
+  await p.run('clearCentralAuditReview()');await pause(200);
+  assert.equal(await p.run("document.querySelectorAll('.audit-notification-match').length"),0);
+  assert.equal(await p.run("document.getElementById('centralAuditReviewBanner')"),null);
   const errors=p.events.filter(e=>e.method==='Runtime.exceptionThrown').map(e=>e.params.exceptionDetails.exception?.description||e.params.exceptionDetails.text);
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({result:'passed',checks:['dashboard alerts','system health','access review','server backup view','mobile overflow','no runtime errors'],screenshots:out}));

@@ -127,3 +127,44 @@ it('ignores absent empty legacy tables but never discards legacy rows or unknown
     unset($tables['services']);$tables['unknown_table']=[];$backup['encrypted']=Crypt::encryptString(json_encode($tables));
     $this->postJson('/api/backup/preview',['backup'=>$backup],oversightHeaders())->assertUnprocessable();
 });
+
+it('filters notification audit review by exact time window and server failure criteria',function(){
+    $headers=oversightHeaders();$cutoff=now()->toImmutable();
+    foreach([
+        ['Sign-in failed','server',$cutoff->subHours(2)],
+        ['Access denied','server',$cutoff->subHours(1)],
+        ['Request blocked','server',$cutoff->subMinutes(30)],
+        ['Signed in','server',$cutoff->subHour()],
+        ['Sign-in failed','browser',$cutoff->subHour()],
+        ['Sign-in failed','server',$cutoff->subDays(2)],
+        ['Sign-in failed','server',$cutoff->addHour()],
+    ] as $index=>[$action,$source,$date]){
+        SystemAudit::record(null,'Authentication',$action,null,[],$source,'review-fixture-'.$index);
+        DB::table('system_audit')->where('id','review-fixture-'.$index)->update(['created_at'=>$date]);
+    }
+    $query=http_build_query(['review'=>'failed','review_from'=>$cutoff->subDay()->toIso8601String(),'review_to'=>$cutoff->toIso8601String()]);
+    $response=$this->getJson('/api/audit?'.$query,$headers)->assertOk()->assertJsonPath('total',3)->assertJsonPath('reviewScope.kind','failed');
+    expect(collect($response->json('data'))->pluck('action')->sort()->values()->all())->toBe(['Access denied','Request blocked','Sign-in failed']);
+    $this->getJson('/api/audit?'.$query.'&'.http_build_query(['review_ids'=>['review-fixture-1','review-fixture-3']]),$headers)
+        ->assertOk()->assertJsonPath('total',1)->assertJsonPath('data.0.action','Access denied');
+    $this->getJson('/api/audit?'.$query,oversightHeaders('admin'))->assertForbidden();
+    $this->getJson('/api/audit?review=unsupported',$headers)->assertUnprocessable();
+});
+
+it('shows only structurally invalid audit records for a structure notification',function(){
+    $headers=oversightHeaders();
+    SystemAudit::record(null,'System','Malformed fixture');
+    DB::table('system_audit')->where('action','Malformed fixture')->update(['changes'=>'"not an array"']);
+    $response=$this->getJson('/api/audit?review=structure',$headers)->assertOk()->assertJsonPath('total',1)->assertJsonPath('reviewScope.kind','structure');
+    expect($response->json('data.0.action'))->toBe('Malformed fixture')->and($response->json('data.0.changes'))->toBe([]);
+});
+
+it('locates the notification match within the complete audit pagination',function(){
+    $headers=oversightHeaders();$cutoff=now()->toImmutable();
+    for($i=0;$i<35;$i++)SystemAudit::record(null,'System','Ordinary event '.$i);
+    SystemAudit::record(null,'Authentication','Sign-in failed',null,[],'server','locate-target');
+    DB::table('system_audit')->where('id','locate-target')->update(['created_at'=>$cutoff->subHour()]);
+    $query=http_build_query(['review'=>'failed','review_from'=>$cutoff->subDay()->toIso8601String(),'review_to'=>$cutoff->toIso8601String(),'review_locate'=>1]);
+    $this->getJson('/api/audit?'.$query,$headers)->assertOk()->assertJsonPath('reviewScope.page',2);
+    $this->getJson('/api/audit?page=2',$headers)->assertOk()->assertJsonFragment(['id'=>'locate-target']);
+});

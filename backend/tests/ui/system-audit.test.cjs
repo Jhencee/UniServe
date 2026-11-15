@@ -29,3 +29,44 @@ test('an older audit response cannot replace the current filter results',async()
  const first=c.loadCentralAudit(),second=c.loadCentralAudit();pending[1]({data:[row('new')],current_page:1,last_page:1,total:1});await second;
  pending[0]({data:[row('old')],current_page:1,last_page:1,total:1});await first;assert.ok(elements.get('centralAuditBody').innerHTML.includes('Event new'));assert.ok(!elements.get('centralAuditBody').innerHTML.includes('Event old'));
 });
+
+test('notification review highlights matching rows without filtering the normal table',async()=>{
+ let called;
+ const {c,elements}=setup(async url=>{called=url;return {reviewScope:{kind:'failed'},data:[row(1)],current_page:1,last_page:1,total:1};});
+ c.centralAuditReview={kind:'failed',title:'2 failed events',from:'2026-11-14T08:00:00Z',to:'2026-11-15T08:00:00Z'};
+ await c.loadCentralAudit();
+ const params=new URLSearchParams(called.split('?')[1]);assert.equal(params.get('review'),'failed');assert.equal(params.get('review_from'),c.centralAuditReview.from);assert.equal(params.get('review_to'),c.centralAuditReview.to);
+ assert.ok(elements.get('centralAuditBody').innerHTML.includes('audit-notification-match'));
+ c.clearCentralAuditReview();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(c.centralAuditReview,null);assert.ok(!called.includes('review='));assert.ok(!elements.get('centralAuditBody').innerHTML.includes('audit-notification-match'));
+});
+test('older APIs cannot highlight unrelated audit rows as a notification match',async()=>{
+ const {c,elements}=setup(async()=>({data:[row(1)],current_page:1,last_page:1,total:1}));
+ c.centralAuditReview={kind:'failed',from:'2026-11-14T08:00:00Z',to:'2026-11-15T08:00:00Z'};
+ await c.loadCentralAudit();assert.ok(elements.get('centralAuditBody').innerHTML.includes('Event 1'));assert.ok(!elements.get('centralAuditBody').innerHTML.includes('audit-notification-match'));
+});
+
+test('unrelated records stay visible while only server-confirmed matching IDs are highlighted',async()=>{
+ const calls=[];
+ const {c,elements}=setup(async url=>{calls.push(url);return url.includes('review=')?{reviewScope:{kind:'failed'},data:[row(1)]}:{data:[row(1),row(2)],current_page:1,last_page:1,total:2};});
+ c.centralAuditReview={kind:'failed',from:'2026-11-14T08:00:00Z',to:'2026-11-15T08:00:00Z'};
+ await c.loadCentralAudit();
+ assert.ok(!calls[0].includes('review='));assert.ok(calls[1].includes('review_ids'));
+ const html=elements.get('centralAuditBody').innerHTML;
+ assert.ok(html.includes('Event 1'));assert.ok(html.includes('Event 2'));assert.equal((html.match(/audit-notification-match/g)||[]).length,1);
+ assert.ok(elements.get('centralAuditPager').innerHTML.includes('2 records'));
+});
+
+test('notification review opens the matching page and scrolls to its first highlighted row only once',async()=>{
+ const calls=[],scrolls=[];let focused=false;
+ const {c,elements}=setup(async url=>{
+  calls.push(url);const params=new URLSearchParams(url.split('?')[1]);
+  if(params.has('review_locate'))return {reviewScope:{kind:'failed',page:3},data:[]};
+  if(params.has('review'))return {reviewScope:{kind:'failed'},data:[row(61)]};
+  return {data:[row(61),row(62)],current_page:3,last_page:3,total:62};
+ });
+ elements.get('centralAuditBody').querySelector=()=>({focus:()=>focused=true,scrollIntoView:options=>scrolls.push(options)});
+ c.centralAuditReview={kind:'failed',from:'2026-11-14T08:00:00Z',to:'2026-11-15T08:00:00Z',locate:true,scroll:true};
+ await c.loadCentralAudit();assert.ok(calls[0].includes('review_locate=1'));assert.ok(calls[1].includes('page=3'));assert.ok(focused);assert.equal(scrolls.length,1);assert.equal(scrolls[0].block,'center');
+ await c.loadCentralAudit();assert.equal(scrolls.length,1);
+});

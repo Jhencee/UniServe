@@ -6,7 +6,8 @@ function superNotificationItems(data) {
   return alerts.map(a=>{
     let hash=2166136261;
     for(const char of a.page+':'+a.title)hash=Math.imul(hash^char.charCodeAt(0),16777619);
-    return {...a,id:day+':'+(hash>>>0).toString(16)};
+    const auditContext=a.auditReview?{kind:a.auditReview,title:a.title,to:data.checkedAt,from:a.auditReview==='failed'?new Date(new Date(data.checkedAt).getTime()-86400000).toISOString():null}:null;
+    return {...a,auditContext,id:day+':'+(hash>>>0).toString(16)};
   });
 }
 (function(){
@@ -33,7 +34,7 @@ function superNotificationItems(data) {
     if(!loaded){feed.innerHTML='<p class="notification-empty" role="status">Checking system updates...</p>';return;}
     const filtered=items.filter(item=>matchesStatus(item)&&(category==='all'||categoryFor(item)===category));
     feed.innerHTML=filtered.map(item=>'<article class="notification-entry" data-read="'+seen.has(item.id)+'"><div class="notification-entry-copy"><small class="notification-entry-label">'+tabs.find(t=>t[0]===categoryFor(item))[1]+' &middot; '+(seen.has(item.id)?'Read':'Unread')+'</small><p>'+escapeHtml(item.title)+'</p><span>'+escapeHtml(item.note)+'</span></div><div class="notification-entry-controls"><button type="button" class="notification-entry-action" data-super-notification="'+escapeHtml(item.id)+'">'+escapeHtml(item.action)+'</button><div class="notification-state-actions"><button type="button" data-state-id="'+escapeHtml(item.id)+'" data-state-action="read">Mark as '+(seen.has(item.id)?'unread':'read')+'</button><button type="button" data-state-id="'+escapeHtml(item.id)+'" data-state-action="archive">'+(archived.has(item.id)?'Restore':'Archive')+'</button></div></div></article>').join('')||'<p class="notification-empty" role="status">No notifications in this view.</p>';
-    feed.querySelectorAll('[data-super-notification]').forEach(button=>button.addEventListener('click',()=>{const item=items.find(n=>n.id===button.dataset.superNotification);if(!item)return;seen.add(item.id);save();navigate(item.page);}));
+    feed.querySelectorAll('[data-super-notification]').forEach(button=>button.addEventListener('click',()=>{const item=items.find(n=>n.id===button.dataset.superNotification);if(!item)return;seen.add(item.id);save();if(item.page==='activitylog')window.centralAuditReview=item.auditContext?{...item.auditContext,locate:true,scroll:true}:null;navigate(item.page);}));
     feed.querySelectorAll('[data-state-id]').forEach(button=>button.addEventListener('click',()=>{const set=button.dataset.stateAction==='read'?seen:archived;const id=button.dataset.stateId;set.has(id)?set.delete(id):set.add(id);save();}));
   }
   function paint(){

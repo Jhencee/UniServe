@@ -618,3 +618,5 @@ body #content .system-overview .super-dashboard-grid [data-chart=overview] { gri
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-head { min-height:58px; padding:16px 18px 0; }
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { flex:1; min-height:190px; justify-content:center; padding:14px 18px 18px; }
 @media(max-width:1100px) { body #content .system-overview .super-dashboard-grid [data-chart=overview] { grid-column:1/-1; } }
+
+#centralAuditBody .audit-notification-match > td { background:color-mix(in srgb,var(--accent) 7%,var(--surface)); }
