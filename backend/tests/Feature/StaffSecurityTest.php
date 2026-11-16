@@ -12,6 +12,50 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
+it('does not turn expired-session polling into visitor access-denied events',function(){
+    $headers=securityHeaders();
+    $this->travel(61)->minutes();
+    foreach(['/api/admins','/api/security/sessions','/api/confidential/approvals'] as $path)$this->getJson($path,$headers)->assertUnauthorized();
+    $this->postJson('/api/session/activity',[],$headers)->assertUnauthorized();
+    $this->postJson('/api/realtime/auth',['socket_id'=>'123.456','channel_name'=>'private-office'],$headers)->assertUnauthorized();
+    expect(DB::table('system_audit')->count())->toBe(0);
+    $this->patchJson('/api/admins/security-admin',['active'=>false],$headers)->assertUnauthorized();
+    $row=DB::table('system_audit')->sole();
+    expect($row->action)->toBe('Request authentication required');
+    expect($row->actor_name)->toBe('Unauthenticated request');
+    expect(DB::table('staff_users')->where('id','security-admin')->value('is_active'))->toBe(1);
+});
+
+it('records real permission denials with the authenticated actor and HTTP evidence',function(){
+    $this->getJson('/api/admins',securityHeaders('security-admin'))->assertForbidden();
+    $row=DB::table('system_audit')->sole();
+    expect($row->action)->toBe('Access denied');
+    expect($row->actor_id)->toBe('security-admin');
+    expect($row->category)->toBe('Accounts');
+    $evidence=collect(json_decode($row->changes,true))->pluck('to','field');
+    expect($evidence['HTTP status'])->toBe('403');
+    expect($evidence['Request method'])->toBe('GET');
+});
+
+it('keeps failed sign-ins in the audit without claiming a verified identity',function(){
+    $this->postJson('/api/login',['username'=>'security-super','password'=>'wrong'])->assertUnauthorized();
+    $row=DB::table('system_audit')->sole();
+    expect($row->action)->toBe('Sign-in failed');
+    expect($row->actor_name)->toBe('Unknown staff');
+    expect($row->actor_id)->toBeNull();
+});
+
+it('applies the same audit rules to returned error responses and thrown errors',function(){
+    \Illuminate\Support\Facades\Route::middleware('api')->get('/api/audit-fixture/unauthorized',fn()=>response()->json(['message'=>'Sign in'],401));
+    \Illuminate\Support\Facades\Route::middleware('api')->post('/api/audit-fixture/denied',fn()=>response()->json(['message'=>'Denied'],403));
+    $this->getJson('/api/audit-fixture/unauthorized')->assertUnauthorized();
+    expect(DB::table('system_audit')->count())->toBe(0);
+    $this->postJson('/api/audit-fixture/denied')->assertForbidden();
+    $row=DB::table('system_audit')->sole();
+    expect($row->action)->toBe('Access denied');
+    expect($row->actor_name)->toBe('Unauthenticated request');
+});
+
 it('enforces idle timeout on the API without allowing polling to extend it',function(){
     DB::table('shared_system_settings')->where('id',1)->update(['payload'=>json_encode(['sessionTimeout'=>5])]);
     $headers=securityHeaders();$this->travel(4)->minutes();$this->getJson('/api/security/sessions',$headers)->assertOk();

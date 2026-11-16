@@ -19,19 +19,15 @@ class RecordSystemAudit
         $beforeCalendar = $request->is('api/calendar') && $request->isMethod('put') ? \App\Support\OfficeCalendar::get() : null;
         $beforeAccount=$request->is('api/admins/*')?\Illuminate\Support\Facades\DB::table('staff_users')->where('id',$request->route('id'))->first():null;
         try {$response = $next($request);}catch(\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e){
-            if(in_array($e->getStatusCode(),[401,403])&&Schema::hasTable('system_audit'))SystemAudit::record($actor,'System','Access denied',null,[['field'=>'Area','from'=>'','to'=>$this->area($request)]]);
+            if(in_array($e->getStatusCode(),[401,403]))$this->recordFailure($request,$actor,$e->getStatusCode());
             throw $e;
         }
         if (!$request->is('api/*') || !Schema::hasTable('system_audit')) return $response;
         if($request->is('api/login') && (json_decode($response->getContent(),true)['mfaRequired']??false))return $response;
         if($response->getStatusCode()>=400){
             $status=$response->getStatusCode();
-            if(in_array($status,[401,403])||!in_array($request->method(),['GET','HEAD','OPTIONS'])){
-                $action=$request->is('api/login')?'Sign-in failed':($request->is('api/history/verify')?'Visitor verification failed':($request->is('api/confidential/cases/*/unlock')?'Confidential unlock failed':(in_array($status,[401,403])?'Access denied':$this->area($request).' action rejected')));
-                $category=match(true){$request->is('api/confidential*')=>'Confidential',$request->is('api/login','api/history/*','api/password','api/profile')=>'Authentication',$request->is('api/appointments*')=>'Appointments',$request->is('api/queue*','api/visits*')=>'Queue',$request->is('api/admins*')=>'Accounts',default=>'System'};
-                $failedActor=$actor??($request->is('api/login')?(object)['id'=>null,'full_name'=>'Unknown staff']:null);
-                SystemAudit::record($failedActor,$category,$action,$request->is('api/confidential/cases/*')?$request->route('id'):null,[['field'=>'Area','from'=>'','to'=>$this->area($request)],['field'=>'Result','from'=>'','to'=>match($status){401=>'Sign-in or verification required',403=>'Permission denied',409=>'Record changed or action not available',422=>'Invalid or expired information',429=>'Too many attempts',default=>'Action unsuccessful'}]]);
-            }return $response;
+            $this->recordFailure($request,$actor,$status);
+            return $response;
         }
         if(in_array($request->method(), ['GET','HEAD','OPTIONS']) || $request->is('api/audit*','api/realtime/*','api/chats/*/read') || $request->attributes->get('system_audit_recorded'))return $response;
         if($request->is('api/session/activity'))return $response;
@@ -74,6 +70,32 @@ class RecordSystemAudit
         }
         SystemAudit::record($actor, $category, $action, $target, $changes);
         return $response;
+    }
+    private function recordFailure(Request $request, ?object $actor, int $status): void
+    {
+        if (!$request->is('api/*') || !Schema::hasTable('system_audit') || $request->attributes->get('system_audit_recorded')) return;
+        $read = in_array($request->method(), ['GET','HEAD','OPTIONS']);
+        // Authentication checks and background transport are not user actions.
+        // A 401 proves authentication is required, not that a visitor attempted access.
+        if ($status === 401 && ($read || $request->is('api/session/activity','api/realtime/*'))) return;
+        if (!in_array($status,[401,403]) && $read) return;
+        $action = match (true) {
+            $request->is('api/login') => 'Sign-in failed',
+            $request->is('api/history/verify') => 'Visitor verification failed',
+            $request->is('api/confidential/cases/*/unlock') => 'Confidential unlock failed',
+            $status === 401 => 'Request authentication required',
+            $status === 403 => 'Access denied',
+            default => $this->area($request).' action rejected',
+        };
+        $category=match(true){$request->is('api/confidential*')=>'Confidential',$request->is('api/login','api/history/*','api/password','api/profile')=>'Authentication',$request->is('api/appointments*')=>'Appointments',$request->is('api/queue*','api/visits*')=>'Queue',$request->is('api/admins*')=>'Accounts',default=>'System'};
+        // Never infer an identity from an invalid token or an unverified request.
+        $failedActor=$actor??(object)['id'=>null,'full_name'=>$request->is('api/login')?'Unknown staff':'Unauthenticated request'];
+        SystemAudit::record($failedActor,$category,$action,$request->is('api/confidential/cases/*')?$request->route('id'):null,[
+            ['field'=>'Area','from'=>'','to'=>$this->area($request)],
+            ['field'=>'Request method','from'=>'','to'=>$request->method()],
+            ['field'=>'HTTP status','from'=>'','to'=>(string)$status],
+            ['field'=>'Result','from'=>'','to'=>match($status){401=>'Sign-in or verification required',403=>'Permission denied',409=>'Record changed or action not available',422=>'Invalid or expired information',429=>'Too many attempts',default=>'Action unsuccessful'}],
+        ]);
     }
     private function area(Request $r):string{
         return match(explode('/',$r->path())[1]??''){ 'appointments'=>'Appointments','queue','visits'=>'Queue','admins'=>'Admin accounts','calendar'=>'Office calendar','settings'=>'System settings','chats'=>'Messages','confidential'=>'Confidential records','service-records'=>'Transactions','services'=>'Services','notifications'=>'Appointment emails','history'=>'Visit history',default=>'Staff access'};
