@@ -3403,5 +3403,23 @@ table.report-diff-table tbody tr:last-child td { border-bottom:1px solid var(--b
 .backup-page .backup-restore-block { margin-top:16px; border-top:1px solid var(--border); }
 .audit-extra { margin:4px 0; line-height:1.6; }
 .audit-extra summary { cursor:pointer; color:var(--accent-strong); }
+.super-profile-card .profile-section-title,
+.super-profile-security .profile-section-title { margin:0 0 6px; color:var(--text); font-size:.9rem; font-weight:600; }
+.super-profile-card .profile-section-note,
+.super-profile-security .profile-section-note { margin:0 0 24px; color:var(--text-soft); font-size:.78rem; line-height:1.6; }
+.super-profile-card .profile-save-footer { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:18px 26px; border-top:1px solid var(--border); }
+.super-profile-card .profile-save-footer p { margin:0; }
+.super-profile-card .profile-save-footer .btn { flex-shrink:0; width:auto; min-width:144px; }
+.super-profile-security { max-width:1080px; margin-top:24px; padding:24px 26px 8px; }
+.super-profile-security .profile-section-note { margin-bottom:8px; }
+.super-profile-security .security-profile-tools { display:block; }
+.super-profile-security .profile-security-row { padding:18px 0; }
+.super-profile-security .profile-security-row span { font-size:.82rem; font-weight:500; }
+.super-profile-security .profile-security-row small { font-size:.76rem; }
+@media(max-width:600px) {
+  .super-profile-card .profile-save-footer { flex-direction:column; align-items:stretch; padding:18px; gap:12px; }
+  .super-profile-card .profile-save-footer .btn { width:100%; }
+  .super-profile-security { padding:20px 18px 6px; }
+}
 .audit-extra > div { font-size:.73rem; overflow-wrap:anywhere; padding-top:4px; }
 @media(max-width:600px) { .super-permissions-help { padding:14px 16px; } .super-permissions-help dl { grid-template-columns:minmax(0,1fr); gap:4px; } .super-permissions-help dd { margin-bottom:10px; } }
