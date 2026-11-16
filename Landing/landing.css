@@ -2902,6 +2902,24 @@ html[data-theme="dark"] .qd-step-n {
 /* Password recovery follows the visitor verification form. */
 .field input.verification-code-input { width:100%; display:block; margin:8px 0; height:44px; padding:10px 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); text-align:center; font-family:inherit; font-variant-numeric:tabular-nums; font-size:1.05rem; font-weight:600; letter-spacing:.3em; text-indent:.3em; color:var(--accent-strong, #800000); }
 .field input.verification-code-input::placeholder { color:var(--text-soft); font-weight:400; font-size:1.05rem; letter-spacing:.3em; }
+.modal .login-mfa-switch {
+  display:block;
+  margin:4px auto 0;
+  padding:8px 12px;
+  min-height:44px;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  box-shadow:none;
+  color:var(--accent-strong, #800000);
+  font:inherit;
+  font-size:.82rem;
+  font-weight:500;
+  line-height:1.5;
+  cursor:pointer;
+}
+.modal .login-mfa-switch:hover { text-decoration:underline; text-underline-offset:3px; }
+.modal .login-mfa-switch:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 .field input.verification-code-input:focus { outline:none; border-color:var(--accent); background:var(--surface); box-shadow:0 0 0 3px rgba(128,0,0,.1); }
 .staff-reset-form .field-hint { font-size:.78rem; line-height:1.5; color:var(--text-soft); margin:8px 0 0; }
 .staff-reset-form > .field-hint { margin:0 0 16px; }
