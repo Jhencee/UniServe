@@ -17,11 +17,27 @@ async function openSecuritySessions() {
     document.querySelectorAll('[data-revoke-session]').forEach(b=>b.addEventListener('click',()=>confirmStaffAction(async()=>{await UniServeUX.request('/security/sessions','DELETE',{id:b.dataset.revokeSession});await openSecuritySessions();})));
   }catch(e){toast(e.message,'err');}
 }
+function openDisableMfa(recovery=false) {
+  openModal('Disable two-step sign-in',`<p class="field-hint">${recovery?'Enter one unused recovery code to turn off two-step sign-in.':'Enter the current six-digit code from your authenticator app to turn off two-step sign-in.'}</p><div class="field"><label class="${recovery?'':'verification-code-label'}" for="disableMfaCode">${recovery?'Recovery code':'Authenticator code'}</label><input id="disableMfaCode" class="${recovery?'':'verification-code-input'}" type="text" autocomplete="one-time-code" ${recovery?'':'inputmode="numeric"'} maxlength="${recovery?'16':'6'}" spellcheck="false" aria-describedby="mfaError" ${recovery?'':'placeholder="000000"'}></div><button type="button" class="security-code-switch" onclick="openDisableMfa(${!recovery})">${recovery?'Use authenticator code':'Use a recovery code'}</button><p id="mfaError" class="field-hint" role="alert"></p>`,[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:'Disable two-step sign-in',cls:'btn-danger-o',action:async()=>{
+      const input=document.getElementById('disableMfaCode'),error=document.getElementById('mfaError');
+      const code=input.value.trim();
+      if(!(recovery?/^[a-f0-9]{16}$/i:/^\d{6}$/).test(code)){
+        error.textContent=recovery?'Enter a complete 16-character recovery code.':'Enter the six-digit code from your authenticator app.';
+        input.setAttribute('aria-invalid','true');input.focus();return;
+      }
+      input.removeAttribute('aria-invalid');error.textContent='';
+      try{await UniServeUX.request('/security/mfa','POST',{action:'disable',code:recovery?code.toLowerCase():code});endSession('Two-step sign-in disabled. Please sign in again.');}
+      catch(e){error.textContent=e.message;}
+    }},
+  ]);
+}
 async function openSecurityMfa() {
   try {
     const data=await UniServeUX.request('/security/mfa');
     if(data.enabled){
-      confirmStaffAction(async()=>openModal('Disable two-step sign-in','<p class="field-hint">Enter a new authenticator code or an unused recovery code.</p><div class="field"><label for="disableMfaCode">Code</label><input id="disableMfaCode" autocomplete="one-time-code"></div><p id="mfaError" class="field-hint" role="alert"></p>',[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Disable',cls:'btn-danger-o',action:async()=>{try{await UniServeUX.request('/security/mfa','POST',{action:'disable',code:document.getElementById('disableMfaCode').value.trim()});endSession('Two-step sign-in disabled. Please sign in again.');}catch(e){document.getElementById('mfaError').textContent=e.message;}}}]));
+      confirmStaffAction(async()=>openDisableMfa());
     }else confirmStaffAction(async()=>{
       const setup=await UniServeUX.request('/security/mfa','POST',{action:'setup'});
       openModal('Set up two-step sign-in',`<p class="field-hint">Add an account in your authenticator app. Choose a time-based code and enter this setup key manually. Account name: UniServe.</p><p class="security-setup-key">${escapeHtml(setup.secret)}</p><div class="field"><label for="enableMfaCode">Six-digit authenticator code</label><input id="enableMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6"></div><p id="mfaError" class="field-hint" role="alert"></p>`,[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Enable',cls:'btn-primary',action:async()=>{

@@ -23,6 +23,9 @@
 .security-profile-tools button:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .security-setup-key { overflow-wrap:anywhere; font-family:monospace; padding:12px; background:var(--surface); border:1px solid var(--border); border-radius:6px; }
 .security-recovery-codes { white-space:pre-wrap; line-height:1.8; }
+.modal .security-code-switch { display:block; margin:4px auto 0; min-height:44px; padding:8px 12px; border:0; border-radius:6px; background:transparent; box-shadow:none; color:var(--accent-strong); font:inherit; font-size:.82rem; font-weight:500; cursor:pointer; }
+.modal .security-code-switch:hover { text-decoration:underline; text-underline-offset:3px; }
+.modal .security-code-switch:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 
 
 .security-session-dialog > .field-hint { margin:0 0 16px; }
