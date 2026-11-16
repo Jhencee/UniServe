@@ -12,6 +12,26 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
+it('allows Admins to manage only their own MFA and sessions without Super Admin privileges',function(){
+    $admin=securityHeaders('security-admin');$other=securityHeaders('security-admin');$super=securityHeaders();
+    $this->getJson('/api/security/mfa',$admin)->assertOk()->assertJsonPath('enabled',false);
+    $this->postJson('/api/security/mfa',['action'=>'setup'],$admin)->assertStatus(428);
+    securityConfirm($admin);
+    $this->deleteJson('/api/security/sessions',['id'=>hash('sha256',substr($super['Authorization'],7))],$admin)->assertNotFound();
+    $listed=$this->getJson('/api/security/sessions',$admin)->assertOk()->json('sessions');
+    expect(collect($listed)->pluck('id')->all())->not->toContain(hash('sha256',substr($super['Authorization'],7)));
+    $this->deleteJson('/api/security/sessions',['id'=>hash('sha256',substr($other['Authorization'],7))],$admin)->assertOk();
+    $this->getJson('/api/security/sessions',$other)->assertUnauthorized();
+    $this->getJson('/api/admins',$admin)->assertForbidden();
+    $this->postJson('/api/system/test-email',[],$admin)->assertForbidden();
+    $secret=$this->postJson('/api/security/mfa',['action'=>'setup'],$admin)->assertOk()->json('secret');
+    $enabled=$this->postJson('/api/security/mfa',['action'=>'enable','code'=>StaffMfa::code($secret,now()->timestamp)],$admin)->assertOk();
+    $this->postJson('/api/login',['username'=>'security-admin','password'=>'SecurityFixture42!'])->assertUnprocessable()->assertJsonPath('mfaRequired',true);
+    $fresh=['Authorization'=>'Bearer '.$enabled->json('token')];securityConfirm($fresh);
+    $this->postJson('/api/security/mfa',['action'=>'disable','code'=>$enabled->json('recoveryCodes.0')],$fresh)->assertOk();
+    expect(DB::table('staff_users')->where('id','security-super')->value('mfa_secret'))->toBeNull();
+});
+
 it('backs up the old staff schema before applying only the MFA migration and safely reruns it',function(){
     \Illuminate\Support\Facades\Storage::fake('local');
     $migration='2026_11_13_170000_add_staff_mfa';

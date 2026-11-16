@@ -2040,19 +2040,20 @@ function downloadReportExcel() {
 function renderProfile() {
   const u = currentUser, initials = u.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
   document.getElementById('content').innerHTML = `
-    <div class="card staff-profile-card">
+    <div class="card staff-profile-card super-profile-card">
       <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="pill pill-gold">${u.confidentialApprover ? "Head Admin" : ROLES[u.role].label}</span></div></div>
-      <div class="card-pad staff-profile-grid"><section class="staff-profile-details" aria-label="Profile details">
+      <div class="card-pad staff-profile-grid"><section class="staff-profile-details" aria-label="Profile details"><h4 class="profile-section-title">Account details</h4><p class="profile-section-note">Your account information is managed by your Super Admin.</p>
         <div class="field"><label>Full Name</label><input value="${escapeHtml(u.fullName)}" disabled></div>
         <div class="field"><label>Username</label><input value="${escapeHtml(u.username)}" disabled></div>
         <div class="field"><label>Email</label><input value="${escapeHtml(u.email || 'Not set — ask your Super Admin to add one')}" disabled></div>
         <div class="field-hint" style="margin-top:-8px; margin-bottom:14px;">Full name, username and email are managed by your Super Admin.</div>
-        </section><section class="staff-profile-password" aria-label="Change password">
+        </section><section class="staff-profile-password" aria-label="Change password"><h4 class="profile-section-title">Change password</h4><p class="profile-section-note">Use your current password to confirm a new password.</p>
         <div class="field"><label>Current Password</label><div class="profile-password-input"><input id="pfCurrentPass" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfCurrentPass',this)">${profilePasswordEye(true)}</button></div></div>
         <div class="form-row"><div class="field"><label>New Password</label><div class="profile-password-input"><input id="pfPass" aria-describedby="pfPasswordHint" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass',this)">${profilePasswordEye(true)}</button></div></div><div class="field"><label>Confirm New Password</label><div class="profile-password-input"><input id="pfPass2" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('pfPass2',this)">${profilePasswordEye(true)}</button></div></div></div>
-        <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p><button class="btn btn-primary btn-block" onclick="saveProfile()">Save password</button>
+        <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p>
         <p class="field-hint" style="margin-top:10px; margin-bottom:0;">Enter your current password to save a new password.</p>
-      </section></div></div>`;
+      </section></div><div class="profile-save-footer"><p class="field-hint">Save your new password here. Security settings are managed separately.</p><button type="button" class="btn btn-primary" onclick="saveProfile()">Save password</button></div></div>
+<section class="card super-profile-security" aria-label="Account security"><div class="profile-security-heading"><h4 class="profile-section-title">Account security</h4><p class="profile-section-note">Manage how you sign in and where your account is active.</p></div><div class="security-profile-tools"><div class="profile-security-row"><div><span>Two-step sign-in</span><small>Use an authenticator for extra sign-in protection.</small></div><button type="button" onclick="openSecurityMfa()">Manage</button></div><div class="profile-security-row"><div><span>Active sessions</span><small>Review and sign out of other sessions.</small></div><button type="button" onclick="openSecuritySessions()">View sessions</button></div></div></section>`;
 }
 async function saveProfile() {
   const pass = document.getElementById('pfPass').value, pass2 = document.getElementById('pfPass2').value;

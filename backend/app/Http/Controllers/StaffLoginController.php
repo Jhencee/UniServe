@@ -14,9 +14,9 @@ class StaffLoginController extends Controller
 {
     public function confirmPassword(Request $request): JsonResponse
     {
-        $user=StaffAuth::user($request,'SUPER_ADMIN');
+        $user=StaffAuth::user($request);
         $data=$request->validate(['password'=>'required|string|max:255']);
-        abort_unless(Hash::check($data['password'],$user->password_hash),422,'Incorrect Super Admin password.');
+        abort_unless(Hash::check($data['password'],$user->password_hash),422,'Incorrect password.');
         \Illuminate\Support\Facades\Cache::put('staff-confirmed:'.hash('sha256',$request->bearerToken()),true,300);
         return response()->json(['confirmed'=>true]);
     }

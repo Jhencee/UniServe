@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\{Cache, Mail};
 class StaffSecurityController extends Controller
 {
     public function mfa(Request $request) {
-        $user=StaffAuth::user($request,'SUPER_ADMIN');
+        $user=StaffAuth::user($request);
         abort_unless(\Illuminate\Support\Facades\Schema::hasColumn('staff_users','mfa_secret'),503,'Run the matching database migrations before setting up two-step sign-in.');
         if($request->isMethod('get'))return response()->json(['enabled'=>!empty($user->mfa_secret)])->header('Cache-Control','no-store');
         StaffSessions::requireConfirmation($request);
@@ -42,14 +42,14 @@ class StaffSecurityController extends Controller
     public function activity(Request $request) { StaffAuth::user($request);return response()->json(['active'=>true]); }
 
     public function sessions(Request $request) {
-        $user=StaffAuth::user($request,'SUPER_ADMIN');
+        $user=StaffAuth::user($request);
         $current=hash('sha256',$request->bearerToken());
         $sessions=Cache::get('staff-sessions:'.$user->id,[]);
         return response()->json(['sessions'=>array_values(array_map(fn($s)=>$s+['current'=>$s['id']===$current],array_filter($sessions,fn($s)=>$s['expires']>now()->timestamp&&Cache::has('staff-session:'.$s['id'])&&!Cache::has('revoked-token:'.$s['id']))))])->header('Cache-Control','no-store');
     }
 
     public function revoke(Request $request) {
-        $user=StaffAuth::user($request,'SUPER_ADMIN');
+        $user=StaffAuth::user($request);
         StaffSessions::requireConfirmation($request);
         $input=$request->validate(['id'=>'required|string|size:64']);
         $sessions=Cache::get('staff-sessions:'.$user->id,[]);
