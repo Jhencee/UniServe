@@ -284,7 +284,6 @@ function showLogin() {
   const savedUser = localStorage.getItem('ossuniserve_remember_user');
   document.getElementById('loginUser').value = savedUser || '';
   document.getElementById('loginPass').value = '';
-  document.getElementById('loginMfaCode').value='';document.getElementById('loginMfaField').hidden=true;
   document.getElementById('loginPass').type = 'password';
   const rememberBox = document.getElementById('loginRemember');
   if (rememberBox) rememberBox.checked = !!savedUser;
@@ -306,7 +305,23 @@ function clearLoginFieldErrors() {
     document.getElementById(id+'Error').hidden=true;
   });
 }
-async function doLogin() {
+function showLoginMfa(recovery=false) {
+  openModal('Verify your sign-in',`<p class="field-hint">${recovery?'Enter one unused recovery code saved when you enabled two-step sign-in.':'Enter the current six-digit code from your authenticator app to finish signing in.'}</p><div id="loginMfaErr" class="err-box" role="alert" hidden></div><div class="field"><label class="${recovery?'':'verification-code-label'}" for="loginMfaCode">${recovery?'Recovery code':'Authenticator code'}</label><input id="loginMfaCode" class="${recovery?'':'verification-code-input'}" type="text" ${recovery?'':'inputmode="numeric"'} autocomplete="one-time-code" maxlength="${recovery?'16':'6'}" spellcheck="false" aria-describedby="loginMfaErr" ${recovery?'':'placeholder="000000"'}></div><button type="button" class="btn btn-ghost btn-sm" onclick="showLoginMfa(${!recovery})">${recovery?'Use authenticator code':'Use a recovery code'}</button>`,[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:'Verify and sign in',cls:'btn-primary',action:async()=>{
+      const input=document.getElementById('loginMfaCode');
+      const code=input.value.trim();
+      if(!(recovery?/^[a-f0-9]{16}$/i:/^\d{6}$/).test(code)){
+        const error=document.getElementById('loginMfaErr');
+        error.textContent=recovery?'Enter a complete 16-character recovery code.':'Enter the six-digit code from your authenticator app.';
+        error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;
+      }
+      input.removeAttribute('aria-invalid');
+      await doLogin(recovery?code.toLowerCase():code);
+    }},
+  ]);
+}
+async function doLogin(mfaCode='') {
   if (loginPending) return;
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
@@ -333,10 +348,13 @@ async function doLogin() {
     const turnstileToken=await LoginTurnstile.getToken();
     const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ username: u, password: p,turnstileToken,mfaCode:document.getElementById('loginMfaCode')?.value.trim()||'' })
+      body: JSON.stringify({ username: u, password: p,turnstileToken,mfaCode })
     });
     const result = await response.json();
-    if(result.mfaRequired){document.getElementById('loginMfaField').hidden=false;document.getElementById('loginMfaCode').focus();throw new Error(result.message);}
+    if(result.mfaRequired){
+      if(!mfaCode){showLoginMfa();return;}
+      throw new Error(result.message||'Enter the current code from your authenticator app.');
+    }
     if(response.status===429)throw new Error('Too many sign-in attempts. Please wait '+(response.headers.get('Retry-After')||60)+' seconds, then try again.');
     if (!response.ok) throw new Error(response.status >= 500 ? 'Sign in is temporarily unavailable. Please try again later.' : result.message || 'Unable to sign in. Check your username and password, then try again.');
     user = result.user;
@@ -347,8 +365,9 @@ async function doLogin() {
     if (index >= 0) db.users[index] = user;
     else db.users.push(user);
   } catch (error) {
-    errBox.textContent = error instanceof TypeError || error instanceof SyntaxError ? 'Unable to connect. Check your connection and try again.' : error.message;
-    errBox.hidden = false;
+    const errorHost=(mfaCode&&document.getElementById('loginMfaErr'))||errBox;
+    errorHost.textContent = error instanceof TypeError || error instanceof SyntaxError ? 'Unable to connect. Check your connection and try again.' : error.message;
+    errorHost.hidden = false;
     return;
   } finally {
     loginPending = false;
