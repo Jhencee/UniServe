@@ -12,6 +12,23 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
+it('backs up the old staff schema before applying only the MFA migration and safely reruns it',function(){
+    \Illuminate\Support\Facades\Storage::fake('local');
+    $migration='2026_11_13_170000_add_staff_mfa';
+    Schema::table('staff_users',fn($table)=>$table->dropColumn(['mfa_secret','mfa_version','mfa_recovery_codes','mfa_last_step']));
+    DB::table('migrations')->where('migration',$migration)->delete();
+    $originalColumns=Schema::getColumnListing('staff_users');
+    $before=DB::table('staff_users')->orderBy('id')->get($originalColumns)->toJson();
+    $this->artisan('backup:create')->assertSuccessful();
+    expect(\Illuminate\Support\Facades\Storage::disk('local')->files('activity-backups'))->not->toBeEmpty();
+    $args=['--force'=>true,'--path'=>'database/migrations/'.$migration.'.php'];
+    $this->artisan('migrate',$args)->assertSuccessful();
+    $this->artisan('migrate',$args)->assertSuccessful();
+    expect(Schema::hasColumns('staff_users',['mfa_secret','mfa_version','mfa_recovery_codes','mfa_last_step']))->toBeTrue();
+    expect(DB::table('staff_users')->orderBy('id')->get($originalColumns)->toJson())->toBe($before);
+    expect(DB::table('migrations')->where('migration',$migration)->count())->toBe(1);
+});
+
 it('does not turn expired-session polling into visitor access-denied events',function(){
     $headers=securityHeaders();
     $this->travel(61)->minutes();

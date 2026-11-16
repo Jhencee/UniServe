@@ -11,6 +11,9 @@ config = php_config(
     commands = {
         "install": "composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction",
         "build": "php artisan config:clear",
+        # Runs as a Wasmer deployment job with runtime database configuration.
+        # Stop before migrations if the encrypted database backup fails.
+        "after_deploy": "bash -c 'php artisan backup:create && php artisan migrate --force --path=database/migrations/2026_11_13_170000_add_staff_mfa.php && php artisan migrate:status'",
     },
 )
 
