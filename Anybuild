@@ -13,7 +13,7 @@ config = php_config(
         "build": "php artisan config:clear",
         # Runs as a Wasmer deployment job with runtime database configuration.
         # Stop before migrations if the encrypted database backup fails.
-        "after_deploy": "bash -c 'php artisan backup:create && php artisan migrate --force --path=database/migrations/2026_11_13_170000_add_staff_mfa.php && php artisan migrate:status'",
+        "after_deploy": "bash -c 'php scripts/verify-mfa-runtime.php && php artisan backup:create && php artisan migrate --force --path=database/migrations/2026_11_13_170000_add_staff_mfa.php && php artisan migrate:status'",
     },
 )
 
