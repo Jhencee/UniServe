@@ -208,7 +208,7 @@ class QueueController extends Controller
                 $step=$stored;
                 \App\Support\VisitFlow::archiveStep($step,$actor,'Transferred');
                 $queue['serviceHistory']=$step['serviceHistory'];
-                \App\Support\VisitFlow::closeLog($queue,'Transferred');
+                if(($queue['source']??'')!=='Appointment')\App\Support\VisitFlow::closeLog($queue,'Transferred');
                 foreach(['calledAt','servingAt','completedAt'] as $field)$queue[$field]=null;
                 $queue['queueEnteredAt']=now()->toIso8601String();
                 $queue['transferredAt']=now()->toIso8601String();

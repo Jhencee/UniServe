@@ -4,11 +4,11 @@ use Illuminate\Support\Facades\{DB,Crypt,Schema};
 class ServiceOutcome {
  public static function save(array &$q,object $actor): void {
   if(!Schema::hasTable('shared_transactions'))return;
-  if(in_array($q['status'],['Serving','Completed','Cancelled'])){
+  if(in_array($q['status'],['Serving','Completed','Cancelled'])||($q['status']==='Waiting'&&($q['source']??'')==='Appointment')){
    $row=DB::table('shared_visitor_log')->where('queue_id',$q['id'])->first();
    if($q['status']==='Cancelled'&&!$row)return;
-   $log=$row?json_decode(Crypt::decryptString($row->payload),true):['id'=>'L'.bin2hex(random_bytes(8)),'visitId'=>$q['visitId'],'name'=>$q['name'],'type'=>$q['visitorType'],'idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','contact'=>$q['contact']??'','email'=>$q['email']??'','source'=>$q['source'],'purpose'=>$q['serviceLabel'],'timeIn'=>$q['servingAt']??now()->toIso8601String(),'timeOut'=>null,'shared'=>true];
-   if(!empty($log['timeOut'])&&$q['status']==='Serving'){$log['timeIn']=$q['servingAt']??now()->toIso8601String();$log['timeOut']=null;}
+   $log=$row?json_decode(Crypt::decryptString($row->payload),true):['id'=>'L'.bin2hex(random_bytes(8)),'visitId'=>$q['visitId'],'name'=>$q['name'],'type'=>$q['visitorType'],'idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','contact'=>$q['contact']??'','email'=>$q['email']??'','source'=>$q['source'],'purpose'=>$q['serviceLabel'],'timeIn'=>(($q['source']??'')==='Appointment'?($q['checkedInAt']??null):null)??$q['servingAt']??now()->toIso8601String(),'timeOut'=>null,'shared'=>true];
+   if(!empty($log['timeOut'])&&in_array($q['status'],['Waiting','Serving'])){$log['timeIn']=(($q['source']??'')==='Appointment'?($q['checkedInAt']??null):null)??$q['servingAt']??now()->toIso8601String();$log['timeOut']=null;}
    $log['serviceHistory']=$q['serviceHistory']??[];
    $log['purpose']=$q['serviceLabel'];$log['outcome']=$q['status'];
    if(in_array($q['status'],['Completed','Cancelled']))$log['timeOut']=$q['completedAt']??now()->toIso8601String();

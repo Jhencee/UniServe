@@ -108,6 +108,23 @@ function readyFlowVisit(string $service='good_moral'):array{
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 10:30','Asia/Manila'));
  return test()->postJson('/api/appointments/'.$a['id'].'/check-in',['arrivalOverrideReason'=>'Fixture arrival reviewed by staff'],appointmentHeaders())->assertOk()->json();
 }
+it('logs arrival at appointment check-in and preserves it through service',function(){
+ $r=readyFlowVisit();$q=$r['queue'];$h=appointmentHeaders();
+ $readLog=fn()=>json_decode(\Illuminate\Support\Facades\Crypt::decryptString(DB::table('shared_visitor_log')->where('queue_id',$q['id'])->value('payload')),true);
+ $arrival=$readLog()['timeIn'];
+ expect($arrival)->toBe($q['checkedInAt']);expect($readLog()['timeOut'])->toBeNull();
+ $this->postJson('/api/appointments/'.$r['appointment']['id'].'/check-in',[],$h)->assertOk();
+ expect(DB::table('shared_visitor_log')->count())->toBe(1);
+ CarbonImmutable::setTestNow(CarbonImmutable::now()->addMinutes(10));
+ $this->patchJson('/api/queue/'.$q['id'],['status'=>'Called'],$h)->assertOk();
+ $this->patchJson('/api/queue/'.$q['id'],['status'=>'Serving'],$h)->assertOk();
+ expect($readLog()['timeIn'])->toBe($arrival);
+ $this->checkQueueRequirements($q['id'],$h);
+ $this->patchJson('/api/queue/'.$q['id'],['status'=>'Completed'],$h)->assertOk();
+ expect($readLog()['timeIn'])->toBe($arrival);expect($readLog()['timeOut'])->not->toBeNull();
+ expect(DB::table('shared_visitor_log')->count())->toBe(1);
+});
+
 it('accepts appointment requests at night but keeps maintenance intake blocked',function(){
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-18 23:00','Asia/Manila'));
  $this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated();
@@ -151,7 +168,7 @@ it('records transfer stages and keeps the appointment service aligned',function(
  $this->patchJson($path,['status'=>'Waiting','serviceKey'=>'student_id'],$h)->assertOk()->assertJsonPath('queue.serviceHistory.0.serviceKey','good_moral')->assertJsonPath('queue.serviceHistory.0.outcome','Transferred')->assertJsonPath('queue.servingAt',null);
  $this->getJson('/api/appointments', $h)->assertJsonPath('appointments.0.service','Student ID-Related Requests');
  $log=json_decode(\Illuminate\Support\Facades\Crypt::decryptString(DB::table('shared_visitor_log')->value('payload')),true);
- expect($log['timeOut'])->not->toBeNull();expect($log['serviceHistory'][0]['serviceKey'])->toBe('good_moral');
+ expect($log['timeOut'])->toBeNull();expect($log['serviceHistory'][0]['serviceKey'])->toBe('good_moral');
  $this->patchJson($path,['status'=>'Called'],$h)->assertOk();$this->patchJson($path,['status'=>'Serving'],$h)->assertOk();$this->checkQueueRequirements($q['id'],$h);$this->patchJson($path,['status'=>'Completed'],$h)->assertOk();
  $this->getJson('/api/service-records',$h)->assertJsonPath('transactions.0.serviceHistory.0.serviceKey','good_moral');
 });
@@ -240,7 +257,8 @@ it('marks a recovered but missed booking as no-show and allows another reschedul
 it('records why a visit was not served without creating a completed transaction',function(){
  $q=readyFlowVisit()['queue'];
  $this->patchJson('/api/queue/'.$q['id'],['status'=>'Cancelled','closureReason'=>'Visitor left before service.'],appointmentHeaders())->assertOk()->assertJsonPath('queue.closureReason','Visitor left before service.');
- expect(DB::table('shared_transactions')->count())->toBe(0);expect(DB::table('shared_visitor_log')->count())->toBe(0);
+ expect(DB::table('shared_transactions')->count())->toBe(0);expect(DB::table('shared_visitor_log')->count())->toBe(1);
+ $log=json_decode(\Illuminate\Support\Facades\Crypt::decryptString(DB::table('shared_visitor_log')->value('payload')),true);expect($log['timeOut'])->not->toBeNull();
 });
 it('does not let completion retries change the service or owning Admin',function(){
  $q=readyFlowVisit()['queue'];$h=appointmentHeaders();$path='/api/queue/'.$q['id'];
