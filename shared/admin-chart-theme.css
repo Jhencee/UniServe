@@ -49,6 +49,11 @@ body #content .staff-overview .admin-dashboard-grid .card-head h3 { font-size:.8
 body #content .staff-overview .admin-dashboard-grid .desc { font-size:.69rem; line-height:1.5; margin-top:4px; }
 body #content .staff-overview .admin-dashboard-grid .card-pad { display:flex; flex-direction:column; justify-content:center; flex:1; padding:14px 18px 18px; min-height:190px; }
 body #content .staff-overview .admin-dashboard-grid .analytics-footer { margin-top:auto; padding:10px 18px; font-size:.68rem; line-height:1.6; }
+/* Scheduled arrivals are a list, so their height follows the visible records. */
+body #content .staff-overview .admin-dashboard-grid .scheduled-visitors-card { align-self:start; }
+body #content .staff-overview .admin-dashboard-grid .scheduled-visitors-card > .card-head { min-height:0; }
+body #content .staff-overview .admin-dashboard-grid .scheduled-visitors-card > .card-pad { flex:none; min-height:0; justify-content:flex-start; padding:12px 18px; }
+body #content .staff-overview .admin-dashboard-grid .scheduled-visitors-card .helper-empty { flex:none; min-height:0; padding:12px 0 !important; }
 .admin-dashboard-grid [data-admin-chart=overview] { grid-column:span 2; order:0; }
 .admin-dashboard-grid [data-admin-chart=queue] { order:1; }
 .admin-dashboard-grid [data-admin-chart=services] { order:2; }
