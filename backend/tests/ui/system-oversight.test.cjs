@@ -39,11 +39,23 @@ test('access review escapes staff names and does not invent inactivity for missi
   assert.ok(html.includes('&lt;script>'));assert.ok(!html.includes('<script>'));
   assert.ok(html.includes('View details'));assert.ok(!html.includes('Needs review</td>'));
 });
-test('older deployed APIs show an upgrade message rather than cached health data',async()=>{
+test('unavailable system checks show service guidance rather than cached health data',async()=>{
   const s=setup(async()=>{throw Object.assign(Error('Not found'),{status:404});});
   await s.context.renderSystemHealth();
-  assert.ok(s.elements.get('oversightPageBody').innerHTML.includes('confirm the frontend and backend use matching releases'));
+  assert.ok(s.elements.get('oversightPageBody').innerHTML.includes('Check service status in your server administration settings'));
 });
+test('server guidance follows the connected address without assuming localhost',()=>{
+  const s=setup();
+  s.context.location={href:'https://oss.uniserve.vercel.app/portal'};
+  assert.equal(s.context.oversightServerLocation(),'your hosting dashboard');
+  s.context.UniServeConfig={apiBase:'/api'};
+  assert.equal(s.context.oversightServerLocation(),'your hosting dashboard');
+  s.context.UniServeConfig={apiBase:'http://127.0.0.1:8000/api'};
+  assert.equal(s.context.oversightServerLocation(),'your local server configuration');
+  s.context.UniServeConfig={apiBase:'https://uniserve.wasmer.app/api'};
+  assert.equal(s.context.oversightServerLocation(),'your hosting dashboard');
+});
+
 test('server alerts preserve security and recovery priorities',()=>{
   const s=setup();const alerts=s.context.oversightAlerts(fixture());
   assert.equal(alerts[0].page,'activitylog');assert.equal(alerts.at(-1).page,'backup');

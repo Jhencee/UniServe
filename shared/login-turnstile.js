@@ -10,7 +10,7 @@
         const result=await response.json();if(!response.ok)throw Error(result.message||'Cannot load the security check.');config=result;
       }
       if(!config.enabled){box().hidden=true;return;}
-      if(window.location?.protocol==='file:')throw Error('Open UniServe through http://localhost or http://127.0.0.1. Cloudflare cannot verify a file opened directly from your computer.');
+      if(window.location?.protocol==='file:')throw Error('Open UniServe using its website address to complete sign-in verification. A downloaded HTML file cannot complete this check.');
       box().hidden=false;
       status().textContent='Loading security check…';
       if(!window.turnstile)await new Promise((resolve,reject)=>{

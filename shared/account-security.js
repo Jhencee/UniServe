@@ -47,6 +47,6 @@ async function openSecurityMfa() {
     });
   }catch(e){
     const needsUpdate=e.status===503||e.status===404;
-    openModal('Two-step sign-in unavailable',`<div class="security-setup-notice"><p>${needsUpdate?'Your server needs an update before you can set up two-step sign-in.':'We could not load your sign-in security settings.'}</p><p class="field-hint">${needsUpdate?'Update the backend and apply its database migration, then try again.':'Check your connection and try again.'}</p></div>`,[{label:'Close',cls:'btn-ghost',action:closeModal},{label:'Try again',cls:'btn-primary',action:()=>{closeModal();openSecurityMfa();}}]);
+    openModal('Two-step sign-in unavailable',`<div class="security-setup-notice"><p>${needsUpdate?'Two-step sign-in setup is currently unavailable.':'We could not load your sign-in security settings.'}</p><p class="field-hint">${needsUpdate?'Contact your system administrator to check this service, then try again.':'Check your connection and try again.'}</p></div>`,[{label:'Close',cls:'btn-ghost',action:closeModal},{label:'Try again',cls:'btn-primary',action:()=>{closeModal();openSecurityMfa();}}]);
   }
 }

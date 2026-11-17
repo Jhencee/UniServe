@@ -28,7 +28,7 @@
     if(!element.isConnected)return;
     element.hidden=!settings.enabled;if(!settings.enabled)return;
     const status=element.querySelector('[role="status"]');
-    if(window.location.protocol==='file:')throw Error('Open UniServe through localhost or your website to complete verification.');
+    if(window.location.protocol==='file:')throw Error('Open UniServe using its website address to complete verification.');
     await script();if(!element.isConnected)return;
     const previous=widgets.get(id);
     if(previous?.element===element)return;

@@ -636,7 +636,7 @@ function systemReportModel(db){
   const recovery=systemReportRecovery;
   const inPeriod=value=>{const day=reportDateKey(value);return day&&(!systemReportRange.from||day>=systemReportRange.from)&&(!systemReportRange.to||day<=systemReportRange.to);};
   if(!recovery||recovery.unavailable){
-   add('Backup history unavailable',['Status','Next step'],[['Not loaded','Check the API connection and matching backend deployment.']],'Unavailable history does not mean that no backups exist.');
+   add('Backup history unavailable',['Status','Next step'],[['Not loaded','Check the system connection and try loading backup history again.']],'Unavailable history does not mean that no backups exist.');
   }else{
    const backups=(recovery.backups||[]).filter(b=>inPeriod(b.savedAt)),restores=(recovery.restores||[]).filter(r=>inPeriod(r.created_at));
    add('Saved backups',['Saved','Kind','Tables / rows','File status','Restore test'],backups.map(b=>[new Date(b.savedAt).toLocaleString('en-PH',{timeZone:'Asia/Manila'}),b.kind,b.tables+' tables / '+b.rows+' rows',b.fileAvailable?'Available':'Missing',b.restoreTested?'Recorded':'Not recorded']),'History includes at most the latest 20 server backup records. Availability is not an off-server copy or proof of recoverability.');
@@ -938,7 +938,7 @@ async function saveProfile() {
     });
     result = await response.json();
     if (!response.ok) { toast(escapeHtml(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Profile update failed.'), 'err'); return; }
-  } catch (_) { toast('Cannot reach the backend server.', 'err'); return; }
+  } catch (_) { toast('Cannot connect to UniServe. Check your connection and try again.', 'err'); return; }
   const before = { fullName: currentUser.fullName, username: currentUser.username }, u2 = result.user;
   db.users = db.users.filter(user => user.id !== u2.id).concat(u2);
   const changes = diffFields(before, { fullName: name, username: uname }, { fullName: 'Full name', username: 'Username' });

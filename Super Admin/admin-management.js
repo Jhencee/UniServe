@@ -67,7 +67,7 @@ async function saveAdminAction(id, data, action, remove = false) {
     try { await refreshAdmins(); }
     catch (_) { if (state_view === 'users') await renderUsers(); }
     toast('Account updated.', 'ok');
-  } catch (error) { if(error.status===428){confirmSuperAction(()=>saveAdminAction(id,data,action,remove));return;} toast(escapeHtml(error instanceof TypeError ? 'Cannot reach the backend server.' : error.message), 'err'); }
+  } catch (error) { if(error.status===428){confirmSuperAction(()=>saveAdminAction(id,data,action,remove));return;} toast(escapeHtml(error instanceof TypeError ? 'Cannot connect to UniServe. Check your connection and try again.' : error.message), 'err'); }
   finally {
     adminManagementBusy = false;
     modal?.querySelectorAll('.modal-foot button').forEach(button => button.disabled = false);
@@ -137,7 +137,7 @@ async function applyConfAccess(id, on) {
     });
     const result = await response.json();
     if (!response.ok || result.confirmed !== true) { toast('Incorrect Super Admin password.', 'err'); return; }
-  } catch (_) { toast('Cannot reach the backend server.', 'err'); return; }
+  } catch (_) { toast('Cannot connect to UniServe. Check your connection and try again.', 'err'); return; }
   let reason='';
   try { if(on) reason=readSelectedReason('mCaReason'); } catch(error) { toast(escapeHtml(error.message),'err'); return; }
   if (on && reason.length < 5) { toast('Add a short reason for granting access.', 'err'); return; }

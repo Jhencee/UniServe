@@ -9,7 +9,7 @@ class StaffSecurityController extends Controller
 {
     public function mfa(Request $request) {
         $user=StaffAuth::user($request);
-        abort_unless(\Illuminate\Support\Facades\Schema::hasColumn('staff_users','mfa_secret'),503,'Run the matching database migrations before setting up two-step sign-in.');
+        abort_unless(\Illuminate\Support\Facades\Schema::hasColumn('staff_users','mfa_secret'),503,'Two-step sign-in setup is unavailable. Contact your system administrator.');
         if($request->isMethod('get'))return response()->json(['enabled'=>!empty($user->mfa_secret)])->header('Cache-Control','no-store');
         StaffSessions::requireConfirmation($request);
         $data=$request->validate(['action'=>'required|in:setup,enable,disable','code'=>'nullable|string|max:80']);
