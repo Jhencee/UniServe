@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\StaffAuth;
+use App\Support\{StaffAuth, SystemAudit, TrustedDevices};
 use Illuminate\Validation\Rule;
 
 use Illuminate\Http\JsonResponse;
@@ -49,6 +49,7 @@ class StaffLoginController extends Controller
             $values['password_hash'] = Hash::make($data['new_password']);
         }
         DB::table('staff_users')->where('id', $user->id)->update($values);
+        if(isset($values['password_hash']))TrustedDevices::revokeAll($user->id);
         $user = DB::table('staff_users')->where('id', $user->id)->first();
         return response()->json(['user' => StaffAuth::present($user), 'token' => StaffAuth::token($user)]);
     }
@@ -64,6 +65,7 @@ class StaffLoginController extends Controller
         DB::table('staff_users')->where('id', $user['id'])->update([
             'password_hash' => Hash::make($request->input('new_password')),
         ]);
+        TrustedDevices::revokeAll($user['id']);
         $updated=DB::table('staff_users')->where('id',$user['id'])->first();
         return response()->json(['message' => 'Password updated.','user'=>StaffAuth::present($updated),'token'=>StaffAuth::token($updated)]);
     }
@@ -90,6 +92,7 @@ class StaffLoginController extends Controller
         }
         $input = $request->validate([
             'mfaCode' => ['nullable','string','max:80'],
+            'trustDevice' => ['sometimes','boolean'],
             'username' => ['required', 'string', 'max:120'],
             'password' => ['required', 'string', 'max:255'],
         ]);
@@ -105,16 +108,36 @@ class StaffLoginController extends Controller
 
         if (! $user || ! Hash::check($input['password'], $user->password_hash)) {
             \Illuminate\Support\Facades\RateLimiter::hit($attemptKey,60);
+            if($user&&\Illuminate\Support\Facades\RateLimiter::attempts($attemptKey)>=5)TrustedDevices::forgetCurrent($request,$user);
             return response()->json(['message' => 'Invalid username/email or password.'], 401);
         }
         if (! $user->is_active) {
             return response()->json(['message' => 'This account has been deactivated.'], 403);
         }
 
+        $cookie=null;$factor='Password';
         if(!empty($user->mfa_secret)){
-            if(!$request->filled('mfaCode'))return response()->json(['mfaRequired'=>true,'message'=>'Enter your authenticator code or a recovery code.'],422);
-            if(!\App\Support\StaffMfa::verify($user,(string)$request->input('mfaCode'))){\Illuminate\Support\Facades\RateLimiter::hit($attemptKey,60);return response()->json(['message'=>'Invalid or already used authenticator code.'],422);}
+            $eligible=$user->role==='ADMIN'&&TrustedDevices::available()&&TrustedDevices::allowedOrigin($request);
+            if(!$request->filled('mfaCode'))$cookie=TrustedDevices::consume($request,$user);
+            if($cookie){$factor='Trusted device';}
+            else{
+                if(!$request->filled('mfaCode'))return response()->json(['mfaRequired'=>true,'trustedDeviceEligible'=>$eligible,'message'=>'Enter your authenticator code or a recovery code.'],422)->header('Cache-Control','no-store');
+                if($user->role==='ADMIN'&&$request->boolean('trustDevice'))abort_unless($eligible,503,'Trusted devices are unavailable. Sign in without trusting this device.');
+                if(!\App\Support\StaffMfa::verify($user,(string)$request->input('mfaCode'))){
+                    \Illuminate\Support\Facades\RateLimiter::hit($attemptKey,60);
+                    if(\Illuminate\Support\Facades\RateLimiter::attempts($attemptKey)>=5)TrustedDevices::forgetCurrent($request,$user);
+                    return response()->json(['message'=>'Invalid or already used authenticator code.'],422);
+                }
+                $factor='Authenticator or recovery code';
+                if($eligible&&$request->boolean('trustDevice'))$cookie=TrustedDevices::remember($request,$user);
+                elseif($user->role==='ADMIN'){
+                    TrustedDevices::forgetCurrent($request,$user);
+                    if(TrustedDevices::token($request))$cookie=TrustedDevices::cookie(null);
+                }
+            }
         }
-        return response()->json(['user' => StaffAuth::present($user), 'token' => StaffAuth::token($user)]);
+        $response=response()->json(['user' => StaffAuth::present($user), 'token' => StaffAuth::token($user)])->header('Cache-Control','no-store');
+        if($request->is('api/login'))SystemAudit::record($user,'Authentication','Signed in',null,[['field'=>'Verification','from'=>'','to'=>$factor]]);
+        return $cookie?$response->withCookie($cookie):$response;
     }
 }

@@ -13,16 +13,18 @@ class AdminManagementController extends Controller
 {
     public function handle(Request $request, ?string $id = null)
     {
-        StaffAuth::user($request, 'SUPER_ADMIN');
+        $actor=StaffAuth::user($request, 'SUPER_ADMIN');
         $query = DB::table('staff_users')->where('role', 'ADMIN');
         if ($request->isMethod('get')) {
             return response()->json(['users' => DB::table('staff_users')->whereIn('role', ['ADMIN', 'SUPER_ADMIN'])->orderBy('full_name')->get()->map(fn ($user) => $this->present($user))]);
         }
-        if (!$request->isMethod('get') && ($request->isMethod('delete') || $request->hasAny(['password','active','confidentialAccess','confidentialApprover']))) \App\Support\StaffSessions::requireConfirmation($request);
+        if (!$request->isMethod('get') && ($request->isMethod('delete') || $request->hasAny(['password','active','confidentialAccess','confidentialApprover','revokeTrustedDevices']))) \App\Support\StaffSessions::requireConfirmation($request);
         if ($id !== null) {
             abort_unless((clone $query)->where('id', $id)->exists(), 404, 'Admin account not found.');
         }
         if ($request->isMethod('delete')) {
+            \App\Support\TrustedDevices::revokeAll($id);
+            \App\Support\StaffSessions::revokeAll($id);
             $query->where('id', $id)->delete();
             return response()->json(['message' => 'Admin removed.']);
         }
@@ -40,6 +42,7 @@ class AdminManagementController extends Controller
             'active' => ['sometimes', 'boolean'],
             'confidentialAccess' => ['sometimes', 'boolean'],
             'confidentialApprover' => ['sometimes', 'boolean'],
+            'revokeTrustedDevices' => ['sometimes', 'boolean'],
         ]);
         $values = [];
         foreach (['fullName' => 'full_name', 'username' => 'username', 'email' => 'email', 'active' => 'is_active', 'confidentialAccess' => 'confidential_access'] as $key => $column) {
@@ -55,6 +58,10 @@ class AdminManagementController extends Controller
             if ($data['confidentialApprover']) $values['confidential_access'] = true;
         }
         if (($data['confidentialAccess'] ?? null) === false) $values['confidential_approver'] = false;
+        if((($data['revokeTrustedDevices']??false)||($data['active']??null)===false)&&\Illuminate\Support\Facades\Schema::hasColumn('staff_users','mfa_version')){
+            // Invalidate even an in-flight login holding an older user snapshot; keep the TOTP secret unchanged.
+            $values['mfa_version']=bin2hex(random_bytes(16));
+        }
         if ($id && (($data['confidentialAccess'] ?? null) === false || ($data['active'] ?? null) === false)) {
             DB::table('confidential_requests')->where('requester_id',$id)->whereIn('status',['Pending','Approved'])->update(['status'=>'Revoked','updated_at'=>now()]);
         }
@@ -66,6 +73,11 @@ class AdminManagementController extends Controller
             DB::table('staff_users')->insert($values + ['id' => $id, 'role' => 'ADMIN', 'is_active' => true]);
         } else {
             $query->where('id', $id)->update($values + ['updated_at' => now()]);
+            if(isset($data['password'])||($data['active']??null)===false||($data['revokeTrustedDevices']??false)){
+                \App\Support\TrustedDevices::revokeAll($id);
+                \App\Support\StaffSessions::revokeAll($id);
+            }
+            if($data['revokeTrustedDevices']??false)\App\Support\SystemAudit::record($actor,'Accounts','Revoked Admin devices and sessions',$id);
         }
         return response()->json(['user' => $this->present(DB::table('staff_users')->where('id', $id)->first())], $creating ? 201 : 200);
     }

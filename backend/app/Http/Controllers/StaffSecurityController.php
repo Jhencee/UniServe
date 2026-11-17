@@ -1,7 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Support\{StaffAuth, StaffSessions, SystemAudit};
+use App\Support\{StaffAuth, StaffSessions, SystemAudit, TrustedDevices};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{Cache, Mail};
 
@@ -23,6 +23,7 @@ class StaffSecurityController extends Controller
         if($data['action']==='disable'){
             abort_unless(!empty($user->mfa_secret)&&\App\Support\StaffMfa::verify($user,$data['code']??''),422,'Enter a new authenticator code or an unused recovery code.');
             \Illuminate\Support\Facades\DB::table('staff_users')->where('id',$user->id)->update(['mfa_version'=>bin2hex(random_bytes(16)),'mfa_secret'=>null,'mfa_recovery_codes'=>null,'mfa_last_step'=>null]);
+            TrustedDevices::revokeAll($user->id);
             SystemAudit::record($user,'Authentication','Disabled two-step sign-in');
             return response()->json(['enabled'=>false]);
         }
@@ -34,6 +35,7 @@ class StaffSecurityController extends Controller
         abort_unless($matched!==null,422,'Enter the current six-digit code from your authenticator.');
         $codes=[];for($i=0;$i<8;$i++)$codes[]=bin2hex(random_bytes(8));
         \Illuminate\Support\Facades\DB::table('staff_users')->where('id',$user->id)->update(['mfa_version'=>bin2hex(random_bytes(16)),'mfa_secret'=>$encrypted,'mfa_recovery_codes'=>json_encode(array_map(fn($c)=>hash('sha256',$c),$codes)),'mfa_last_step'=>$matched]);
+        TrustedDevices::revokeAll($user->id);
         Cache::forget($key);
         SystemAudit::record($user,'Authentication','Enabled two-step sign-in');
         return response()->json(['enabled'=>true,'recoveryCodes'=>$codes,'token'=>StaffAuth::token(\Illuminate\Support\Facades\DB::table('staff_users')->where('id',$user->id)->first())])->header('Cache-Control','no-store');

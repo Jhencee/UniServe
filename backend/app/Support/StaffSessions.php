@@ -33,6 +33,15 @@ final class StaffSessions
 
     public static function requireConfirmation(Request $request): void
     {
-        abort_unless(Cache::get('staff-confirmed:'.hash('sha256',$request->bearerToken()??'')),428,'Confirm your Super Admin password before continuing.');
+        abort_unless(Cache::get('staff-confirmed:'.hash('sha256',$request->bearerToken()??'')),428,'Confirm your password before continuing.');
+    }
+
+    public static function revokeAll(string $userId): void
+    {
+        foreach(Cache::get('staff-sessions:'.$userId,[]) as $key=>$session){
+            Cache::put('revoked-token:'.$key,true,3700);
+            Cache::forget('staff-session:'.$key);
+        }
+        Cache::forget('staff-sessions:'.$userId);
     }
 }

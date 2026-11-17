@@ -112,7 +112,9 @@ it('confirms the signed-in super admin password without bypassing login verifica
     $this->postJson('/api/login',['username'=>'login.test','password'=>'test-password'])->assertUnprocessable();
 });
 
-it('rejects regular admin sessions at super admin password confirmation',function(){
+it('allows Admin password confirmation only for actions their role already permits',function(){
     $user=DB::table('staff_users')->where('id','login-test')->first();
-    $this->postJson('/api/password/confirm',['password'=>'test-password'],['Authorization'=>'Bearer '.\App\Support\StaffAuth::token($user)])->assertForbidden();
+    $headers=['Authorization'=>'Bearer '.\App\Support\StaffAuth::token($user)];
+    $this->postJson('/api/password/confirm',['password'=>'test-password'],$headers)->assertOk()->assertJsonMissingPath('token');
+    $this->getJson('/api/admins',$headers)->assertForbidden();
 });
