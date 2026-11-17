@@ -46,7 +46,7 @@
   --chart-6: var(--accent);
   --chart-grid: #d1d5db;
 
-  --header-h: 60px;
+  --header-h: 54px;
   --footer-h: 20mm;
 }
 
@@ -1458,11 +1458,11 @@ td .pill {
 }
 
 .topbar h1 {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: var(--accent-strong);
 }
 .topbar .sub {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: var(--text-soft);
   margin-top: 2px;
   max-width: 68ch;
