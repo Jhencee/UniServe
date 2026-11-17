@@ -28,7 +28,7 @@ class StaffPasswordResetController extends Controller {
    $key='staff-reset:'.$d['challengeId'];$c=Cache::get($key);abort_unless($c&&$c['expires']>time(),422,'The code expired or was already used. Request a new code.');
    if(!hash_equals($c['hash'],hash_hmac('sha256',$d['code'],config('app.key')))){$c['attempts']++;if($c['attempts']>=5)Cache::forget($key);else Cache::put($key,$c,max(1,$c['expires']-time()));abort(422,'Incorrect code. Check your email and try again.');}
    abort_unless($c['verified']??false,422,'Verify your email code before setting a new password.');
-   DB::transaction(function()use($c,$d){$u=DB::table('staff_users')->where('id',$c['user'])->lockForUpdate()->first();abort_unless($u&&$u->is_active&&hash_equals($c['credential'],hash('sha256',$u->password_hash)),422,'This reset is no longer valid. Request a new code.');DB::table('staff_users')->where('id',$u->id)->update(['password_hash'=>Hash::make($d['password'])]);\App\Support\TrustedDevices::revokeAll($u->id);SystemAudit::record($u,'Authentication','Password reset completed');});Cache::forget($key);return response()->json(['message'=>'Password updated. Sign in with your new password.']);
+   DB::transaction(function()use($c,$d){$u=DB::table('staff_users')->where('id',$c['user'])->lockForUpdate()->first();abort_unless($u&&$u->is_active&&hash_equals($c['credential'],hash('sha256',$u->password_hash)),422,'This reset is no longer valid. Request a new code.');DB::table('staff_users')->where('id',$u->id)->update(['password_hash'=>Hash::make($d['password'])]);SystemAudit::record($u,'Authentication','Password reset completed');});Cache::forget($key);return response()->json(['message'=>'Password updated. Sign in with your new password.']);
   });
  }
 }

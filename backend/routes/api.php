@@ -129,7 +129,6 @@ Route::get('/backup/files/{id}',[\App\Http\Controllers\BackupController::class,'
 
 Route::post('/session/activity',[\App\Http\Controllers\StaffSecurityController::class,'activity'])->middleware('throttle:10,1,staff-activity');
 Route::get('/security/sessions',[\App\Http\Controllers\StaffSecurityController::class,'sessions'])->middleware('throttle:30,1,staff-sessions');
-Route::match(['GET','DELETE'],'/security/trusted-devices',[\App\Http\Controllers\TrustedDeviceController::class,'handle'])->middleware('throttle:20,1,staff-trusted-devices');
 Route::delete('/security/sessions',[\App\Http\Controllers\StaffSecurityController::class,'revoke'])->middleware('throttle:10,1,staff-revoke');
 Route::post('/system/test-email',[\App\Http\Controllers\StaffSecurityController::class,'testEmail'])->middleware('throttle:2,10,system-test-email');
 

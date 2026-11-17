@@ -12,6 +12,19 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
+it('requires the existing authenticator for every new staff login',function($id){
+    $secret='JBSWY3DPEHPK3PXP';
+    $encrypted=\Illuminate\Support\Facades\Crypt::encryptString($secret);
+    DB::table('staff_users')->where('id',$id)->update(['mfa_secret'=>$encrypted]);
+    $input=['username'=>$id,'password'=>'SecurityFixture42!'];
+    $this->postJson('/api/login',$input)->assertUnprocessable()->assertJsonPath('mfaRequired',true)->assertJsonMissingPath('token');
+    $response=$this->postJson('/api/login',$input+['mfaCode'=>StaffMfa::code($secret,now()->timestamp)])->assertOk();
+    $this->postJson('/api/logout',[],['Authorization'=>'Bearer '.$response->json('token')])->assertOk();
+    $this->postJson('/api/login',$input)->assertUnprocessable()->assertJsonPath('mfaRequired',true)->assertJsonMissingPath('token');
+    expect(DB::table('staff_users')->where('id',$id)->value('mfa_secret'))->toBe($encrypted);
+    $this->getJson('/api/security/sessions')->assertUnauthorized();
+})->with(['security-admin','security-super']);
+
 it('exposes only an authenticated change marker without auditing polling or extending idle sessions',function(){
     $this->getJson('/api/realtime/changes')->assertUnauthorized();
     $headers=securityHeaders('security-admin');

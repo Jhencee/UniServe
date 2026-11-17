@@ -17,19 +17,6 @@ async function openSecuritySessions() {
     document.querySelectorAll('[data-revoke-session]').forEach(b=>b.addEventListener('click',()=>confirmStaffAction(async()=>{await UniServeUX.request('/security/sessions','DELETE',{id:b.dataset.revokeSession});await openSecuritySessions();})));
   }catch(e){toast(e.message,'err');}
 }
-async function openTrustedDevices() {
-  try{
-    const result=await UniServeUX.request('/security/trusted-devices','GET',undefined,{credentials:'include'});
-    const date=value=>new Date(value.includes('T')?value:value.replace(' ','T')+'Z').toLocaleString('en-PH',{timeZone:'Asia/Manila'});
-    openModal('Trusted devices',`<div class="security-session-dialog"><p class="field-hint">These devices can skip the authenticator code after password sign-in. Trust expires 30 days after it was granted.</p><ul class="security-session-list">${result.devices.map(device=>`<li><div><strong>${escapeHtml(device.label)}${device.current?' (this device)':''}</strong><span>Expires ${escapeHtml(date(device.expiresAt))}</span><span>Last used ${escapeHtml(date(device.lastUsedAt))}</span></div><button type="button" class="security-session-signout" data-revoke-trusted="${escapeHtml(device.id)}">Revoke trust</button></li>`).join('')||'<li>No trusted devices.</li>'}</ul><p class="security-session-note">Revoking trust requires a code at the next login. It does not end active sessions; use Active sessions to sign them out.</p></div>`,[
-      {label:'Close',cls:'btn-ghost',action:closeModal},
-      ...(result.devices.length?[{label:'Revoke all trusted devices',cls:'btn-danger-o',action:()=>confirmStaffAction(async()=>{await UniServeUX.request('/security/trusted-devices','DELETE',{all:true},{credentials:'include'});await openTrustedDevices();})}]:[]),
-    ]);
-    document.querySelectorAll('[data-revoke-trusted]').forEach(button=>button.addEventListener('click',()=>confirmStaffAction(async()=>{
-      await UniServeUX.request('/security/trusted-devices','DELETE',{id:button.dataset.revokeTrusted},{credentials:'include'});await openTrustedDevices();
-    })));
-  }catch(error){toast(error.message,'err');}
-}
 function openDisableMfa(recovery=false) {
   openModal('Disable two-step sign-in',`<p class="field-hint">${recovery?'Enter one unused recovery code to turn off two-step sign-in.':'Enter the current six-digit code from your authenticator app to turn off two-step sign-in.'}</p><div class="field"><label class="${recovery?'':'verification-code-label'}" for="disableMfaCode">${recovery?'Recovery code':'Authenticator code'}</label><input id="disableMfaCode" class="${recovery?'':'verification-code-input'}" type="text" autocomplete="one-time-code" ${recovery?'':'inputmode="numeric"'} maxlength="${recovery?'16':'6'}" spellcheck="false" aria-describedby="mfaError" ${recovery?'':'placeholder="000000"'}></div><button type="button" class="security-code-switch" onclick="openDisableMfa(${!recovery})">${recovery?'Use authenticator code':'Use a recovery code'}</button><p id="mfaError" class="field-hint" role="alert"></p>`,[
     {label:'Cancel',cls:'btn-ghost',action:closeModal},

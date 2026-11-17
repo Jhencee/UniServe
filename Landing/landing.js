@@ -299,7 +299,6 @@ function togglePasswordVisibility(inputId, btn) {
   btn.setAttribute('aria-pressed', String(isHidden));
 }
 let loginPending = false;
-let loginTrustAllowed = false;
 function clearLoginFieldErrors() {
   ['loginUser','loginPass'].forEach(id=>{
     document.getElementById(id).removeAttribute('aria-invalid');
@@ -307,9 +306,7 @@ function clearLoginFieldErrors() {
   });
 }
 function showLoginMfa(recovery=false) {
-  const trustSelected=Boolean(document.getElementById('loginTrustDevice')?.checked);
-  const trustMarkup=loginTrustAllowed?`<label class="login-trust-device"><input id="loginTrustDevice" type="checkbox" ${trustSelected?'checked':''}><span>Trust this device for 30 days<small>Use only on your personal device. A network or browser change may require a code again.</small></span></label>`:'';
-  openModal('Verify your sign-in',`<p class="field-hint">${recovery?'Enter one unused recovery code saved when you enabled two-step sign-in.':'Enter the current six-digit code from your authenticator app to finish signing in.'}</p><div id="loginMfaErr" class="err-box" role="alert" hidden></div><div class="field"><label class="${recovery?'':'verification-code-label'}" for="loginMfaCode">${recovery?'Recovery code':'Authenticator code'}</label><input id="loginMfaCode" class="${recovery?'':'verification-code-input'}" type="text" ${recovery?'':'inputmode="numeric"'} autocomplete="one-time-code" maxlength="${recovery?'16':'6'}" spellcheck="false" aria-describedby="loginMfaErr" ${recovery?'':'placeholder="000000"'}></div><button type="button" class="login-mfa-switch" onclick="showLoginMfa(${!recovery})">${recovery?'Use authenticator code':'Use a recovery code'}</button>${trustMarkup}`,[
+  openModal('Verify your sign-in',`<p class="field-hint">${recovery?'Enter one unused recovery code saved when you enabled two-step sign-in.':'Enter the current six-digit code from your authenticator app to finish signing in.'}</p><div id="loginMfaErr" class="err-box" role="alert" hidden></div><div class="field"><label class="${recovery?'':'verification-code-label'}" for="loginMfaCode">${recovery?'Recovery code':'Authenticator code'}</label><input id="loginMfaCode" class="${recovery?'':'verification-code-input'}" type="text" ${recovery?'':'inputmode="numeric"'} autocomplete="one-time-code" maxlength="${recovery?'16':'6'}" spellcheck="false" aria-describedby="loginMfaErr" ${recovery?'':'placeholder="000000"'}></div><button type="button" class="login-mfa-switch" onclick="showLoginMfa(${!recovery})">${recovery?'Use authenticator code':'Use a recovery code'}</button>`,[
     {label:'Cancel',cls:'btn-ghost',action:closeModal},
     {label:'Verify and sign in',cls:'btn-primary',action:async()=>{
       const input=document.getElementById('loginMfaCode');
@@ -320,11 +317,11 @@ function showLoginMfa(recovery=false) {
         error.hidden=false;input.setAttribute('aria-invalid','true');input.focus();return;
       }
       input.removeAttribute('aria-invalid');
-      await doLogin(recovery?code.toLowerCase():code,Boolean(document.getElementById('loginTrustDevice')?.checked));
+      await doLogin(recovery?code.toLowerCase():code);
     }},
   ]);
 }
-async function doLogin(mfaCode='',trustDevice=false) {
+async function doLogin(mfaCode='') {
   if (loginPending) return;
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
@@ -350,12 +347,12 @@ async function doLogin(mfaCode='',trustDevice=false) {
   try {
     const turnstileToken=await LoginTurnstile.getToken();
     const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/login', {
-      method: 'POST', credentials:'include', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ username: u, password: p,turnstileToken,mfaCode,trustDevice })
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ username: u, password: p,turnstileToken,mfaCode })
     });
     const result = await response.json();
     if(result.mfaRequired){
-      if(!mfaCode){loginTrustAllowed=result.trustedDeviceEligible===true;showLoginMfa();return;}
+      if(!mfaCode){showLoginMfa();return;}
       throw new Error(result.message||'Enter the current code from your authenticator app.');
     }
     if(response.status===429)throw new Error('Too many sign-in attempts. Please wait '+(response.headers.get('Retry-After')||60)+' seconds, then try again.');
