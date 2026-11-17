@@ -334,7 +334,8 @@ body #centralAudit .filter-bar .date-range .dr-btn { min-height:28px; padding:2p
 .backup-storage-list, .backup-recovery-list { padding-left:20px; color:var(--text-soft); font-size:.8rem; line-height:1.8; }
 .backup-storage-list li, .backup-recovery-list li { padding-left:4px; margin:6px 0; }
 .backup-details { margin-top:18px; border-top:1px solid var(--border); padding-top:14px; font-size:.78rem; }
-.backup-details summary { cursor:pointer; color:var(--text); padding:4px 0; }
+.backup-details summary { cursor:pointer; color:var(--accent-strong); padding:4px 0; }
+.backup-details summary:hover { text-decoration:underline; text-underline-offset:4px; }
 .backup-details summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .backup-recovery { margin-top:28px; padding:24px; }
 .backup-recovery-heading { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
