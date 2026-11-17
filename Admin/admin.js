@@ -1138,7 +1138,7 @@ function appointmentViewSwitchHtml() {
 }
 function dashboardScheduledVisitors(db) {
   const rows = db.appointments.filter(a => !a.restricted && a.date === OfficeCalendar.parts().date && a.status === 'Booked').sort(visitorTimeSort);
-  return `<section class="card"><div class="card-head"><div><h3>Today's scheduled visitors</h3><div class="desc">Confirmed visits awaiting check-in</div></div></div><div class="card-pad">${rows.length ? rows.slice(0, 4).map(r => arrivalVisitorHtml(r, { readOnly: true })).join('') : emptyChart('No visitors awaiting check-in today.')}</div><div class="analytics-footer"><span>${rows.length} awaiting check-in</span><button type="button" class="analytics-link" onclick="openVisitorSchedule()">View schedule</button></div></section>`;
+  return `<section class="card scheduled-visitors-card"><div class="card-head"><div><h3>Today's scheduled visitors</h3><div class="desc">Confirmed visits awaiting check-in</div></div></div><div class="card-pad">${rows.length ? rows.slice(0, 4).map(r => arrivalVisitorHtml(r, { readOnly: true })).join('') : emptyChart('No visitors awaiting check-in today.')}</div><div class="analytics-footer"><span>${rows.length} awaiting check-in</span><button type="button" class="analytics-link" onclick="openVisitorSchedule()">View schedule</button></div></section>`;
 }
 function visitorTimeSort(a, b) {
   return String(UniServeUX.appointmentTime(a.time) || '99:99').localeCompare(String(UniServeUX.appointmentTime(b.time) || '99:99'));

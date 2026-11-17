@@ -459,6 +459,26 @@ a {
 .admin-queue-layout > .card {
   min-width: 0;
 }
+body #content .scheduled-visitors-card {
+  min-height: 0;
+  height: auto;
+  align-self: start;
+}
+body #content .scheduled-visitors-card > .card-head {
+  min-height: 0;
+  padding: 18px 20px 0;
+}
+body #content .scheduled-visitors-card > .card-pad {
+  flex: none;
+  min-height: 0;
+  padding: 12px 20px;
+  justify-content: flex-start;
+}
+body #content .scheduled-visitors-card .helper-empty {
+  flex: none;
+  min-height: 0;
+  padding: 12px 0 !important;
+}
 .admin-queue-layout th:first-child {
   width: 44px;
 }
