@@ -16,6 +16,7 @@ return [
     'default' => env('REVERB_SERVER', 'reverb'),
 
     'public' => [
+        'host' => env('REVERB_PUBLIC_HOST', env('REVERB_HOST', '127.0.0.1')),
         'port' => (int) env('REVERB_PUBLIC_PORT', 8080),
         'scheme' => env('REVERB_PUBLIC_SCHEME', 'ws'),
     ],

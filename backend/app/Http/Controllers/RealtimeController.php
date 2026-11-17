@@ -5,7 +5,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB,Crypt};
 class RealtimeController extends Controller
 {
- public function config(){return response()->json(['enabled'=>config('broadcasting.default')==='reverb','key'=>config('broadcasting.connections.reverb.key'),'port'=>(int)config('reverb.public.port',8080),'scheme'=>config('reverb.public.scheme','ws')]);}
+ public function config(){return response()->json(['enabled'=>config('broadcasting.default')==='reverb','key'=>config('broadcasting.connections.reverb.key'),'host'=>config('reverb.public.host','127.0.0.1'),'port'=>(int)config('reverb.public.port',8080),'scheme'=>config('reverb.public.scheme','ws')]);}
+ public function changes(Request $request){
+  StaffAuth::user($request);
+  // Only an opaque change marker is returned, never audit or confidential records.
+  $latest=DB::table('system_audit')->orderByDesc('created_at')->orderByDesc('id')->first(['id','created_at']);
+  $version=hash('sha256',json_encode([$latest?->id,$latest?->created_at,DB::table('system_audit')->count()]));
+  return response()->json(['version'=>$version])->header('Cache-Control','no-store');
+ }
  public function auth(Request $r){
   $d=$r->validate(['socket_id'=>'required|regex:/^\d+\.\d+$/','channel_name'=>'required|string|max:160']);$channel=$d['channel_name'];
   if($channel==='private-head-admin'){$u=StaffAuth::user($r,'ADMIN');abort_unless($u->confidential_approver??false,403,'Head Admin access required.');}

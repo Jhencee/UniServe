@@ -26,6 +26,13 @@ test('health view distinguishes configuration from a verified live connection',a
   assert.ok(html.includes('unverified'));assert.ok(html.includes('Needs checking'));
   assert.ok(html.includes('Delivery not confirmed'));assert.ok(html.includes('Send test email'));
 });
+test('health reports successful auto-refresh separately from a WebSocket connection',async()=>{
+  const s=setup(async()=>fixture());s.context.window.UniServeAutoRefresh={active:true};
+  await s.context.renderSystemHealth();const html=s.elements.get('oversightPageBody').innerHTML;
+  assert.ok(html.includes('Auto-refresh active'));assert.ok(html.includes('every 15 seconds'));assert.ok(html.includes('data-state="polling"'));
+  s.context.window.UniServeAutoRefresh.active=false;await s.context.renderSystemHealth();
+  assert.ok(!s.elements.get('oversightPageBody').innerHTML.includes('Auto-refresh active'));
+});
 test('access review escapes staff names and does not invent inactivity for missing signins',async()=>{
   const s=setup(async()=>fixture());s.context.state_view='accessreview';await s.context.renderAccessReview();
   const html=s.elements.get('oversightPageBody').innerHTML;

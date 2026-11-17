@@ -373,6 +373,8 @@ it('accepts feedback from a scoped visit token without requiring another Gmail v
  $this->postJson('/api/queue/'.$q['id'].'/feedback',['rating'=>5],['X-Visit-Token'=>$token])->assertOk();
 });
 it('protects private WebSocket subscriptions and excludes personal records from socket messages',function(){
+ config(['reverb.public.host'=>'updates.example.com','reverb.public.port'=>443,'reverb.public.scheme'=>'wss']);
+ $this->getJson('/api/realtime/config')->assertOk()->assertJsonPath('host','updates.example.com')->assertJsonPath('port',443)->assertJsonPath('scheme','wss')->assertJsonMissingPath('secret');
  config(['broadcasting.connections.reverb.key'=>'test-key','broadcasting.connections.reverb.secret'=>'test-secret']);
  $data=['socket_id'=>'123.456','channel_name'=>'private-office'];
  $this->postJson('/api/realtime/auth',$data)->assertUnauthorized();

@@ -43,7 +43,7 @@
   }
   function connect(){
     if(document.visibilityState==='hidden')return;
-    const secure=location.protocol==='https:',scheme=secure?'wss':config.scheme,host=location.protocol==='file:'?'127.0.0.1':location.hostname;
+    const secure=location.protocol==='https:',scheme=secure?'wss':config.scheme,host=config.host||(new URL(API,location.href)).hostname;
     socket=new WebSocket(`${scheme}://${host}:${config.port}/app/${encodeURIComponent(config.key)}?protocol=7&client=uniserve&version=1`);
     socket.onmessage=event=>{
       try{const message=JSON.parse(event.data),data=typeof message.data==='string'?JSON.parse(message.data):message.data;

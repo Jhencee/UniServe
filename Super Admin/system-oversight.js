@@ -39,7 +39,7 @@ async function mountSystemOversight() {
   if(results[0].status!=='fulfilled'){oversightError(section,results[0].reason,'mountSystemOversight');return;}
   try{
     const data=results[0].value,history=results[1].status==='fulfilled'?results[1].value:null;
-    const checks=['api','database','scheduler','worker','mail','realtime'].map(key=>key==='realtime'&&window.UniServeRealtime?.connected?'connected':data.health[key].state);
+    const checks=['api','database','scheduler','worker','mail','realtime'].map(key=>key==='realtime'?(window.UniServeRealtime?.connected?'connected':window.UniServeAutoRefresh?.active?'polling':data.health[key].state):data.health[key].state);
     const card=(title,description,body,footer)=>'<div class="card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+description+'</div></div></div><div class="card-pad">'+body+'</div><div class="analytics-footer">'+footer+'</div></div>';
     const queue=data.health.queue;
     const serviceNote='Tasks: '+(queue.pending??'Unknown')+' waiting &middot; '+(queue.failed??'Unknown')+' failed &middot; '+(data.health.mail.failed??'Unknown')+' failed emails';
@@ -51,7 +51,7 @@ async function mountSystemOversight() {
 
     const backupBody=!saved?emptyChart('Backup history could not be loaded.'):backupItems.length?'<ul class="dashboard-status-list">'+backupItems.map(item=>'<li><span>'+oversightEscape(oversightDate(item.savedAt))+'</span><strong>'+ (item.fileAvailable?'File available':'File missing')+'</strong></li>').join('')+'</ul>':emptyChart('No saved backups recorded.');
     const serviceLabels=['API connection','Database','Scheduled tasks','Background jobs','Email','Live updates'];
-    const serviceBody='<ul class="dashboard-status-list">'+checks.map((state,index)=>'<li><span>'+serviceLabels[index]+'</span><strong>'+(['responding','observed','connected'].includes(state)?'Activity confirmed':state==='disabled'?'Turned off':'Needs checking')+'</strong></li>').join('')+'</ul>';
+    const serviceBody='<ul class="dashboard-status-list">'+checks.map((state,index)=>'<li><span>'+serviceLabels[index]+'</span><strong>'+(state==='polling'?'Auto-refresh active':['responding','observed','connected'].includes(state)?'Activity confirmed':state==='disabled'?'Turned off':'Needs checking')+'</strong></li>').join('')+'</ul>';
     const inactive=data.accounts.filter(account=>account.active&&account.reviewInactive).length;
     section.innerHTML='<div class="super-dashboard-section-head"><h3 class="overview-section-title">System checks</h3><small class="oversight-reviewed-at">Checked '+oversightEscape(oversightDate(data.checkedAt))+'</small></div><div class="dashboard-today-grid">'+card('Service status','Recent connections and task activity',serviceBody,'<span>'+serviceNote+'</span><button type="button" class="analytics-link" onclick="navigate(\'systemhealth\')">System Health</button>')+card('Backups saved','Latest saved files',backupBody,'<span>'+backupNote+'</span><button type="button" class="analytics-link" onclick="navigate(\'backup\')">Review backups</button>')+'</div><p class="super-dashboard-evidence-note">Backup history is limited to retained server records; keep a separate copy.'+(inactive?' '+inactive+' active account'+(inactive===1?' needs':'s need')+' inactivity review.':'')+'</p>';
     if(typeof arrangeSuperDashboardCharts==='function')arrangeSuperDashboardCharts();
@@ -69,9 +69,10 @@ function oversightServerLocation() { return oversightUsesLocalApi()?'your local 
 function explainHealthService(key, check) {
   const descriptions={api:['System connection','Lets the portals connect to the server.'],database:['Saved records','Stores staff accounts, visits and settings.'],scheduler:['Automatic tasks','Runs reminders, expiry checks and scheduled backups.'],worker:['Email processing','Processes queued messages and other waiting tasks.'],mail:['Email delivery','Sends verification codes and visit notifications.'],realtime:['Live updates','Shows changes without manually refreshing the page.']};
   const [label,description]=descriptions[key];
-  const observed=['responding','observed','connected'].includes(check.state);
+  const observed=['responding','observed','connected','polling'].includes(check.state);
   let status=check.state==='observed'?'Activity seen':'Available now';
   let next='';
+  if(key==='realtime'&&check.state==='polling'){status='Auto-refresh active';next='Checks for changes every 15 seconds while this tab is visible. Pauses while you edit a field or use a dialog.';}
   if(!observed){
     status='Needs checking';
     next={api:'Check the API server status and logs in '+oversightServerLocation()+'.',database:'Check the database connection settings and server logs.',scheduler:'Check that scheduled tasks are running in '+oversightServerLocation()+'.',worker:'Check that background task processing is running on your API server.',mail:'Send a test email and confirm it arrives in the inbox.',realtime:'Refresh the page. If updates remain off, check the live update service and server logs.'}[key];
@@ -86,7 +87,7 @@ async function renderSystemHealth() {
     const data=await getSystemOversight();
     if (generation!==oversightGeneration || !target.isConnected) return;
     const browserConnected=Boolean(window.UniServeRealtime?.connected);
-    const health={...data.health,realtime:{state:browserConnected?'connected':data.health.realtime.state,detail:browserConnected?'This browser is subscribed to the staff update channel.':'This browser has no confirmed live subscription. Check the Reverb service and connection.'}};
+    const health={...data.health,realtime:{state:browserConnected?'connected':window.UniServeAutoRefresh?.active?'polling':data.health.realtime.state,detail:browserConnected?'This browser is subscribed to the staff update channel.':'Automatic refresh is checked from this browser.'}};
     const services=['api','database','scheduler','worker','mail','realtime'].map(key=>explainHealthService(key,health[key]));
     const needsChecking=services.filter(service=>service.needsReview);
     target.className='system-health-body';
@@ -180,3 +181,5 @@ async function openManagedAccessReview(id) {
 function openRecoveryGuide() {
  openModal('Recovery guide',`<p class="field-hint">As Super Admin, complete these steps before restoring. Manage server settings in ${oversightServerLocation()}.</p><ol class="oversight-checklist"><li>Download a recent backup and keep a copy in a secure place outside this server.</li><li>Keep the original application encryption key separately. It is needed to open the backup.</li><li>Keep the application version that matches the backup.</li><li>Test restoration in a separate environment with email sending and background tasks turned off.</li><li>Check records, documents, sign-in and permissions before reopening the system.</li></ol><p class="field-hint">Automatic backups need setup on the API server. Configure the schedule and persistent storage in ${oversightServerLocation()}, then confirm that backups are being saved.</p>`,[{label:'Close',cls:'btn-ghost',action:closeModal}]);
 }
+
+window.addEventListener?.('uniserve:auto-refresh-status',()=>{if(state_view==='systemhealth'&&document.getElementById('oversightPageBody'))renderSystemHealth();});

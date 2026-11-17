@@ -12,6 +12,7 @@ use App\Http\Controllers\ConfidentialAccessController;
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\SharedFlowController;
 Route::get('/realtime/config',[\App\Http\Controllers\RealtimeController::class,'config'])->middleware('throttle:60,1,realtime-config');
+Route::get('/realtime/changes',[\App\Http\Controllers\RealtimeController::class,'changes'])->middleware('throttle:20,1,realtime-changes');
 Route::post('/realtime/auth',[\App\Http\Controllers\RealtimeController::class,'auth'])->middleware('throttle:60,1,realtime-auth');
 Route::post('/import-browser',[\App\Http\Controllers\LegacyImportController::class,'store'])->middleware('throttle:5,1,api-route-1');
 Route::get('/public-queue',[SharedFlowController::class,'publicQueue'])->middleware('throttle:120,1,api-route-2');

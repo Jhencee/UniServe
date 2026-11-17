@@ -127,6 +127,10 @@
         else if(state_view==='feedback'&&typeof renderFeedback==='function')await renderFeedback();
         else if(state_view==='transactions'){if(document.getElementById('confidentialAccessBody')&&typeof openConfidentialAccess==='function')await openConfidentialAccess();else await renderTransactions();}
         else if(state_view==='activitylog'&&typeof loadCentralAudit==='function')await loadCentralAudit();
+        else if(state_view==='users'&&typeof renderUsers==='function')await renderUsers();
+        else if(state_view==='reports'&&typeof renderReports==='function')await renderReports();
+        else if(state_view==='systemhealth'&&typeof renderSystemHealth==='function')await renderSystemHealth();
+        else if(state_view==='backup'&&typeof renderServerBackups==='function')await renderServerBackups();
       }else if(visitor){
         if(['settings','settings-refreshed'].includes(event.detail?.resource)){
           if(visitorHubOpen)renderHubOfficeNotice();else if(visitorView==='visit'){captureVisitorDraft();renderVisitScreen();}

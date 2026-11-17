@@ -12,6 +12,20 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
+it('exposes only an authenticated change marker without auditing polling or extending idle sessions',function(){
+    $this->getJson('/api/realtime/changes')->assertUnauthorized();
+    $headers=securityHeaders('security-admin');
+    $first=$this->getJson('/api/realtime/changes',$headers)->assertOk()->assertHeader('Cache-Control','no-store, private');
+    expect(array_keys($first->json()))->toBe(['version']);
+    $this->getJson('/api/realtime/changes',$headers)->assertJsonPath('version',$first->json('version'));
+    expect(DB::table('system_audit')->count())->toBe(0);
+    \App\Support\SystemAudit::record(null,'System','Fixture change');
+    expect($this->getJson('/api/realtime/changes',$headers)->json('version'))->not->toBe($first->json('version'));
+    DB::table('shared_system_settings')->where('id',1)->update(['payload'=>json_encode(['sessionTimeout'=>5])]);
+    $this->travel(6)->minutes();
+    $this->getJson('/api/realtime/changes',$headers)->assertUnauthorized();
+});
+
 it('allows Admins to manage only their own MFA and sessions without Super Admin privileges',function(){
     $admin=securityHeaders('security-admin');$other=securityHeaders('security-admin');$super=securityHeaders();
     $this->getJson('/api/security/mfa',$admin)->assertOk()->assertJsonPath('enabled',false);
