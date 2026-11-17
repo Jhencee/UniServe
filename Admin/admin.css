@@ -460,6 +460,9 @@ a {
   min-width: 0;
 }
 body #content .scheduled-visitors-card {
+  display: flex;
+  flex-direction: column;
+  grid-template-rows: none;
   min-height: 0;
   height: auto;
   align-self: start;
