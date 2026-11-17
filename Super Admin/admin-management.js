@@ -23,7 +23,7 @@ async function renderUsers() {
   document.getElementById('content').innerHTML = `<div class="card">
     <div class="card-head"><div><h3>Admin Accounts</h3><div class="desc">Create and manage OSS Admin accounts</div><div class="desc" id="confSummary"></div></div>
     <button class="btn btn-primary btn-sm" onclick="openUserForm()">${icon('plus', 14)} Add Admin</button></div>
-    <section class="super-permissions-help" aria-label="Roles and confidential access"><h4>Roles and confidential access</h4><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></section>
+    <details class="super-permissions-help"><summary>Roles and confidential access</summary><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></details>
     <div id="adminLoadError" class="err-box" hidden></div>
     <div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Confidential Access</th><th>Status</th><th>Action</th></tr></thead><tbody id="userBody"><tr><td colspan="7">Loading accounts...</td></tr></tbody></table></div></div>`;
   try { await refreshAdmins(); }
