@@ -456,10 +456,9 @@ a {
   grid-template-columns: minmax(0, 1fr);
   gap: 20px;
 }
-.queue-sound-toggle { display:block; margin:0 14px 4px 48px; padding:3px 0; border:0; background:transparent; color:rgba(255,255,255,.75); font:inherit; font-size:.65rem; cursor:pointer; }
-.queue-sound-toggle:hover { color:#fff; text-decoration:underline; }
+.queue-sound-toggle { display:inline-flex; align-items:center; min-height:36px; padding:6px 0; border:0; background:transparent; color:var(--accent-strong); font:inherit; font-size:.74rem; cursor:pointer; }
+.queue-sound-toggle:hover { text-decoration:underline; text-underline-offset:3px; }
 .queue-sound-toggle:focus-visible { outline:2px solid currentColor; outline-offset:3px; }
-.app-shell.collapsed .queue-sound-toggle { display:none; }
 .admin-queue-layout > .card {
   min-width: 0;
 }

@@ -36,7 +36,7 @@
       const result=await response.json();if(!stopped)update(result.queues||[]);
     }catch(_){count=0;paint();}finally{busy=false;}
   }
-  async function toggle(){enabled=!enabled;localStorage.setItem(key,enabled?'on':'off');paint();try{await unlock();}catch(_){enabled=false;localStorage.setItem(key,'off');paint();}}
+  async function toggle(){enabled=!enabled;localStorage.setItem(key,enabled?'on':'off');paint();try{await unlock();if(enabled)chime();}catch(_){enabled=false;localStorage.setItem(key,'off');paint();}}
   const timer=setInterval(refresh,15000);
   function stop(){stopped=true;count=0;paint();clearInterval(timer);audio?.close();}
   window.UniServeQueueAlerts={get count(){return count;},get enabled(){return enabled;},toggle,refresh};
