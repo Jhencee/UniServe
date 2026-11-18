@@ -56,7 +56,7 @@ body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg {
 body #content .admin-service-dashboard .admin-insight-card { display:flex; flex-direction:column; }
 body #content .admin-service-dashboard .admin-insight-card .card-pad { flex:1; padding-top:20px; padding-bottom:20px; }
 body #content .admin-service-dashboard .admin-insight-card .analytics-footer { line-height:1.7; }
-.admin-insight-card svg { display:block; width:100%; height:auto; }
+.admin-insight-card .card-pad > :not(.helper-empty) svg { display:block; width:100%; height:auto; }
 .admin-rating-summary { display:flex; align-items:baseline; gap:12px; margin:0 0 18px; }
 .admin-rating-summary strong { font-size:1.25rem; }
 .admin-rating-summary span { color:var(--text-soft); font-size:.76rem; }
@@ -91,5 +91,7 @@ body #content .admin-service-dashboard .analytics-footer { display:flex; justify
 .admin-review-list li > div { display:flex; align-items:center; gap:12px; font-size:.8rem; }
 .admin-review-list strong { font-variant-numeric:tabular-nums; font-weight:600; }
 body #content .admin-service-dashboard .admin-activity-card .card-pad { overflow-x:auto; }
-body #content .admin-service-dashboard .admin-activity-card svg { display:block; width:100%; height:auto; max-height:240px; }
+body #content .admin-service-dashboard .admin-activity-card .card-pad > svg { display:block; width:100%; height:auto; max-height:240px; }
+body #content .admin-service-dashboard .helper-empty > svg { width:24px; height:24px; flex:none; }
+body #content .admin-service-dashboard .admin-insight-card .helper-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:80px; }
 @media(max-width:900px) { body #content .admin-service-dashboard .admin-daily-work { grid-template-columns:minmax(0,1fr); } }
