@@ -32,7 +32,7 @@ function adminOfficeInsights(db,dates) {
 }
 function adminOfficeInsightsHtml(db,dates) {
   const data=adminOfficeInsights(db,dates);
-  const card=(title,description,body,note)=>'<section class="card admin-insight-card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+description+'</div></div></div><div class="card-pad">'+body+'</div><details class="admin-insight-details"><summary>Details</summary><p>'+note+'</p></details></section>';
+  const card=(title,description,body,note)=>'<section class="card admin-insight-card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+description+'</div></div></div><div class="card-pad">'+body+'</div><p class="admin-insight-note">'+note+'</p></section>';
   const bars=(rows,empty)=>rows.some(r=>r.count)?dashboardBarChart(rows):emptyChart(empty);
   const time=(label,value,samples)=>'<div><dt>'+label+'</dt><dd>'+(value===null?'&mdash;':value+'<small> min</small>')+'</dd><span>'+samples+' valid samples</span></div>';
   const timing='<dl class="admin-timing-summary">'+time('Average wait',data.wait,data.waitSamples)+time('Average service',data.service,data.serviceSamples)+'</dl>';

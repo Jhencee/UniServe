@@ -61,10 +61,7 @@ body #content .admin-service-dashboard .admin-insight-card .analytics-footer { l
 .admin-rating-summary strong { font-size:1.1rem; font-weight:500; }
 .admin-rating-summary span { color:var(--text-soft); font-size:.76rem; }
 .admin-rating-summary small { font-size:.8rem; color:var(--text-soft); font-weight:400; }
-.admin-insight-details { margin:0 20px; padding:10px 0 14px; border-top:1px solid var(--border); font-size:.73rem; }
-.admin-insight-details summary { cursor:pointer; color:var(--accent-strong); width:fit-content; }
-.admin-insight-details summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
-.admin-insight-details p { margin:10px 0 0; line-height:1.7; color:var(--text-soft); }
+.admin-insight-note { margin:0 20px; padding:10px 0 14px; border-top:1px solid var(--border); font-size:.7rem; line-height:1.6; color:var(--text-soft); }
 .admin-timing-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:12px 0; }
 .admin-timing-summary > div + div { border-left:1px solid var(--border); padding-left:20px; }
 .admin-timing-summary dt { color:var(--text-soft); font-size:.77rem; }
@@ -85,7 +82,10 @@ body #content .admin-service-dashboard .card-head .desc { font-size:.71rem; }
 body #content .admin-service-dashboard .analytics-metrics .lbl { font-size:.73rem; }
 body #content .admin-service-dashboard .analytics-metrics .val { font-size:1.6rem; font-weight:500; }
 body #content .admin-service-dashboard :is(.metric-note,.helper-empty p,.analytics-heading p,.admin-insights-heading p) { font-size:.73rem; }
-body #content .admin-service-dashboard .admin-daily-work { display:grid; grid-template-columns:1.2fr 1fr; align-items:start; gap:20px; margin:24px 0; }
+body #content .admin-service-dashboard .admin-daily-work { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:stretch; gap:20px; margin:24px 0; }
+body #content .admin-service-dashboard .admin-daily-work > .card { display:flex; flex-direction:column; }
+body #content .admin-service-dashboard .admin-daily-work > .card > .card-pad { flex:1; }
+body #content .admin-service-dashboard .admin-daily-work > .scheduled-visitors-card > .card-pad { display:flex; flex-direction:column; justify-content:center; }
 body #content .admin-service-dashboard .card { min-width:0; height:auto; min-height:0; }
 body #content .admin-service-dashboard .card-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; min-height:0; padding:18px 20px 0; }
 body #content .admin-service-dashboard .card-pad { min-height:0; padding:14px 20px; flex:none; }

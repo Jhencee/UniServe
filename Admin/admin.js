@@ -510,7 +510,7 @@ function svgLineChart(trend, label, options = {}) {
   const total = values.reduce((sum, value) => sum + value, 0);
   const average = values.length ? (total / values.length).toFixed(1) : '0';
   const peak = values.length ? Math.max(...values) : 0;
-  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} transactions</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.38"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.025"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
+  return `<div class="trend-summary"><span>Total <strong>${total}</strong></span><span>Daily average <strong>${average}</strong></span><span>Busiest day <strong>${peak} ${peak===1?'transaction':'transactions'}</strong></span></div><div class="trend-chart-scroll"><svg viewBox="0 0 ${w} ${h}" style="width:100%; height:auto; max-height:240px;" role="img" aria-label="Transaction trend chart"><defs><linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--trend-color, #800000)" stop-opacity="0.38"/><stop offset="100%" stop-color="var(--trend-color, #800000)" stop-opacity="0.025"/></linearGradient></defs>${grid}${area ? `<path class="cl-area" style="--trend-fill:url(#${gradientId})" d="${area}" stroke="none"/>` : ''}<path class="cl-line" pathLength="1000" d="${line}" fill="none" stroke-width="2.5"/>${dots}${xl}</svg></div>`;
 }
 
 function svgBarChart(rows, opts) {
@@ -851,7 +851,7 @@ function renderDashboard() {
   const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
   const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
   document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
-    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Queue and arrivals for the visits you can access. Today follows Philippine time.</p></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
+    '<div class="analytics-heading"><div><h2>Today at OSS</h2></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
     '<section aria-label="Current queue summary"><div class="stat-grid analytics-metrics">'+
     metric('Waiting',waiting.length,waiting.filter(q=>isDue(q)).length+' ready to be called')+
     metric('Called',called,'Waiting for the visitor to respond')+
@@ -866,6 +866,22 @@ function renderDashboard() {
     '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
     '<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">Daily records logged over the last 14 days, including today</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Daily transactions over the last 14 days'):emptyChart('No transactions recorded in the last 14 days.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
   window.adminDashboardTrendObserver?.disconnect();
+  const plot=document.querySelector?.('.admin-activity-card .card-pad');
+  if(plot&&txns.length){
+    let lastWidth=0;
+    const resize=()=>{
+      if(!plot.isConnected){window.adminDashboardTrendObserver?.disconnect();return;}
+      const style=getComputedStyle(plot);
+      const width=Math.round(plot.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight));
+      if(width<280||width===lastWidth)return;
+      lastWidth=width;plot.innerHTML=svgLineChart(trend,'Daily transactions',{width});
+    };
+    resize();
+    if(typeof ResizeObserver!=='undefined'){
+      window.adminDashboardTrendObserver=new ResizeObserver(resize);
+      window.adminDashboardTrendObserver.observe(plot);
+    }
+  }
 }
 function openDashboardAppointments(filter) {
   apptFilter=filter;
