@@ -1220,11 +1220,13 @@ function renderApptTable() {
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.visitId || '').toLowerCase().includes(q));
   document.getElementById('apptBody').innerHTML = rows.length ? rows.map((r, i) => {
     const linkedQ = r.queueId ? db.queues.find(x => x.id === r.queueId) : null;
-    return `<tr${r.status === 'Requested' ? ' class="appointment-awaiting-review"' : ''}><td class="row-num">${i + 1}</td>
+    const readiness=computeReadiness(findService(db,r.service),r.attachments);
+    const attentionClass=r.restricted?'':r.status==='Requested'?'appointment-awaiting-review':r.status==='Booked'&&readiness.status!=='READY'?'appointment-requirements-attention':'';
+    return `<tr${attentionClass ? ' class="'+attentionClass+'"' : ''}><td class="row-num">${i + 1}</td>
     <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
     <td>${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div></td>
     <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(UniServeUX.timeLabel(r.time)) : '&mdash;'}</td>
-    <td>${readinessPillHtml(computeReadiness(findService(db, r.service), r.attachments), true)}</td>
+    <td>${readinessPillHtml(readiness, true)}</td>
     <td><div class="appointment-status-list">${statusPill(r.status)} ${arrivalStatusPill(r)} ${r.earlierSlotOptIn?'<span class="appointment-status-note">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</div></td>
     <td class="act-cell appointment-action-cell">${appointmentActionsHtml(r)}</td></tr>`;
   }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;

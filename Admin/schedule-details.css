@@ -1,6 +1,8 @@
 /* Appointment views and detail dialogs share a quiet, consistent hierarchy. */
 body #content #apptBody > .appointment-awaiting-review > td { background:color-mix(in srgb,var(--warn-bg) 65%,var(--surface)); }
 body #content #apptBody > .appointment-awaiting-review:hover > td { background:var(--warn-bg); }
+body #content #apptBody > .appointment-requirements-attention > td { background:color-mix(in srgb,#3b82f6 7%,var(--surface)); }
+body #content #apptBody > .appointment-requirements-attention:hover > td { background:color-mix(in srgb,#3b82f6 12%,var(--surface)); }
 body .visitor-schedule-toolbar .calendar-month-controls,
 body .calendar-page .calendar-month-controls { display:flex; align-items:center; gap:4px; }
 body .visitor-schedule-toolbar .calendar-month-controls > .btn,
