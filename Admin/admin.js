@@ -835,76 +835,44 @@ function queueStatusPill(status) { return statusPill(QUEUE_STATUS_LABEL[status] 
 function dueTagHtml(q) { return q.source === 'Appointment' && !isDue(q) ? `<span class="pill pill-info">Due ${fmtTime(q.scheduledAt)}</span>` : ''; }
 
 function renderDashboard() {
-  const db = loadDB();
-  if (sweepNoShows(db)) saveDB(db);
-  const t = today(), qs = queueStats(db), fs = feedbackStats(db);
-  const pending = db.transactions.filter(x => x.status === 'Pending').length;
-  const escalations = db.transactions.filter(x => ['Escalated', 'For Review'].includes(x.escalation)).length;
-  const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 13);
-  const end = new Date();
-  const txns = db.transactions.filter(x => new Date(x.createdAt) >= start && new Date(x.createdAt) <= end);
-  const dates = Array.from({ length: 14 }, (_, i) => { const d = new Date(start); d.setDate(d.getDate() + i); return fmtDate(d); });
-  const trend = { labels: dates.map(d => d.slice(5)), values: dates.map(d => txns.filter(x => fmtDate(x.createdAt) === d).length) };
-  const services = db.services.map(s => ({ label: s.label, count: txns.filter(x => x.service === s.key).length })).filter(s => s.count).sort((a, b) => b.count - a.count).slice(0, 5);
-  const statuses = ['Completed', 'Approved', 'Processing', 'Pending', 'Rejected'].map(label => ({ label, count: txns.filter(x => x.status === label).length }));
-  const queue = [{ label: 'Waiting', count: qs.waiting }, { label: 'Serving / called', count: qs.serving }, { label: 'Completed', count: qs.completedToday }, ...['Skipped', 'Unfinished', 'Cancelled'].map(label => ({ label, count: db.queues.filter(q => fmtDate(q.createdAt) === t && q.status === label).length }))];
-  const metricIcons = ['calendar','clock','check','clock']; let metricIndex = 0;
-  const metric = (label, value, note) => '<div class="stat-card"><span class="metric-icon" aria-hidden="true">' + icon(metricIcons[metricIndex++],16) + '</span><div class="lbl">' + label + '</div><div class="val">' + value + '</div><div class="metric-note">' + note + '</div></div>';
-  const card = (title, desc, body, footer = '') => '<div class="card"><div class="card-head"><div><h3>' + title + '</h3><div class="desc">' + desc + '</div></div></div><div class="card-pad">' + body + '</div>' + (footer ? '<div class="analytics-footer">' + footer + '</div>' : '') + '</div>';
-  document.getElementById('content').innerHTML = '<div class="analytics-dashboard staff-overview">' +
-    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Your service summary, queue and scheduled arrivals.</p></div></div>' +
-    '<section class="dash-section" aria-label="Key metrics"><div class="stat-grid analytics-metrics">' +
-    metric("Today's transactions", db.transactions.filter(x => fmtDate(x.createdAt) === t).length, 'Logged today') +
-    metric('Total pending transactions', pending, 'All dates &middot; awaiting processing') +
-    metric('Completed visits today', qs.completedToday, 'Finished at the counter') +
-    metric('Average wait today', qs.avgWaitMin == null ? '&mdash;' : qs.avgWaitMin + '<span class="metric-unit"> min</span>', qs.avgWaitMin == null ? 'No wait-time data yet' : 'Based on completed visits today') + '</div></section>' +
-    '<section class="dash-section" aria-labelledby="dailyWorkHeading"><h3 class="overview-section-title" id="dailyWorkHeading">Queue and arrivals</h3><div class="dashboard-today-grid">' +
-    card("Today's queue", 'Visits registered today', queue.some(r => r.count) ? dashboardChart(queue, 'donut', 'Today queue status') : emptyChart('No queue activity today.'), '<span>' + escalations + ' open escalations</span><button type="button" class="analytics-link" onclick="navigate(&quot;queue&quot;)">Open queue</button>') +
-    dashboardScheduledVisitors(db) + '</div></section>' +
-    '<section class="dash-section dashboard-trend-section" aria-label="Transaction analytics"><h3 class="overview-section-title">Recent transaction activity</h3><div class="analytics-primary">' +
-    card('Transaction activity', 'Daily volume &middot; Last 14 days, including today', txns.length ? svgLineChart(trend, 'Daily transactions over the last 14 days') : emptyChart('No transactions in the last 14 days.')) +
-    '</div></section><section class="dash-section" aria-labelledby="serviceInsightsHeading"><h3 class="overview-section-title" id="serviceInsightsHeading">Service insights</h3><div class="analytics-chart-grid dashboard-summary-grid">' +
-    card('Most requested services', 'Top 5 &middot; Last 14 days', services.length ? dashboardBarChart(services,'Most requested services') : emptyChart('No service requests in this period.')) +
-    card('Transaction status', 'Transactions logged &middot; Last 14 days', txns.length ? dashboardBarChart(statuses,'Transaction status') : emptyChart('No transactions in this period.')) +
-
-    card('Visitor satisfaction', 'All feedback &middot; ' + fs.n + ' responses', '<div class="satisfaction-score">' + (fs.satPct == null ? '&mdash;' : fs.satPct + '<span>%</span>') + '</div><p class="metric-note">Rated 4 or 5 stars</p>' + (fs.n ? dashboardBarChart(fs.dist) : emptyChart('No feedback received yet.')), 'Average rating: ' + (fs.avg == null ? '&mdash;' : fs.avg.toFixed(1) + ' / 5') + ' <button type="button" class="analytics-link" onclick="navigate(&quot;feedback&quot;)">View feedback</button>') + '</div></section><section class="dash-section" aria-labelledby="operationsHeading"><h3 class="overview-section-title" id="operationsHeading">Operations</h3>' + dashboardOperationalHtml(db, start, end, card) + card('When transactions are logged','Weekday and hour &middot; Philippine time &middot; Last 14 days',txns.length ? superActivityHeatmap(txns.map(item=>({ts:item.createdAt}))) : emptyChart('No transactions in this period.')) + '</section></div>';
-  const overview=document.querySelector('.staff-overview');
-  const comparisons=document.createElement('section');
-  comparisons.className='dash-section';
-  const topServices=services.slice(0,3);
-  const serviceSeries=topServices.map(service=>({label:service.label,values:dates.map(day=>txns.filter(item=>fmtDate(item.createdAt)===day&&db.services.find(s=>s.key===item.service)?.label===service.label).length)}));
-  const dayCount=(field,filter=()=>true)=>dates.map(day=>db.queues.filter(item=>item[field]&&new Date(item[field])>=start&&new Date(item[field])<=end&&fmtDate(item[field])===day&&filter(item)).length);
-  const arrivalSeries=[{label:'Arrived',values:dates.map(day=>db.queues.filter(item=>{const value=item.checkedInAt||item.createdAt;return value&&new Date(value)>=start&&new Date(value)<=end&&fmtDate(value)===day;}).length)},{label:'Completed',values:dayCount('completedAt',item=>item.status==='Completed')}];
-  const attendanceDays=dates.slice(-7).map(day=>({label:day.slice(5),accounts:db.appointments.filter(item=>item.date===day&&['Checked-in','Completed','Unfinished'].includes(item.status)).length,access:db.appointments.filter(item=>item.date===day&&item.status==='No-show').length}));
-  comparisons.innerHTML=card('Service request trends','Top 3 services · Last 14 days',serviceSeries.length?superComparisonChart(trend.labels,serviceSeries,'line','Daily requests for the top three services'):emptyChart('No service requests in this period.'))+
-    card('Arrivals and completed visits','Daily visits · Last 14 days',arrivalSeries.some(series=>series.values.some(Boolean))?superComparisonChart(trend.labels,arrivalSeries,'line','Daily arrivals and completed visits'):emptyChart('No visit activity in this period.'))+
-    card('Attended and missed appointments','Scheduled dates · Last 7 days',attendanceDays.some(day=>day.accounts||day.access)?superComparisonChart(attendanceDays.map(row=>row.label),[{label:'Attended',values:attendanceDays.map(row=>row.accounts)},{label:'No-show',values:attendanceDays.map(row=>row.access)}],'grouped','Attended and no-show appointments'):emptyChart('No attended or missed appointments in this period.'));
-  overview.append(comparisons);
-  const chartGrid=document.createElement('div');
-  chartGrid.className='admin-dashboard-grid';
-  chartGrid.setAttribute('aria-label','Service overview charts');
-  overview.querySelectorAll(':scope > .dash-section:not([aria-label="Key metrics"])').forEach(section=>chartGrid.append(section));
-  overview.append(chartGrid);
-  const chartNames={'Transaction activity':'overview',"Today's queue":'queue','Most requested services':'services','Transaction status':'status','Visitor satisfaction':'satisfaction','Appointment attendance':'attendance','Busy arrival hours':'hours','Time since request submission':'backlog','Wait and service time':'timing','When transactions are logged':'heatmap',"Today's scheduled visitors":'schedule','Service request trends':'trends','Arrivals and completed visits':'visits','Attended and missed appointments':'missed'};
-  chartGrid.querySelectorAll('.card').forEach(card=>{
-    const name=chartNames[card.querySelector('h3')?.textContent];
-    if(name)card.dataset.adminChart=name;
-  });
-  if(typeof ResizeObserver!=='undefined'){
-    window.adminDashboardTrendObserver?.disconnect();
-    const plot=document.querySelector('.staff-overview .dashboard-trend-section .card-pad');
-    if(plot&&txns.length){
-      let lastWidth=0;
-      window.adminDashboardTrendObserver=new ResizeObserver(()=>{
-        if(!plot.isConnected){window.adminDashboardTrendObserver?.disconnect();return;}
-        const style=getComputedStyle(plot),width=Math.round(plot.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight));
-        if(width<100||width===lastWidth)return;
-        lastWidth=width;
-        plot.innerHTML=svgLineChart(trend,'Daily transactions',{width});
-      });
-      window.adminDashboardTrendObserver.observe(plot);
-    }
-  }
+  const db=loadDB(), date=OfficeCalendar.parts().date;
+  const visible=db.queues.filter(q=>!q.restricted);
+  const waiting=visible.filter(q=>q.status==='Waiting');
+  const called=visible.filter(q=>q.status==='Called').length;
+  const serving=visible.filter(q=>q.status==='Serving').length;
+  const completed=visible.filter(q=>q.status==='Completed'&&q.completedAt&&OfficeCalendar.parts(new Date(q.completedAt)).date===date).length;
+  const requests=db.appointments.filter(a=>!a.restricted&&a.status==='Requested').length;
+  const changes=db.appointments.filter(a=>!a.restricted&&a.status!=='Cancelled'&&(a.rescheduleRequested||a.calendarReview)).length;
+  const unfinished=visible.filter(q=>q.status==='Unfinished').length;
+  const pending=db.transactions.filter(t=>!t.restricted&&t.status==='Pending').length;
+  const dates=Array.from({length:14},(_,i)=>new Date(Date.parse(date+'T12:00:00Z')-(13-i)*86400000).toISOString().slice(0,10));
+  const txns=db.transactions.filter(t=>!t.restricted&&t.createdAt&&dates.includes(OfficeCalendar.parts(new Date(t.createdAt)).date));
+  const trend={labels:dates.map(d=>d.slice(5)),values:dates.map(d=>txns.filter(t=>OfficeCalendar.parts(new Date(t.createdAt)).date===d).length)};
+  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
+  const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
+  document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
+    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Queue and arrivals for the visits you can access. Today follows Philippine time.</p></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
+    '<section aria-label="Current queue summary"><div class="stat-grid analytics-metrics">'+
+    metric('Waiting',waiting.length,waiting.filter(q=>isDue(q)).length+' ready to be called')+
+    metric('Called',called,'Waiting for the visitor to respond')+
+    metric('Serving',serving,'Currently receiving service')+
+    metric('Completed today',completed,'Visits completed today')+'</div></section>'+
+    '<div class="admin-daily-work">'+dashboardScheduledVisitors(db)+
+    '<section class="card admin-review-card"><div class="card-head"><div><h3>Needs attention</h3><div class="desc">Current open items across all dates</div></div></div><div class="card-pad"><ul class="admin-review-list">'+
+    task('Appointment requests',requests,"openDashboardAppointments('Requested')",'Review requests')+
+    task('Schedule changes',changes,"openDashboardAppointments('Needs rescheduling')",'Review schedules')+
+    task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
+    task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
+    '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
+    '<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">Daily records logged over the last 14 days, including today</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Daily transactions over the last 14 days'):emptyChart('No transactions recorded in the last 14 days.'))+'</div></section></div>';
+  window.adminDashboardTrendObserver?.disconnect();
+}
+function openDashboardAppointments(filter) {
+  apptFilter=filter;
+  appointmentView='list';
+  RANGES.appt={from:'',to:''};
+  staffViewMemory.appointments={...staffViewMemory.appointments,apptFilter:filter,appointmentView:'list'};
+  navigate('appointments');
 }
 
 
