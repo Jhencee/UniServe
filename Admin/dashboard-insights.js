@@ -34,9 +34,7 @@ function adminOfficeInsightsHtml(db,dates) {
   const data=adminOfficeInsights(db,dates);
   const card=(title,description,body,note)=>'<section class="card admin-insight-card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+description+'</div></div></div><div class="card-pad">'+body+'</div><p class="admin-insight-note">'+note+'</p></section>';
   const bars=(rows,empty)=>rows.some(r=>r.count)?dashboardBarChart(rows):emptyChart(empty);
-  const timingMax=Math.max(1,data.wait||0,data.service||0);
-  const time=(label,value,samples)=>'<div class="admin-timing-row"><dt>'+label+'<small>'+samples+' valid samples</small></dt><dd><span class="admin-timing-track" aria-hidden="true"><span style="width:'+(value===null?0:value/timingMax*100)+'%"></span></span><strong>'+(value===null?'No data':value+' <small>min</small>')+'</strong></dd></div>';
-  const timing='<dl class="admin-timing-chart" aria-label="Average wait and service duration in minutes">'+time('Average wait',data.wait,data.waitSamples)+time('Average service',data.service,data.serviceSamples)+'</dl><p class="admin-timing-caption">Minutes &middot; Shorter bars indicate less time</p>';
+  const timing=adminTimingColumns(data);
   const outcomes=data.appointments?'<ul class="admin-outcome-list">'+data.attendance.map(row=>'<li><span>'+row.label+'</span><strong>'+row.count+'</strong></li>').join('')+'</ul>':emptyChart('No scheduled appointments in this period.');
   return '<section class="admin-office-insights" aria-labelledby="officeInsightsTitle"><div class="admin-insights-heading"><div><h2 id="officeInsightsTitle">Office performance</h2><p>'+dates[0]+' to '+dates[dates.length-1]+' &middot; Philippine time &middot; Accessible records only</p></div></div><div class="admin-insights-grid">'+
     card('Arrivals and completions','Daily visits &middot; '+data.arrivals+' arrivals / '+data.completed+' completions',data.arrivals||data.completed?superComparisonChart(data.daily.map(d=>d.label),[{label:'Arrivals',values:data.daily.map(d=>d.arrivals)},{label:'Completed',values:data.daily.map(d=>d.completed)}],'line','Daily arrivals and completed visits'):emptyChart('No recorded arrivals or completions in this period.'),'Uses actual check-in and completion dates. Arrivals and completions may include different visits.')+
@@ -46,4 +44,14 @@ function adminOfficeInsightsHtml(db,dates) {
     card('Appointment outcomes',data.appointments+' appointments scheduled in this period',outcomes,'Shows current status. Awaiting visits are not counted as no-shows; attended includes checked-in, completed and unfinished visits.')+
     card('Visitor feedback','Visits completed in this period',data.feedback?'<p class="admin-rating-summary"><strong>'+data.rating+' <small>/ 5</small></strong><span>'+data.feedback+' responses</span></p><div class="admin-rating-bars">'+dashboardBarChart(data.ratings)+'</div>':emptyChart('No feedback on completed visits in this period.'),'Optional responses; this does not represent every visitor. Ratings belong to visits completed in the selected period, not necessarily feedback submitted during that period.')+
     '</div></section>';
+}
+
+function adminTimingColumns(data) {
+  const rows=[{label:'Waiting time',value:data.wait,samples:data.waitSamples},{label:'Service time',value:data.service,samples:data.serviceSamples}];
+  if(rows.every(r=>r.value===null))return emptyChart('No valid timing records in this period.');
+  const step=Math.max(1,Math.ceil(Math.max(...rows.map(r=>r.value||0))/4)),max=step*4;
+  const duration=value=>{if(value===null)return 'No data';const seconds=Math.round(value*60);return Math.floor(seconds/60)+' min '+String(seconds%60).padStart(2,'0')+' sec';};
+  const ticks=Array.from({length:5},(_,i)=>{const y=180-i*35;return '<line x1="54" x2="410" y1="'+y+'" y2="'+y+'" stroke="var(--border)"/><text x="44" y="'+(y+4)+'" text-anchor="end">'+i*step+'</text>';}).join('');
+  const columns=rows.map((row,i)=>{const x=155+i*155,height=(row.value||0)/max*140;return '<g><text x="'+x+'" y="'+(172-height)+'" text-anchor="middle" class="timing-value">'+duration(row.value)+'</text>'+(row.value!==null?'<rect x="'+(x-25)+'" y="'+(180-height)+'" width="50" height="'+height+'" rx="3" fill="var(--dashboard-chart-'+(i?3:1)+')"><title>'+row.label+': '+duration(row.value)+'</title></rect>':'')+'<text x="'+x+'" y="205" text-anchor="middle">'+row.label+'</text><text x="'+x+'" y="224" text-anchor="middle">'+row.samples+' valid samples</text></g>';}).join('');
+  return '<div class="admin-timing-columns"><svg viewBox="0 0 440 240" role="img" aria-label="Average waiting time '+duration(data.wait)+', '+data.waitSamples+' samples; average service time '+duration(data.service)+', '+data.serviceSamples+' samples. Vertical axis in minutes, starting at zero."><text x="12" y="20">Minutes</text>'+ticks+columns+'</svg></div>';
 }

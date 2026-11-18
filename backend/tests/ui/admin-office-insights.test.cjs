@@ -15,3 +15,9 @@ test('empty data and invalid or reversed timings produce no invented averages',(
  const empty=c.adminOfficeInsights({queues:[]},dates);assert.equal(empty.wait,null);assert.equal(empty.rating,null);assert.equal(empty.arrivals,0);
  const data=c.adminOfficeInsights({queues:[{status:'Completed',completedAt:'2026-11-18T01:00:00Z',checkedInAt:'invalid',servingAt:'2026-11-18T02:00:00Z',feedback:{rating:0}}]},dates);assert.equal(data.waitSamples,0);assert.equal(data.serviceSamples,0);assert.equal(data.feedback,0);
 });
+
+test('timing columns use a zero-based minutes axis and readable duration labels',()=>{
+ const html=c.adminTimingColumns({wait:2.3,service:2.7,waitSamples:2,serviceSamples:2});
+ assert.match(html,/2 min 18 sec/);assert.match(html,/2 min 42 sec/);assert.match(html,/Minutes/);assert.match(html,/starting at zero/);assert.match(html,/2 valid samples/);
+ const missing=c.adminTimingColumns({wait:null,service:0,waitSamples:0,serviceSamples:1});assert.match(missing,/No data/);assert.match(missing,/0 min 00 sec/);
+});
