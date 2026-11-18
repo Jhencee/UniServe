@@ -62,12 +62,18 @@ body #content .admin-service-dashboard .admin-insight-card .analytics-footer { l
 .admin-rating-summary span { color:var(--text-soft); font-size:.76rem; }
 .admin-rating-summary small { font-size:.8rem; color:var(--text-soft); font-weight:400; }
 .admin-insight-note { margin:0 20px; padding:10px 0 14px; border-top:1px solid var(--border); font-size:.7rem; line-height:1.6; color:var(--text-soft); }
-.admin-timing-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; margin:12px 0; }
-.admin-timing-summary > div + div { border-left:1px solid var(--border); padding-left:20px; }
-.admin-timing-summary dt { color:var(--text-soft); font-size:.77rem; }
-.admin-timing-summary dd { margin:10px 0 6px; font-size:1.25rem; font-weight:500; font-variant-numeric:tabular-nums; }
-.admin-timing-summary small { font-size:.78rem; font-weight:400; color:var(--text-soft); }
-.admin-timing-summary span { font-size:.7rem; color:var(--text-soft); }
+.admin-timing-chart { display:grid; gap:24px; margin:12px 0 18px; }
+.admin-timing-row { display:grid; grid-template-columns:110px minmax(0,1fr); align-items:center; gap:16px; }
+.admin-timing-row dt { color:var(--text); font-size:.75rem; }
+.admin-timing-row dt small { display:block; margin-top:5px; font-size:.68rem; color:var(--text-soft); }
+.admin-timing-row dd { display:flex; align-items:center; gap:14px; margin:0; min-width:0; }
+.admin-timing-track { display:block; flex:1; height:10px; background:var(--surface-2); border-radius:3px; overflow:hidden; }
+.admin-timing-track > span { display:block; height:100%; background:var(--dashboard-chart-1); border-radius:3px; }
+.admin-timing-row + .admin-timing-row .admin-timing-track > span { background:var(--dashboard-chart-3); }
+.admin-timing-row strong { min-width:58px; font-size:.8rem; font-weight:500; font-variant-numeric:tabular-nums; }
+.admin-timing-row strong small { font-size:.7rem; font-weight:400; color:var(--text-soft); }
+.admin-timing-caption { font-size:.69rem; color:var(--text-soft); margin:0; }
+@media(max-width:480px) { .admin-timing-row { grid-template-columns:1fr; gap:8px; } }
 .admin-outcome-list { list-style:none; margin:0; padding:0; }
 .admin-outcome-list li { display:flex; justify-content:space-between; gap:16px; padding:9px 0; border-bottom:1px solid var(--border); font-size:.78rem; }
 .admin-outcome-list li:last-child { border-bottom:0; }

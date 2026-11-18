@@ -851,7 +851,7 @@ function renderDashboard() {
   const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
   const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
   document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
-    '<div class="analytics-heading"><div><h2>Today at OSS</h2></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
+    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Queue status, scheduled arrivals, and items for review.</p></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
     '<section aria-label="Current queue summary"><div class="stat-grid analytics-metrics">'+
     metric('Waiting',waiting.length,waiting.filter(q=>isDue(q)).length+' ready to be called')+
     metric('Called',called,'Waiting for the visitor to respond')+
