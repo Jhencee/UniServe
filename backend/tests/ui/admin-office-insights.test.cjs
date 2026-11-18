@@ -48,3 +48,9 @@ test('service demand includes all catalogue services even with no arrivals',()=>
  const data=c.adminOfficeInsights({services:Array.from({length:7},(_,i)=>({key:'s'+i,label:'Service '+i})),queues:[]},['2026-11-19']);
  assert.equal(data.services.length,7);assert.ok(data.services.every(s=>s.count===0));
 });
+
+test('visit outcomes count each checked-in visit once and exclude unarrived bookings',()=>{
+ const statuses=['Completed','Waiting','Called','Serving','Skipped','Cancelled','Unfinished'];
+ const data=c.adminOfficeInsights({queues:statuses.map(status=>({status,checkedInAt:'2026-11-19T01:00:00Z'})).concat([{status:'Waiting',createdAt:'2026-11-19T01:00:00Z'}])},['2026-11-19']);
+ assert.equal(data.arrivals,7);assert.equal(data.outcomes.reduce((n,row)=>n+row.count,0),7);assert.equal(data.outcomes.find(row=>row.label==='Still active').count,4);assert.equal(data.outcomes.find(row=>row.label==='Completed').count,1);
+});
