@@ -43,3 +43,8 @@ test('analytics periods use Philippine calendar dates through today',()=>{
  c.setAdminAnalyticsPeriod('quarterly');assert.equal(c.adminAnalyticsDates('2026-11-19')[0],'2026-10-01');assert.equal(c.adminAnalyticsDates('2026-11-19').at(-1),'2026-11-19');
  assert.match(c.adminAnalyticsTabs(),/aria-pressed="true"/);c.setAdminAnalyticsPeriod('daily');
 });
+
+test('service demand includes all catalogue services even with no arrivals',()=>{
+ const data=c.adminOfficeInsights({services:Array.from({length:7},(_,i)=>({key:'s'+i,label:'Service '+i})),queues:[]},['2026-11-19']);
+ assert.equal(data.services.length,7);assert.ok(data.services.every(s=>s.count===0));
+});

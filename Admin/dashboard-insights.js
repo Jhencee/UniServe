@@ -25,6 +25,7 @@ function adminOfficeInsights(db,dates) {
   const weekdays=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
   const arrivalMatrix=weekdays.map(label=>({label,counts:Array(24).fill(0)}));
   const services=new Map();
+  (db.services||[]).forEach(service=>services.set(service.key,{label:service.label,count:0}));
   arrivals.forEach(q=>{
     const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',hour:'2-digit',hourCycle:'h23'}).format(new Date(q.checkedInAt)));
     hours[hour].count++;
@@ -43,7 +44,7 @@ function adminOfficeInsights(db,dates) {
   return {
     arrivals:arrivals.length,completed:completed.length,
     daily:dates.map(date=>({label:date.slice(5),arrivals:arrivals.filter(q=>day(q.checkedInAt)===date).length,completed:completed.filter(q=>day(q.completedAt)===date).length})),
-    services:[...services.values()].sort((a,b)=>b.count-a.count).slice(0,5),hours:hours.filter(h=>h.count),arrivalMatrix,
+    services:[...services.values()].sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label)),hours:hours.filter(h=>h.count),arrivalMatrix,
     attendance:[['Attended',['Checked-in','Completed','Unfinished']],['No-show',['No-show']],['Cancelled',['Cancelled']],['Awaiting arrival',['Booked','Scheduled']],['Awaiting approval',['Requested']]].map(([label,statuses])=>({label,count:appointments.filter(a=>statuses.includes(a.status)).length})),
     appointments:appointments.length,wait:mean(wait),service:mean(service),waitSamples:wait.length,serviceSamples:service.length,
     feedback:feedback.length,satisfied:feedback.filter(q=>q.feedback.rating>=4).length,rating:mean(feedback.map(q=>q.feedback.rating)),ratings:[5,4,3,2,1].map(n=>({label:n+' stars',count:feedback.filter(q=>q.feedback.rating===n).length}))
@@ -56,9 +57,9 @@ function adminOfficeInsightsHtml(db,dates) {
   const timing=adminTimingColumns(data);
   const outcomes=data.appointments?'<ul class="admin-outcome-list">'+data.attendance.map(row=>'<li><span>'+row.label+'</span><strong>'+row.count+'</strong></li>').join('')+'</ul>':emptyChart('No scheduled appointments in this period.');
   return '<section class="admin-office-insights" aria-labelledby="officeInsightsTitle"><div class="admin-insights-heading"><div><h2 id="officeInsightsTitle">Office performance</h2><p>'+dates[0]+' to '+dates[dates.length-1]+' &middot; Philippine time &middot; Accessible records only</p></div></div><div class="admin-insights-grid">'+
-    card('Arrivals and completions','Daily visits &middot; '+data.arrivals+' arrivals / '+data.completed+' completions',data.arrivals||data.completed?superComparisonChart(data.daily.map(d=>d.label),[{label:'Arrivals',values:data.daily.map(d=>d.arrivals)},{label:'Completed',values:data.daily.map(d=>d.completed)}],'line','Daily arrivals and completed visits'):emptyChart('No recorded arrivals or completions in this period.'),'Uses actual check-in and completion dates. Arrivals and completions may include different visits.')+
+    card('Arrivals and completions','Daily visits &middot; '+data.arrivals+' arrivals / '+data.completed+' completions',data.arrivals||data.completed?'<div class="admin-arrival-comparison">'+superComparisonChart(data.daily.map(d=>d.label),[{label:'Arrivals',values:data.daily.map(d=>d.arrivals)},{label:'Completed',values:data.daily.map(d=>d.completed)}],'grouped','Daily arrivals and completed visits')+'</div>':emptyChart('No recorded arrivals or completions in this period.'),'Uses actual check-in and completion dates. Arrivals and completions may include different visits.')+
     card('Wait and service time','Single-service visits completed in this period',timing,'Wait: arrival to service start. Service: start to completion. Valid single-service visits only.')+
-    card('Most requested services','Top five &middot; Checked-in visits',bars(data.services,'No checked-in visits with service data.'),'Counts visits, not completed transactions. A transferred visit uses its current service.')+
+    card('Service demand','All services &middot; Checked-in visits',data.services.length?dashboardBarChart(data.services):emptyChart('No services available.'),'Counts visits, including services with zero arrivals in this period. A transferred visit uses its current service.')+
     card('Arrival patterns','Weekday and hour &middot; Philippine time',adminArrivalMatrix(data),'Counts actual check-ins in the selected period, grouped by weekday and hour. Hover over a dot for its count. Empty dots mean no recorded arrivals, not that the office was closed.')+
     card('Appointment outcomes',data.appointments+' appointments scheduled in this period',outcomes,'Shows current status. Awaiting visits are not counted as no-shows; attended includes checked-in, completed and unfinished visits.')+
     card('Visitor feedback','Visits completed in this period',adminSatisfactionPictogram(data),'Optional responses; this does not represent every visitor. Ratings belong to visits completed in the selected period, not necessarily feedback submitted during that period.')+
