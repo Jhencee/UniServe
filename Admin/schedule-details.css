@@ -157,3 +157,11 @@ body .appointment-detail-panel .follow-up-card { border:0; padding:12px 0; backg
   body .modal:has(.appointment-detail-panel) .modal-body,
   body .modal:has(.appointment-detail-panel) .modal-foot { padding-left:18px; padding-right:18px; }
 }
+/* Keep the review notice compact, with supporting guidance on demand. */
+body #content .staff-scheduling-notice { padding:8px 14px; gap:8px 16px; font-size:.76rem; border-radius:6px; }
+body #content .scheduling-notice-copy { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 16px; flex:1; min-width:0; }
+body #content .scheduling-notice-details summary { cursor:pointer; font-size:.72rem; }
+body #content .scheduling-notice-details[open] { flex-basis:100%; }
+body #content .scheduling-notice-details p { margin:6px 0 0; }
+body #content .staff-scheduling-notice > .btn { min-height:30px; padding:4px 0; border:0; background:transparent; box-shadow:none; color:inherit; font-size:.74rem; }
+body #content .staff-scheduling-notice > .btn:hover { text-decoration:underline; text-underline-offset:3px; }
