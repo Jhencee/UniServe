@@ -1173,14 +1173,11 @@ function renderAppointments(keep) {
   const db0 = loadDB(), prev = keep ? (document.getElementById('apptSearch')?.value || '') : '';
   const previousArrival=keep?(document.getElementById('arrivalVisitId')?.value||''):'';
   const affectedBookings=db0.appointments.filter(a=>!a.restricted&&['Requested','Booked'].includes(a.status)&&(a.calendarReview||UniServeUX.conflict(a)));
-  const pendingRequests=db0.appointments.filter(a=>!a.restricted&&a.status==='Requested');
-  const oldestPending=pendingRequests.filter(a=>a.createdAt).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt))[0];
   const arrivalFocused=document.activeElement?.id==='arrivalVisitId';
   if (sweepNoShows(db0)) saveDB(db0);
   if (!keep) {apptFilter = staffViewMemory.appointments?.apptFilter || 'all';arrivalLookupQuery='';}
   document.getElementById('content').innerHTML = `
     ${affectedBookings.length?'<section class="staff-scheduling-notice" aria-label="Affected appointments"><div><strong>'+affectedBookings.length+' appointment(s) need schedule review</strong><p>Calendar changes may affect existing bookings. Confirm a new schedule with each visitor.</p></div><button type="button" class="btn btn-ghost btn-sm" onclick="showAppointmentReviewFilter(\'Needs rescheduling\')">Review bookings</button></section>':''}
-    ${pendingRequests.length?'<section class="staff-scheduling-notice"><div class="scheduling-notice-copy"><strong>'+pendingRequests.length+' '+(pendingRequests.length===1?'request':'requests')+' awaiting review</strong><details class="scheduling-notice-details"><summary>Details</summary><p>Pending requests reserve their time until staff acts. No automatic expiry.'+(oldestPending?' Oldest request: '+escapeHtml(fmtDateTime(oldestPending.createdAt).replaceAll('&middot;',' ? '))+'.':'')+'</p></details></div><button type="button" class="btn btn-ghost btn-sm" onclick="showAppointmentReviewFilter(\'Requested\')">Review requests</button></section>':''}
     <section class="card arrival-checkin" aria-labelledby="arrivalLookupTitle">
       <div class="arrival-toolbar"><div class="arrival-heading"><h3 id="arrivalLookupTitle">Check in today</h3><p>Find a scheduled visitor and confirm their arrival.</p></div>
         <form class="arrival-lookup" onsubmit="event.preventDefault();findArrivalVisitor(this)">
@@ -1255,7 +1252,7 @@ function renderApptTable() {
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.visitId || '').toLowerCase().includes(q));
   document.getElementById('apptBody').innerHTML = rows.length ? rows.map((r, i) => {
     const linkedQ = r.queueId ? db.queues.find(x => x.id === r.queueId) : null;
-    return `<tr><td class="row-num">${i + 1}</td>
+    return `<tr${r.status === 'Requested' ? ' class="appointment-awaiting-review"' : ''}><td class="row-num">${i + 1}</td>
     <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
     <td>${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div></td>
     <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(UniServeUX.timeLabel(r.time)) : '&mdash;'}</td>
