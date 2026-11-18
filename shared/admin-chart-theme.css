@@ -48,6 +48,19 @@ body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg {
 .staff-overview .super-bubble-chart .super-chart-key span { width:100%; }
 .staff-overview { --super-chart-4:var(--dashboard-chart-4); --super-chart-5:var(--dashboard-chart-5); --super-chart-6:var(--dashboard-chart-6); }
 /* Admin's daily work comes before historical analysis. */
+.admin-office-insights { margin-top:28px; }
+.admin-insights-heading { margin-bottom:16px; }
+.admin-insights-heading h2 { margin:0 0 6px; font-size:1rem; }
+.admin-insights-heading p { margin:0; color:var(--text-soft); font-size:.76rem; line-height:1.7; }
+.admin-insights-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+body #content .admin-service-dashboard .admin-insight-card { display:flex; flex-direction:column; }
+body #content .admin-service-dashboard .admin-insight-card .card-pad { flex:1; padding-top:20px; padding-bottom:20px; }
+body #content .admin-service-dashboard .admin-insight-card .analytics-footer { line-height:1.7; }
+.admin-insight-card svg { display:block; width:100%; height:auto; }
+.admin-rating-summary { display:flex; align-items:baseline; gap:12px; margin:0 0 18px; }
+.admin-rating-summary strong { font-size:1.25rem; }
+.admin-rating-summary span { color:var(--text-soft); font-size:.76rem; }
+@media(max-width:800px) { .admin-insights-grid { grid-template-columns:minmax(0,1fr); } }
 body #content .admin-service-dashboard .analytics-heading { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
 body #content .admin-service-dashboard .admin-daily-work { display:grid; grid-template-columns:1.2fr 1fr; align-items:start; gap:20px; margin:24px 0; }
 body #content .admin-service-dashboard .card { min-width:0; height:auto; min-height:0; }

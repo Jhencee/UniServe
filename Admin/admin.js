@@ -864,7 +864,7 @@ function renderDashboard() {
     task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
     task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
     '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
-    '<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">Daily records logged over the last 14 days, including today</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Daily transactions over the last 14 days'):emptyChart('No transactions recorded in the last 14 days.'))+'</div></section></div>';
+    '<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">Daily records logged over the last 14 days, including today</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Daily transactions over the last 14 days'):emptyChart('No transactions recorded in the last 14 days.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
   window.adminDashboardTrendObserver?.disconnect();
 }
 function openDashboardAppointments(filter) {
