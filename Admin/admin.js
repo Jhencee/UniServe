@@ -674,8 +674,8 @@ function renderSidebar() {
     const items = group.keys.map(key => NAV.find(n => n.key === key)).filter(n => n && (n.key !== 'services' || currentUser.confidentialApprover));
     if (!items.length) return '';
     return `<li class="nav-category" role="presentation">${group.label}</li>` + items.map(n => {
-    const badge = n.key === 'messages' ? totalStaffUnread() : n.key === 'transactions' ? requests : n.key === 'appointments' ? appointments : 0;
-    return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}</button></li>`;
+    const badge = n.key === 'messages' ? totalStaffUnread() : n.key === 'transactions' ? requests : n.key === 'appointments' ? appointments : n.key === 'queue' ? (window.UniServeQueueAlerts?.count||0) : 0;
+    return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${n.key === 'queue' ? `<span id="queueWaitingBadge" class="nav-badge" ${badge ? '' : 'hidden'} aria-label="${badge} visitors ready to call">${badge}</span>` : badge ? `<span class="nav-badge">${badge}</span>` : ''}</button>${n.key === 'queue' ? `<button type="button" class="queue-sound-toggle" onclick="window.UniServeQueueAlerts?.toggle()" aria-pressed="${window.UniServeQueueAlerts?.enabled||false}">Queue sound: ${window.UniServeQueueAlerts?.enabled?'On':'Off'}</button>` : ''}</li>`;
     }).join('');
   }).join('')+'<li id="sidebarNotifications" class="sidebar-notifications"></li>';
   const cases=db.transactions.filter(t=>t.caseStatus&&t.caseStatus!=='Resolved').length;
