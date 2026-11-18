@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Mail;
 
 class SendVisitNotifications extends Command
 {
-    protected $signature = 'notifications:send';
+    protected $signature = 'notifications:send {--limit=50 : Maximum messages to process}';
     protected $description = 'Send pending appointment confirmations and reminders';
     public function handle(): int
     {
@@ -16,7 +16,8 @@ class SendVisitNotifications extends Command
             $this->warn('Configure Gmail SMTP credentials before sending notifications.'); return self::FAILURE;
         }
         DB::table('notification_outbox')->where('status','sending')->where('updated_at','<',now()->subMinutes(10))->update(['status'=>'pending','updated_at'=>now()]);
-        $rows = DB::table('notification_outbox')->where('status','pending')->where('send_at','<=',now())->where('attempts','<',5)->orderBy('id')->limit(50)->get();
+        $limit=max(1,min(50,(int)$this->option('limit')));
+        $rows = DB::table('notification_outbox')->where('status','pending')->where('send_at','<=',now())->where('attempts','<',5)->orderBy('id')->limit($limit)->get();
         foreach ($rows as $row) {
             $scheduled = \Carbon\CarbonImmutable::parse($row->scheduled_at, 'UTC')->setTimezone('Asia/Manila');
             if (!in_array($row->kind,['cancelled','calendar-change','request-expired','document-correction','follow-up-task']) && ($scheduled->isPast() || !\App\Support\OfficeCalendar::status($scheduled)['open'])) {

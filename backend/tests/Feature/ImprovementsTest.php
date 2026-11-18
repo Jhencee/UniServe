@@ -31,6 +31,30 @@ it('dispatches confirmation delivery automatically when office SMTP is configure
  $this->postJson('/api/notifications',notificationData(),improvementHeaders())->assertAccepted();
  \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\DeliverAppointmentNotifications::class);
 });
+it('retries due mail after an authenticated staff poll with a one minute throttle',function(){
+ $this->postJson('/api/notifications',notificationData(),improvementHeaders())->assertAccepted();
+ config(['queue.default'=>'sync','mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ \Illuminate\Support\Facades\Cache::flush();
+ \Illuminate\Support\Facades\Bus::fake();
+ $this->getJson('/api/realtime/changes')->assertUnauthorized();
+ \Illuminate\Support\Facades\Bus::assertNothingDispatched();
+ $this->getJson('/api/realtime/changes',improvementHeaders())->assertOk();
+ $this->getJson('/api/realtime/changes',improvementHeaders())->assertOk();
+ \Illuminate\Support\Facades\Bus::assertDispatchedAfterResponse(\App\Jobs\DeliverAppointmentNotifications::class,fn($job)=>$job->limit===1);
+ \Illuminate\Support\Facades\Bus::assertDispatchedAfterResponseTimes(\App\Jobs\DeliverAppointmentNotifications::class,1);
+});
+it('does not schedule staff retry for future mail or a worker managed queue',function(){
+ $this->postJson('/api/notifications',notificationData(),improvementHeaders())->assertAccepted();
+ DB::table('notification_outbox')->update(['send_at'=>now()->addDay()]);
+ config(['queue.default'=>'sync','mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ \Illuminate\Support\Facades\Cache::flush();\Illuminate\Support\Facades\Bus::fake();
+ \App\Support\NotificationRetry::schedule();
+ \Illuminate\Support\Facades\Bus::assertNothingDispatched();
+ DB::table('notification_outbox')->update(['send_at'=>now()]);
+ config(['queue.default'=>'database']);\Illuminate\Support\Facades\Cache::flush();
+ \App\Support\NotificationRetry::schedule();
+ \Illuminate\Support\Facades\Bus::assertNothingDispatched();
+});
 it('keeps audit history beyond 500 records available through server pagination',function(){
  $rows=[];for($i=0;$i<501;$i++)$rows[]=['id'=>'audit-page-'.$i,'actor_name'=>'System','category'=>'System','action'=>'Test event','changes'=>'[]','source'=>'server','created_at'=>now()];
  DB::table('system_audit')->insert($rows);

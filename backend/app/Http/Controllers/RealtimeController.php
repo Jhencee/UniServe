@@ -8,6 +8,7 @@ class RealtimeController extends Controller
  public function config(){return response()->json(['enabled'=>config('broadcasting.default')==='reverb','key'=>config('broadcasting.connections.reverb.key'),'host'=>config('reverb.public.host','127.0.0.1'),'port'=>(int)config('reverb.public.port',8080),'scheme'=>config('reverb.public.scheme','ws')]);}
  public function changes(Request $request){
   StaffAuth::user($request);
+  \App\Support\NotificationRetry::schedule();
   // Only an opaque change marker is returned, never audit or confidential records.
   $latest=DB::table('system_audit')->orderByDesc('created_at')->orderByDesc('id')->first(['id','created_at']);
   $version=hash('sha256',json_encode([$latest?->id,$latest?->created_at,DB::table('system_audit')->count()]));
