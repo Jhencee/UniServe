@@ -20,13 +20,7 @@
 .oversight-facts > div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px 20px; padding-bottom:10px; border-bottom:1px solid var(--border); font-size:.8rem; }
 .oversight-facts dt { color:var(--text-soft); }
 .oversight-facts dd { margin:0; }
-.oversight-change-list { margin:0; padding:0; list-style:none; }
-.oversight-change-list > li { padding:12px 0; border-bottom:1px solid var(--border); }
-.oversight-change-list > li:last-child { border-bottom:0; }
-.oversight-change-list strong { font-size:.8rem; font-weight:500; }
-.oversight-change-list small, .oversight-page td > small { display:block; margin-top:4px; font-size:.72rem; color:var(--text-soft); }
-.oversight-change-list details { font-size:.75rem; margin-top:8px; overflow-wrap:anywhere; }
-.oversight-change-list details ul { padding-left:18px; line-height:1.7; }
+.oversight-page td > small { display:block; margin-top:4px; font-size:.72rem; color:var(--text-soft); }
 .oversight-empty { padding:16px; font-size:.8rem; line-height:1.7; }
 .oversight-checklist { padding-left:20px; font-size:.8rem; line-height:1.8; }
 .oversight-page .analytics-link, .oversight-attention .analytics-link { min-height:36px; padding:6px 0; border:0; background:transparent; color:var(--accent-strong); font:inherit; font-size:.76rem; cursor:pointer; text-align:left; }
@@ -144,15 +138,6 @@ body #content .system-overview .analytics-metrics > .stat-card:nth-child(3) .met
 .change-toggle-icon::before { width:10px; height:1px; left:1px; top:5px; }
 .change-toggle-icon::after { width:1px; height:10px; left:5px; top:1px; }
 .oversight-change-details[open] .change-toggle-icon::after { display:none; }
-.oversight-field-changes { margin:6px 0 4px; padding:0 0 0 14px; border-left:2px solid var(--border); }
-.oversight-field-changes > div { padding:10px 0; border-bottom:1px solid var(--border); }
-.oversight-field-changes > div:first-child { padding-top:0; }
-.oversight-field-changes > div:last-child { border:0; padding-bottom:0; }
-.oversight-field-changes dt { margin:0 0 8px; color:var(--text); font-weight:500; font-size:.75rem; }
-.oversight-field-changes dd { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 24px; margin:0; color:var(--text); font-size:.74rem; line-height:1.6; }
-.oversight-field-changes dd > span { min-width:0; overflow-wrap:anywhere; }
-.oversight-field-changes dd small { display:block; margin:0 0 3px; color:var(--text-soft); font-size:.68rem; }
-@media(max-width:600px) { .oversight-field-changes dd { grid-template-columns:1fr; gap:10px; } }
 /* One quiet text control per audit entry, without decorative symbols. */
 body #content .audit-extra > summary {
  display:inline-flex;

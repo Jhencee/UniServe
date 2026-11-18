@@ -97,14 +97,6 @@ async function renderSystemHealth() {
 
   } catch(error) { oversightError(target,error,'renderSystemHealth'); }
 }
-function oversightChangeList(changes) {
-  const value=v=>v===null||v===undefined||v===''?'Not set':String(v);
-  return changes.length?`<ol class="oversight-change-list">${changes.map(c=>{
-    const fields=(c.changes||[]).filter(x=>!['area','result'].includes(String(x.field).toLowerCase())&&value(x.from)!==value(x.to));
-    return `<li><div><strong>${oversightEscape(c.action)}</strong><small>${oversightEscape(c.actor_name)} &middot; ${oversightEscape(oversightDate(c.created_at))}</small>${fields.length?`<dl class="oversight-field-changes">${fields.map(x=>`<div><dt>${oversightEscape(x.field)}</dt><dd><span><small>Previous value</small>${oversightEscape(value(x.from))}</span><span><small>New value</small>${oversightEscape(value(x.to))}</span></dd></div>`).join('')}</dl>`:''}</div></li>`;
-  }).join('')}</ol>`:'<p class="field-hint">No recorded account or settings changes.</p>';
-}
-
 async function renderAccessReview() {
   const {generation,target}=oversightPage('Access review','Review staff access. Select an account to see its permissions and sign-in history.','renderAccessReview');
   try {

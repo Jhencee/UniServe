@@ -505,7 +505,7 @@ function svgLineChart(trend, label, options = {}) {
   const area = pts.length > 1 ? `${line} L${pts[pts.length - 1].x.toFixed(1)},${(padT + innerH).toFixed(1)} L${pts[0].x.toFixed(1)},${(padT + innerH).toFixed(1)} Z` : '';
   const tickCount = Math.min(5, max) + 1;
   const grid = Array.from({length:tickCount},(_,i)=>i/(tickCount-1)).map(f => { const y = padT + innerH - f * innerH; return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--text)" stroke-opacity="0.05"/><text x="${padL - 8}" y="${(y + 3).toFixed(1)}" font-size="10" text-anchor="end" fill="var(--text)">${Math.round(max * f)}</text>`; }).join('');
-  const xl = pts.map((p, i) => `<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`).join('');
+  const xl = pts.map((p, i) => (i===pts.length-1||i%Math.max(1,Math.ceil(pts.length/Math.max(2,Math.floor(innerW/60))))===0)?`<text x="${p.x.toFixed(1)}" y="${h - 10}" font-size="10" text-anchor="middle" fill="var(--text)">${escapeHtml(labels[i])}</text>`:'').join('');
   const dots = pts.map(p => `<g class="cl-point-group"><circle class="cl-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" stroke-width="2"/><text class="cl-val-label" x="${p.x.toFixed(1)}" y="${(p.y - 9).toFixed(1)}" font-size="10" text-anchor="middle" fill="var(--text)">${p.v}</text></g>`).join('');
   const total = values.reduce((sum, value) => sum + value, 0);
   const average = values.length ? (total / values.length).toFixed(1) : '0';
@@ -845,9 +845,10 @@ function renderDashboard() {
   const changes=db.appointments.filter(a=>!a.restricted&&a.status!=='Cancelled'&&(a.rescheduleRequested||a.calendarReview)).length;
   const unfinished=visible.filter(q=>q.status==='Unfinished').length;
   const pending=db.transactions.filter(t=>!t.restricted&&t.status==='Pending').length;
-  const dates=Array.from({length:14},(_,i)=>new Date(Date.parse(date+'T12:00:00Z')-(13-i)*86400000).toISOString().slice(0,10));
+  const dates=adminAnalyticsDates(date);
   const txns=db.transactions.filter(t=>!t.restricted&&t.createdAt&&dates.includes(OfficeCalendar.parts(new Date(t.createdAt)).date));
-  const trend={labels:dates.map(d=>d.slice(5)),values:dates.map(d=>txns.filter(t=>OfficeCalendar.parts(new Date(t.createdAt)).date===d).length)};
+  const hourly=dates.length===1;
+  const trend=hourly?{labels:Array.from({length:24},(_,i)=>String(i).padStart(2,'0')+':00'),values:Array.from({length:24},(_,i)=>txns.filter(t=>Number(OfficeCalendar.parts(new Date(t.createdAt)).time.slice(0,2))===i).length)}:{labels:dates.map(d=>d.slice(5)),values:dates.map(d=>txns.filter(t=>OfficeCalendar.parts(new Date(t.createdAt)).date===d).length)};
   const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
   const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
   document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
@@ -864,7 +865,7 @@ function renderDashboard() {
     task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
     task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
     '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
-    '<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">Daily records logged over the last 14 days, including today</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Daily transactions over the last 14 days'):emptyChart('No transactions recorded in the last 14 days.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
+    adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records &middot; Philippine time</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
   window.adminDashboardTrendObserver?.disconnect();
   const plot=document.querySelector?.('.admin-activity-card .card-pad');
   if(plot&&txns.length){

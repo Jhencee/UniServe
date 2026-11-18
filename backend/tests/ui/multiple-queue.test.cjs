@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),vm=require(
 const source=fs.readFileSync(path.resolve(__dirname,'../../../Admin/admin.js'),'utf8');
 test('My Queue renders every active visitor and blocks another call by default',async()=>{
  const el={innerHTML:''};const mine=[{id:'first',status:'Called'},{id:'second',status:'Serving'}];
- const c={sharedQueueLoading:false,loadSharedQueue:async()=>{},state_view:'queue',document:{querySelector:()=>null,getElementById:()=>el},loadDB:()=>({queues:mine}),queueStats:()=>({next:{id:'next'},waiting:1,serving:2}),myQueueEntries:()=>mine,waitingQueueSorted:()=>[],currentUser:{id:'one',fullName:'Admin One'},UniServeUX:{previousDay:()=>false},escapeHtml:String,fmtMinutes:()=>'',icon:()=>'',renderMyQueueCard:(db,q)=>`CARD:${q.id}`,queueRef:q=>q.id,serviceQueueLabel:()=>'',entryMethodLabel:()=>'',startAdminQueuePolling(){}};
+ const c={window:{},sharedQueueLoading:false,loadSharedQueue:async()=>{},state_view:'queue',document:{querySelector:()=>null,getElementById:()=>el},loadDB:()=>({queues:mine}),queueStats:()=>({next:{id:'next'},waiting:1,serving:2}),myQueueEntries:()=>mine,waitingQueueSorted:()=>[],currentUser:{id:'one',fullName:'Admin One'},UniServeUX:{previousDay:()=>false},escapeHtml:String,fmtMinutes:()=>'',icon:()=>'',renderMyQueueCard:(db,q)=>`CARD:${q.id}`,queueRef:q=>q.id,serviceQueueLabel:()=>'',entryMethodLabel:()=>'',startAdminQueuePolling(){}};
  c.fmtCompactMinutes=()=>'';
  vm.createContext(c);vm.runInContext(source.slice(source.indexOf('async function renderQueueDashboard()'),source.indexOf('function renderMyQueueCard(')),c);
  await c.renderQueueDashboard();assert.ok(el.innerHTML.includes('CARD:first'));assert.ok(el.innerHTML.includes('CARD:second'));

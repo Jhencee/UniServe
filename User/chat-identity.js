@@ -21,6 +21,5 @@ function startContactChat() {
 }
 let contactChatPending=false;
 // Sending and resuming conversations use the authenticated API in portal-api.js.
-function resumeChat(){resumeChatByEmail();}
 function toggleChatResume(){resumeChatByEmail();}
 if(visitorView==='chat' && !currentPublicChatId)initChatFlow();

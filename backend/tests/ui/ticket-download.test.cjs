@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(path.resolve(__dirname,'../../../User/visitor-actions.js'),'utf8');
 function setup(fail=false){
  const calls={},style={setProperty:()=>{}},copy={style,querySelectorAll:()=>[]};
- const ticket={getBoundingClientRect:()=>({width:300,height:500}),cloneNode:()=>copy,querySelectorAll:()=>[],querySelector:()=>({textContent:'VIS-TEST'})};
+ const ticket={dataset:{downloadApproved:"true"},getBoundingClientRect:()=>({width:300,height:500}),cloneNode:()=>copy,querySelectorAll:()=>[],querySelector:()=>({textContent:'VIS-TEST'})};
  const link={click:()=>calls.clicked=true,remove:()=>{}};
  const canvas={getContext:()=>({fillRect:()=>{},drawImage:()=>calls.drawn=true}),toBlob:(callback,mime)=>{calls.mime=mime;callback(fail?null:{type:mime});}};
  const context={window:{},document:{fonts:{ready:Promise.resolve()},querySelector:()=>ticket,createElement:tag=>tag==='canvas'?canvas:link,createElementNS:()=>({setAttribute:()=>{},appendChild:()=>{}}),body:{appendChild:()=>{}}},getComputedStyle:()=>({fontFamily:'Arial',[Symbol.iterator]:function*(){}}),XMLSerializer:class{serializeToString(){return '<svg/>';}},Image:class{set src(value){this.onload();}},URL:{createObjectURL:blob=>{calls.blob=blob;return 'blob:png';},revokeObjectURL:()=>{}},encodeURIComponent,setTimeout:callback=>callback(),toast:message=>calls.error=message};

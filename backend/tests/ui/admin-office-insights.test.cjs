@@ -21,3 +21,25 @@ test('timing columns use a zero-based minutes axis and readable duration labels'
  assert.match(html,/2 min 18 sec/);assert.match(html,/2 min 42 sec/);assert.match(html,/Minutes/);assert.match(html,/starting at zero/);assert.match(html,/2 valid samples/);
  const missing=c.adminTimingColumns({wait:null,service:0,waitSamples:0,serviceSamples:1});assert.match(missing,/No data/);assert.match(missing,/0 min 00 sec/);
 });
+
+test('satisfaction pictogram labels the actual respondents and uses partial figures',()=>{
+ const html=c.adminSatisfactionPictogram({satisfied:2,feedback:3,rating:4});
+ assert.match(html,/67%/);assert.match(html,/2 of 3 respondents/);assert.equal((html.match(/class="satisfaction-person"/g)||[]).length,10);assert.match(html,/clip-path:inset/);assert.ok(html.includes('4 / 5'));
+ c.emptyChart=text=>text;assert.match(c.adminSatisfactionPictogram({feedback:0}),/No feedback/);
+ const zero=c.adminSatisfactionPictogram({satisfied:0,feedback:2,rating:1});assert.match(zero,/0%/);
+});
+
+test('arrival matrix groups Philippine weekdays and hours and ignores booking submission time',()=>{
+ const data=c.adminOfficeInsights({queues:[{checkedInAt:'2026-11-17T16:30:00Z'},{checkedInAt:'2026-11-18T01:00:00Z'},{createdAt:'2026-11-18T01:00:00Z'}]},['2026-11-18']);
+ const wed=data.arrivalMatrix.find(row=>row.label==='Wed');assert.equal(wed.counts[0],1);assert.equal(wed.counts[9],1);assert.equal(data.arrivals,2);
+ const html=c.adminArrivalMatrix(data);assert.match(html,/Wed 00:00: 1 arrivals/);assert.equal((html.match(/<circle /g)||[]).length,168);assert.match(html,/Arrivals per dot/);
+});
+
+test('analytics periods use Philippine calendar dates through today',()=>{
+ c.renderDashboard=()=>{};
+ assert.equal(c.adminAnalyticsDates('2026-11-19').length,1);
+ c.setAdminAnalyticsPeriod('weekly');assert.deepEqual(Array.from(c.adminAnalyticsDates('2026-11-19')),['2026-11-16','2026-11-17','2026-11-18','2026-11-19']);
+ c.setAdminAnalyticsPeriod('monthly');assert.equal(c.adminAnalyticsDates('2026-11-19')[0],'2026-11-01');
+ c.setAdminAnalyticsPeriod('quarterly');assert.equal(c.adminAnalyticsDates('2026-11-19')[0],'2026-10-01');assert.equal(c.adminAnalyticsDates('2026-11-19').at(-1),'2026-11-19');
+ assert.match(c.adminAnalyticsTabs(),/aria-pressed="true"/);c.setAdminAnalyticsPeriod('daily');
+});
