@@ -1658,7 +1658,7 @@ function renderTxnTable() {
     <td>${locked ? `${escapeHtml(maskName(r.name))}<div class="muted" style="font-size:.72rem;">Confidential</div>` : `${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.idNumber || '')} ${r.section ? '&middot; ' + escapeHtml(r.section) : ''}</div>`}</td>
     ${showService ? `<td>${serviceLabel(db, r.service)}</td>` : ''}
     <td>${locked ? '<span class="muted" style="font-size:.76rem;">Hidden</span>' : (r.visitId ? `<span class="mono" style="font-size:.72rem;">${escapeHtml(r.visitId)}</span>${r.queueNumber ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.queueNumber)} &middot; ${escapeHtml(r.entryMethod || '')}</div>` : (r.entryMethod ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.entryMethod)}</div>` : '')}` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
-    <td>${locked ? '<span class="muted" style="font-size:.76rem;">&bull;&bull;</span>' : (files.length ? `<span class="pill pill-gold">${icon('paperclip', 11)} ${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
+    <td>${locked ? '<span class="muted" style="font-size:.76rem;">&bull;&bull;</span>' : (files.length ? `<span class="pill pill-gold">${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
     <td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td class="muted">${fmtDateTime(r.createdAt)}</td>
     <td class="act-cell appointment-action-cell"><button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
       <div class="kebab-menu" id="kebab_${r.id}" hidden>
