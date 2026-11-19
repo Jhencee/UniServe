@@ -3280,6 +3280,16 @@ html[data-theme="dark"] .profile-avatar {
 .reports-summary strong { display:block; margin-top:8px; font-size:1.35rem; font-weight:600; }
 .reports-columns { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:16px; align-items:start; }
 .reports-columns .card-head h3 { font-size:.85rem; }
+.reports-side { display:grid; gap:16px; min-width:0; }
+@media print {
+  #printArea .compact-office-report .compact-report-table { margin:0 0 5mm; table-layout:auto !important; }
+  #printArea .compact-report-table caption { text-align:left; font-size:10pt; font-weight:700; color:#000; padding:3mm 0 2mm; caption-side:top; break-after:avoid; }
+  #printArea .compact-report-table thead { break-after:avoid; }
+  #printArea .compact-report-table th { background:#f1f1f1 !important; }
+  #printArea .compact-report-table th, #printArea .compact-report-table td { padding:1.7mm 2mm; font-size:8pt; line-height:1.35; }
+  #printArea .compact-office-report .doc-footnote { margin:2mm 0 4mm; font-size:7.5pt; }
+}
+.reports-appointments > div { padding:11px 0; }
 .reports-count { text-align:right; width:110px; font-variant-numeric:tabular-nums; }
 .reports-timing { margin:0; padding:0 24px; }
 .reports-timing > div { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--border, #e2e5eb); }
@@ -3413,8 +3423,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .cl-val-label { font-weight: 600; font-size: 9px; }
 
 /* Soft curve styling for dashboard and report trends. */
-:root { --trend-color: var(--accent); }
-html[data-theme="dark"] { --trend-color: var(--accent); }
+:root { --trend-color: #2563eb; }
+html[data-theme="dark"] { --trend-color: #2563eb; }
 .cl-line { stroke: var(--trend-color) !important; stroke-width: 3; }
 .cl-dot { stroke: var(--trend-color) !important; opacity: 0; }
 .cl-point-group:last-of-type .cl-dot, .cl-point-group:hover .cl-dot { opacity: 1; }

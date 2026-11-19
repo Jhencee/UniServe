@@ -1969,6 +1969,12 @@ function reportDuration(minutes) {
   if(typeof minutes!=='number'||!Number.isFinite(minutes)||minutes<0)return 'No timed records';
   const seconds=Math.round(minutes*60);return Math.floor(seconds/60)+' min '+String(seconds%60).padStart(2,'0')+' sec';
 }
+function reportAppointmentSummary(db,startDate,endDate) {
+  const appointments=(db.appointments||[]).filter(a=>a.date&&a.date>=startDate&&a.date<=endDate);
+  const rows=[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-show','No-show']];
+  const unscheduled=(db.appointments||[]).filter(a=>a.status==='Requested'&&!a.date).length;
+  return '<section class="card"><div class="card-head"><div><h3>Appointment summary</h3><div class="desc">Scheduled within the selected period</div></div></div><dl class="reports-timing reports-appointments">'+rows.map(([label,status])=>'<div><dt>'+label+'</dt><dd>'+appointments.filter(a=>a.status===status).length+'</dd></div>').join('')+'</dl><p class="reports-note">Unscheduled requests: <strong>'+unscheduled+'</strong> · All dates</p></section>';
+}
 function renderReportOverview() {
   const db=loadDB(),start=periodStart(reportPeriod),end=new Date();
   const records=db.transactions.filter(t=>new Date(t.createdAt)>=start&&new Date(t.createdAt)<=end);
@@ -1980,7 +1986,7 @@ function renderReportOverview() {
   document.getElementById('reportRange').textContent=fmtDate(start)+' to '+today();
   document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</section>
     <div class="reports-columns"><section class="card"><div class="card-head"><div><h3>Service totals</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th class="reports-count">Transactions</th></tr></thead><tbody>${services.map(s=>`<tr><td>${escapeHtml(s.label)}</td><td class="reports-count">${s.count}</td></tr>`).join('')||'<tr><td colspan="2">No services configured.</td></tr>'}</tbody></table></div></section>
-    <section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl><p class="reports-note">Completion rate uses transactions logged in this period. Confidential records contribute to totals; their identities require print authorization.</p></section></div>`;
+    <div class="reports-side"><section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl><p class="reports-note">Completion rate uses transactions logged in this period. Confidential records contribute to totals; their identities require print authorization.</p></section>${reportAppointmentSummary(db,fmtDate(start),today())}</div></div>`;
 }
 let reportIncludeConf = false;
 function printReport(includeConf) {
@@ -1999,56 +2005,32 @@ function printReport(includeConf) {
 function setReportPeriod(p, el) { reportPeriod = p; document.querySelectorAll('.reports-controls .subnav button').forEach(b => {b.classList.remove('active');b.setAttribute('aria-pressed','false');}); el.classList.add('active');el.setAttribute('aria-pressed','true');renderReportOverview(); }
 function periodStart(p) { const d=new Date(today()+'T00:00:00+08:00'),calendar=new Date(today()+'T00:00:00Z');if(p==='Weekly')calendar.setUTCDate(calendar.getUTCDate()-((calendar.getUTCDay()+6)%7));else if(p==='Monthly')calendar.setUTCDate(1);else if(p==='Quarterly'){calendar.setUTCDate(1);calendar.setUTCMonth(Math.floor(calendar.getUTCMonth()/3)*3);}return p==='Daily'?d:new Date(calendar.toISOString().slice(0,10)+'T00:00:00+08:00'); }
 function buildReport() {
-  const db = loadDB(), start = periodStart(reportPeriod);
-  document.getElementById('repTitle').textContent = `${reportPeriod} Transaction Report`;
-  document.getElementById('repPeriodLbl').textContent = `Period: ${fmtDate(start)} to ${today()}`;
-  document.getElementById('repGenLbl').textContent = `Generated: ${fmtDateTime(new Date()).replace(/&middot;/g,'·')} by ${currentUser.fullName}`;
-  const txns = db.transactions.filter(t => t.createdAt >= start).sort((a, b) => a.createdAt - b.createdAt), appts = db.appointments.filter(a => a.createdAt && a.createdAt >= start);
-  const confCount = reportIncludeConf ? 0 : txns.filter(isConfidentialTxn).length, logTxns = reportIncludeConf ? txns : txns.filter(t => !isConfidentialTxn(t));
-  const ORDER = ['Completed', 'Approved', 'Processing', 'Pending', 'Rejected'], sc = {}; ORDER.forEach(s => sc[s] = 0);
-  txns.forEach(t => { if (sc[t.status] !== undefined) sc[t.status]++; });
-  const svcCounts = {}; db.services.forEach(s => svcCounts[s.key] = 0);
-  txns.forEach(t => { svcCounts[t.service] = (svcCounts[t.service] || 0) + 1; });
-  const svcRows = db.services.map(s => ({ label: s.label, count: svcCounts[s.key] || 0 })).sort((a, b) => b.count - a.count);
-  const trend = buildTrendBuckets(txns, start);
-  const total = txns.length, completed = sc.Completed, pending = sc.Pending, rejected = sc.Rejected, rate = total ? Math.round(completed / total * 100) : 0, busiest = svcRows[0];
-  const per = trend.values.length ? (total / trend.values.length).toFixed(1) : '0.0';
-  const withTimes = txns.filter(t => ['waitingTimeMin','serviceTimeMin','totalTimeMin'].some(key=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0)), avgOf = k => averageReportMetric(txns,k);
-  const noShows = appts.filter(a => a.status === 'No-show').length, pct = n => total ? Math.round(n / total * 100) : 0;
-  const svcKeys = db.services.map(x => x.key); txns.forEach(t => { if (!svcKeys.includes(t.service)) svcKeys.push(t.service); });
-  const svcGroups = svcKeys.map(k => {
-    const all = txns.filter(t => t.service === k), rows = reportIncludeConf ? all : all.filter(t => !isConfidentialTxn(t));
-    return { label: serviceLabel(db, k), rows, total: all.length, hidden: all.length - rows.length };
-  }).filter(g => g.total);
-  document.getElementById('repBody').innerHTML = `
-    ${txns.some(isConfidentialTxn)?`<p class="doc-footnote">${reportIncludeConf?'Confidential details included for authorized printing.':'Confidential details excluded. These transactions are included in summary totals.'}</p>`:''}
-    <div class="rpt-section"><h3 class="rpt-h">Summary</h3>
-      <div class="stat-grid rpt-stat-grid">
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Total Transactions</div><div class="rpt-stat-val">${total}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Completed</div><div class="rpt-stat-val">${completed}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Pending</div><div class="rpt-stat-val">${pending}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Completion Rate</div><div class="rpt-stat-val">${rate}%</div></div></div>
-      ${withTimes.length ? `<div class="stat-grid rpt-stat-grid">
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Waiting Time</div><div class="rpt-stat-val">${reportDuration(avgOf('waitingTimeMin'))}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Service Time</div><div class="rpt-stat-val">${reportDuration(avgOf('serviceTimeMin'))}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Total Visit</div><div class="rpt-stat-val">${reportDuration(avgOf('totalTimeMin'))}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">No-Shows</div><div class="rpt-stat-val">${noShows}</div></div></div>` : ''}
-      <p class="rpt-narrative">During the period ${fmtDate(start)} to ${today()}, the office logged <strong>${total}</strong> transaction${total === 1 ? '' : 's'} across ${svcRows.filter(row=>row.count>0).length} service categories, averaging <strong>${per}</strong> per ${trend.unit}. <strong>${completed}</strong> request${completed === 1 ? '' : 's'} ${completed === 1 ? 'was' : 'were'} completed (${rate}% completion rate), while <strong>${pending}</strong> remain${pending === 1 ? 's' : ''} pending${rejected ? ` and ${rejected} ${rejected === 1 ? 'was' : 'were'} rejected` : ''}.${busiest && busiest.count > 0 ? ` The most requested service was <strong>${busiest.label}</strong> with ${busiest.count} transaction${busiest.count === 1 ? '' : 's'}.` : ''} A total of <strong>${appts.length}</strong> appointment${appts.length === 1 ? '' : 's'} ${appts.length === 1 ? 'was' : 'were'} requested in the same period${noShows ? `, of which ${noShows} resulted in a no-show` : ''}.</p></div>
-    <div class="rpt-section"><h3 class="rpt-h">Transaction Trend</h3><div class="rpt-desc">Transactions logged per ${trend.unit} over the reporting period</div>${svgLineChart(trend)}</div>
-    <div class="rpt-section rpt-grid-2"><div><h3 class="rpt-h">Status Breakdown</h3>${svgBarChart(ORDER.map(s => ({ label: s, count: sc[s] })))}</div>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:50%"><col style="width:25%"><col style="width:25%"></colgroup><thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
-        <tbody>${ORDER.map(s => `<tr><td>${s}</td><td>${sc[s]}</td><td>${pct(sc[s])}%</td></tr>`).join('')}<tr class="rpt-total-row"><td>Total</td><td>${total}</td><td>${total ? '100%' : '0%'}</td></tr></tbody></table></div></div>
-    <div class="rpt-section"><h3 class="rpt-h">Service Breakdown</h3><div class="rpt-grid-2"><div>${svgBarChart(svcRows, { height: svcRows.length * 26 + 20 })}</div>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:60%"><col style="width:20%"><col style="width:20%"></colgroup><thead><tr><th>Service</th><th>Count</th><th>%</th></tr></thead>
-        <tbody>${svcRows.map(r => `<tr><td>${r.label}</td><td>${r.count}</td><td>${pct(r.count)}%</td></tr>`).join('')}</tbody></table></div></div></div>
-    <div class="rpt-section"><h3 class="rpt-h">Detailed Transaction Log</h3>
-      <div class="rpt-desc">${logTxns.length} record${logTxns.length === 1 ? '' : 's'} in period, one table per transaction type, sorted by date logged${confCount ? ` &mdash; ${confCount} record${confCount === 1 ? '' : 's'} counted in the totals above but not listed` : ''}</div></div>
-    ${svcGroups.length ? svcGroups.map(g => `<div class="rpt-section rpt-svc-table"><h3 class="rpt-h">${escapeHtml(g.label)} <span class="rpt-h-count">&mdash; ${g.total} transaction${g.total === 1 ? '' : 's'}</span></h3>
-      <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:4%"><col style="width:11%"><col style="width:15%"><col style="width:9%"><col style="width:12%"><col style="width:13%"><col style="width:8%"><col style="width:11%"><col style="width:17%"></colgroup>
-        <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Type</th><th>ID Number</th><th>Visit ID</th><th>Queue No.</th><th>Status</th><th>Logged</th></tr></thead>
-        <tbody>${g.rows.map((t, i) => `<tr><td>${i + 1}</td><td class="mono">${escapeHtml(t.code)}</td><td>${escapeHtml(t.name)}</td><td class="nw">${escapeHtml(t.type || '—')}</td><td class="mono">${escapeHtml(t.idNumber || '—')}${t.section ? `<br>${escapeHtml(t.section)}` : ''}</td><td class="mono">${escapeHtml(t.visitId || '—')}</td><td class="mono nw">${escapeHtml(t.queueNumber || '—')}</td><td class="nw">${escapeHtml(t.status)}</td><td class="mono">${fmtDate(t.createdAt)}<br>${fmtTime(t.createdAt)}</td></tr>`).join('')}
-        ${g.hidden ? `<tr><td colspan="9"><em>${g.hidden} record${g.hidden === 1 ? '' : 's'} counted in the totals but not listed.</em></td></tr>` : ''}${!g.rows.length && !g.hidden ? '<tr class="empty-row"><td colspan="9">No transactions in this period.</td></tr>' : ''}</tbody></table></div></div>`).join('') : `<div class="rpt-section"><div class="rpt-table-wrap"><table class="rpt-table"><tbody><tr class="empty-row"><td>No transactions in this period.</td></tr></tbody></table></div></div>`}
-    ${reportSignatureBlock()}`;
+  const db=loadDB(),start=periodStart(reportPeriod),end=new Date();
+  const records=db.transactions.filter(t=>new Date(t.createdAt)>=start&&new Date(t.createdAt)<=end).sort((a,b)=>new Date(a.createdAt)-new Date(b.createdAt));
+  const visible=reportIncludeConf?records:records.filter(t=>!isConfidentialTxn(t)),hidden=records.length-visible.length;
+  const completed=records.filter(t=>t.status==='Completed').length,pending=records.filter(t=>['Pending','Processing'].includes(t.status)).length;
+  const cell=value=>escapeHtml(String(value??'?'));
+  const table=(title,headers,rows)=>'<table class="rpt-table compact-report-table"><caption>'+cell(title)+'</caption><thead><tr>'+headers.map(h=>'<th>'+cell(h)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(v=>'<td>'+cell(v)+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+  const services=db.services.map(s=>({key:s.key,label:s.label}));
+  for(const key of new Set(records.map(t=>t.service)))if(!services.some(s=>s.key===key))services.push({key,label:serviceLabel(db,key)});
+  const servicesRows=services.map(s=>[s.label,records.filter(t=>t.service===s.key).length]);
+  const statusRows=[...new Set(['Completed','Approved','Processing','Pending','Rejected',...records.map(t=>t.status)])].map(status=>[status,records.filter(t=>t.status===status).length]);
+  const scheduled=(db.appointments||[]).filter(a=>a.date&&a.date>=fmtDate(start)&&a.date<=today());
+  document.getElementById('repTitle').textContent=reportPeriod+' Transaction Report';
+  document.getElementById('repPeriodLbl').textContent='Period: '+fmtDate(start)+' to '+today();
+  document.getElementById('repGenLbl').textContent='Generated: '+String(fmtDateTime(end)).replace(/&middot;/g,' / ')+' by '+currentUser.fullName;
+  document.getElementById('repBody').innerHTML='<div class="compact-office-report">'+
+    table('Summary',['Metric','Value','Metric','Value'],[
+      ['Transactions logged',records.length,'Completed',completed],
+      ['Pending / processing',pending,'Completion rate',records.length?Math.round(completed/records.length*100)+'%':'?'],
+      ['Average waiting time',reportDuration(averageReportMetric(records,'waitingTimeMin')),'Average service time',reportDuration(averageReportMetric(records,'serviceTimeMin'))],
+      ['Average total visit',reportDuration(averageReportMetric(records,'totalTimeMin')),'Confidential records',records.filter(isConfidentialTxn).length]
+    ])+'<p class="doc-footnote">Completion rate uses transactions logged in this period. Timing averages use valid recorded durations for each metric.'+(hidden?' '+hidden+' confidential record(s) included in totals; identities excluded.':'')+'</p>'+
+    table('Service totals',['Service','Transactions'],servicesRows)+
+    table('Transaction status',['Status','Transactions'],statusRows)+
+    table('Appointments scheduled in this period',['Status','Appointments'],[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-show','No-show']].map(([label,status])=>[label,scheduled.filter(a=>a.status===status).length]))+
+    table('Transaction records',['Reference','Visitor','Service','Status','Logged','Completed','Handled by'],visible.length?visible.map(t=>[t.code,t.name,serviceLabel(db,t.service),t.status,String(fmtDateTime(t.createdAt)).replace(/&middot;/g,' / '),t.completedAt?String(fmtDateTime(t.completedAt)).replace(/&middot;/g,' / '):'?',t.servedBy||'Not recorded']):[['No accessible transaction records in this period.','','','','','','']])+
+    reportSignatureBlock()+'</div>';
 }
 function downloadReportExcel() {
   if (!reportOutputActive) return authorizedReportOutput({kind:'combined',includeConf:false},downloadReportExcel);
