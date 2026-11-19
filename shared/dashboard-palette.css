@@ -1,0 +1,30 @@
+/* Shared palette for both staff dashboards. */
+html[data-theme] :is(.staff-overview,.system-overview) {
+  --palette-maroon:#800000;
+  --palette-teal:#0f766e;
+  --palette-blue:#2563eb;
+  --palette-amber:#b45309;
+  --palette-emerald:#047857;
+  --dashboard-chart-1:var(--palette-blue);
+  --dashboard-chart-2:var(--palette-emerald);
+  --dashboard-chart-3:var(--palette-amber);
+  --dashboard-chart-4:var(--palette-teal);
+  --dashboard-chart-5:var(--palette-maroon);
+  --dashboard-chart-6:#6b7280;
+  --super-chart-1:var(--palette-blue);
+  --super-chart-2:var(--palette-teal);
+  --super-chart-3:var(--palette-amber);
+  --super-chart-neutral:#6b7280;
+  --super-heat-1:#ccfbf1;
+  --super-heat-2:#5eead4;
+  --super-heat-3:var(--palette-teal);
+}
+html:not([data-theme="dark"]) :is(.staff-overview,.system-overview) {
+  --surface:#fffdf8;
+  --surface-2:#f7f4ed;
+}
+html[data-theme] :is(.staff-overview,.system-overview) .card,
+html[data-theme] :is(.staff-overview,.system-overview) .stat-card { background:var(--surface); }
+html[data-theme] :is(.staff-overview,.system-overview) .analytics-heading h2 { color:var(--accent-strong); }
+html[data-theme] :is(.staff-overview,.system-overview) .dashboard-bar-fill { background:var(--palette-teal) !important; }
+html[data-theme] :is(.staff-overview,.system-overview) .stat-card:nth-child(4) .metric-icon { color:var(--palette-emerald); }
