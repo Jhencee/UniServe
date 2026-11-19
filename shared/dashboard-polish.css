@@ -41,3 +41,11 @@ body #content .analytics-dashboard .analytics-link:focus-visible { outline:2px s
  body #content .analytics-dashboard .analytics-footer { padding:8px 16px; }
  body #content .analytics-dashboard .analytics-link { min-height:44px; }
 }
+/* Small, softly filled summary icons shared by both staff dashboards. */
+body #content :is(.staff-overview,.system-overview) .dashboard-metric-label { display:flex; align-items:center; gap:9px; }
+.dashboard-metric-symbol { display:inline-flex; flex:0 0 32px; width:32px; height:32px; align-items:center; justify-content:center; border-radius:9px; }
+.dashboard-metric-symbol.tone-amber { color:#b45309; background:#fef3c7; }
+.dashboard-metric-symbol.tone-blue { color:#2563eb; background:#dbeafe; }
+.dashboard-metric-symbol.tone-teal { color:#0f766e; background:#ccfbf1; }
+.dashboard-metric-symbol.tone-emerald { color:#047857; background:#d1fae5; }
+html[data-theme="dark"] .dashboard-metric-symbol { background:color-mix(in srgb,currentColor 16%,var(--surface)); }

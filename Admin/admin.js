@@ -855,7 +855,7 @@ function renderDashboard() {
   const txns=db.transactions.filter(t=>!t.restricted&&t.createdAt&&dates.includes(OfficeCalendar.parts(new Date(t.createdAt)).date));
   const hourly=dates.length===1;
   const trend=hourly?{labels:Array.from({length:24},(_,i)=>String(i).padStart(2,'0')+':00'),values:Array.from({length:24},(_,i)=>txns.filter(t=>Number(OfficeCalendar.parts(new Date(t.createdAt)).time.slice(0,2))===i).length)}:{labels:dates.map(d=>d.slice(5)),values:dates.map(d=>txns.filter(t=>OfficeCalendar.parts(new Date(t.createdAt)).date===d).length)};
-  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
+  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl dashboard-metric-label">'+dashboardMetricIcon(label)+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
   const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
   document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
     '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Queue status, scheduled arrivals, and items for review.</p></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+

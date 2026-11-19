@@ -11,7 +11,7 @@ function preview(){
  c.document.querySelector=()=>layoutNode;
  c.document.querySelectorAll=()=>[];
  c.document.createElement=()=>layoutNode;
- vm.createContext(c);
+ vm.createContext(c);vm.runInContext(fs.readFileSync(require('node:path').resolve(__dirname,'../../../shared/dashboard-analytics.js'),'utf8').split('function dashboardOperationalData(')[0],c);
  vm.runInContext(source.slice(source.indexOf('function reportDateKey('),source.indexOf('function setSystemReportDate(')),c);
  vm.runInContext(source.slice(source.indexOf('function renderDashboard() {'),source.indexOf('let reportPeriod =')),c);
  c.renderDashboard();return {html:content.innerHTML,trend,charts};

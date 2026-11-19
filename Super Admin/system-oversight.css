@@ -559,15 +559,15 @@ body #content .system-report-controls .date-range { order:1; margin:0; flex:0 1 
 
 /* Dashboard chart palette: maroon, teal, blue, amber and emerald. */
 .system-overview {
-  --super-chart-1:#800000;
-  --super-chart-2:#0f766e;
-  --super-chart-3:#2563eb;
-  --super-chart-4:#b45309;
-  --super-chart-5:#047857;
+  --super-chart-1:#3b82f6;
+  --super-chart-2:#14b8a6;
+  --super-chart-3:#800000;
+  --super-chart-4:#f59e0b;
+  --super-chart-5:#10b981;
   --super-chart-neutral:#94a3b8;
   --super-heat-1:#fffdf8;
   --super-heat-2:#99d5cb;
-  --super-heat-3:#0f766e;
+  --super-heat-3:#14b8a6;
   --trend-color:var(--super-chart-1);
 }
 .system-overview .cl-line { stroke:var(--super-chart-1); }

@@ -1,4 +1,18 @@
 /* Shared aggregate analytics for every staff dashboard. No visitor details are rendered. */
+function dashboardMetricIcon(label) {
+  const designs={
+    Waiting:['amber','<circle cx="12" cy="12" r="9" fill="currentColor" opacity=".18"/><path d="M12 7v5l3 2"/>'],
+    Called:['blue','<path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5Z" fill="currentColor" opacity=".2"/><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5Zm5 3h4"/>'],
+    Serving:['teal','<circle cx="12" cy="8" r="4" fill="currentColor" opacity=".22"/><path d="M8 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0Zm-3 12v-2a7 7 0 0 1 14 0v2"/>'],
+    'Completed today':['emerald','<circle cx="12" cy="12" r="9" fill="currentColor" opacity=".18"/><path d="m8 12 3 3 5-6"/>'],
+    'Active staff accounts':['emerald','<circle cx="9" cy="8" r="4" fill="currentColor" opacity=".2"/><path d="M5 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0ZM3 21v-2a6 6 0 0 1 12 0v2m1-9 2 2 4-5"/>'],
+    'Disabled accounts':['blue','<circle cx="9" cy="8" r="4" fill="currentColor" opacity=".2"/><path d="M5 8a4 4 0 1 0 8 0 4 4 0 0 0-8 0ZM3 21v-2a6 6 0 0 1 12 0v2m2-8h5"/>'],
+    'Failed or denied events':['amber','<path d="m12 3 10 18H2Z" fill="currentColor" opacity=".18"/><path d="m12 3 10 18H2Zm0 6v5m0 3h.01"/>'],
+    'Configuration updates':['teal','<rect x="3" y="4" width="18" height="16" rx="3" fill="currentColor" opacity=".18"/><path d="M4 8h16M4 16h16M9 5v6m6 2v6"/>']
+  };
+  const design=designs[label];
+  return design?'<span class="dashboard-metric-symbol tone-'+design[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+design[1]+'</svg></span>':'';
+}
 function dashboardOperationalData(db, start, end = new Date()) {
   const dayKey = value => {
     const date = new Date(value);

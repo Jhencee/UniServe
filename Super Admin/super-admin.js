@@ -514,7 +514,7 @@ function renderDashboard() {
   const admins=users.filter(u=>u.role==='ADMIN'&&u.active);
   const roles=[['Super Admin',users.filter(u=>u.role==='SUPER_ADMIN').length],['Head Admin',users.filter(u=>u.role==='ADMIN'&&u.confidentialApprover).length],['Admin',users.filter(u=>u.role==='ADMIN'&&!u.confidentialApprover).length]];
   const access=[['Approves confidential access',admins.filter(u=>u.confidentialApprover).length],['Handles confidential visits',admins.filter(u=>!u.confidentialApprover&&u.confidentialAccess).length],['Standard service access',admins.filter(u=>!u.confidentialApprover&&!u.confidentialAccess).length]];
-  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl">'+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
+  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl dashboard-metric-label">'+dashboardMetricIcon(label)+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
   const chartRows=items=>items.map(([label,count])=>({label,count}));
   const roleNames=['Super Admin','Head Admin','Admin'];
   const roleOf=user=>user.role==='SUPER_ADMIN'?'Super Admin':user.confidentialApprover?'Head Admin':'Admin';
