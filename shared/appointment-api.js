@@ -143,12 +143,12 @@
     return '<section class="document-review"><h4 class="document-review-title">Uploaded requirements</h4>'+(typeof state_view!=='undefined'?documentReviewSummary(a):'')+a.attachments.map((f,i)=>{
       const review=f.review||{},status=review.status||'Pending review';
       const cls=status==='Accepted'?'pill-ok':status==='Needs correction'?'pill-danger':'pill-warn';
-      return '<div class="document-review-item"><div class="document-review-heading"><div class="document-review-file">'+attachChip(f)+'</div><span class="pill '+cls+'">'+escapeHtml(status)+'</span></div>'+
+      return '<div class="document-review-item"><div class="document-review-heading"><div class="document-review-file">'+attachChip(f)+'</div>'+(!canEdit?'<span class="pill '+cls+'">'+escapeHtml(status)+'</span>':'')+'</div>'+
         (!canEdit&&review.requirement?'<p class="field-hint">Requirement: '+escapeHtml(review.requirement)+'</p>':'')+
         (!canEdit&&review.reason?'<p class="field-hint">'+escapeHtml(review.reason)+'</p>':'')+
         (review.reviewedAt?'<p class="field-hint">Reviewed '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))+'</p>':'')+
         (!editable&&typeof visitorView!=='undefined'&&status==='Needs correction'&&['Requested','Booked'].includes(a.status)?'<div class="field"><label for="replacement'+i+'">Corrected document</label><input id="replacement'+i+'" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-index="'+i+'" onclick="replaceVisitDocument(this)">Submit replacement</button></div>':'')+
-        (canEdit?'<div class="document-review-form">'+documentRequirementSelect(a,i,review)+'<input id="documentStatus'+i+'" type="hidden" value="'+escapeHtml(status)+'"><div class="document-decision-actions"><button type="button" class="document-decision-accept" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="setDocumentDecision(this,\'Accepted\')">Accept</button><button type="button" class="document-decision-correct" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" aria-expanded="'+(status==='Needs correction')+'" aria-controls="documentCorrection'+i+'" onclick="setDocumentDecision(this,\'Needs correction\')">Needs correction</button></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'<button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)">Save correction</button></div></div>':'')+'</div>';
+        (canEdit?'<div class="document-review-form">'+documentRequirementSelect(a,i,review)+'<div class="field"><label for="documentStatus'+i+'">Review decision</label><select id="documentStatus'+i+'" data-review-index="'+i+'" onchange="toggleDocumentReviewCorrection(this)">'+['Pending review','Accepted','Needs correction'].map(decision=>'<option'+(decision===status?' selected':'')+'>'+decision+'</option>').join('')+'</select></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'</div><button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)">Save review</button></div>':'')+'</div>';
     }).join('')+historyButton+'</section>';
   };
   window.replaceVisitDocument=async function(button){
@@ -158,14 +158,9 @@
     button.disabled=true;
     try{const [attachment]=await readFilesAsAttachments([file]);const result=await visitorRequest('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PUT',{name:attachment.name,dataUrl:attachment.dataUrl,revision:a.revision});if(result){cache(result);showPassModalReadonly(result.appointment,true);toast('Replacement submitted for staff review.','ok');}}catch(e){toast(escapeHtml(e.message),'err');}finally{button.disabled=false;}
   };
-  window.setDocumentDecision=function(button,status){
-    const index=button.dataset.reviewIndex;
-    document.getElementById('documentStatus'+index).value=status;
-    document.getElementById('documentCorrection'+index).hidden=status!=='Needs correction';
-    const correction=button.closest('.document-review-form').querySelector('.document-decision-correct');
-    correction?.setAttribute('aria-expanded',String(status==='Needs correction'));
-    if(status==='Accepted')return saveDocumentReview(button);
-    document.getElementById('documentReason'+index).focus();
+  window.toggleDocumentReviewCorrection=function(select){
+    const field=document.getElementById('documentCorrection'+select.dataset.reviewIndex);
+    field.hidden=select.value!=='Needs correction';
   };
   window.saveDocumentReview=async function(button){
     const id=button.dataset.reviewId,index=Number(button.dataset.reviewIndex),a=loadDB().appointments.find(a=>a.id===id);
