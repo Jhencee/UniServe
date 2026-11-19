@@ -66,7 +66,6 @@ body #content .system-overview .dashboard-trend-section .helper-empty { min-heig
  body #content .system-overview .analytics-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
  body #content .system-overview .analytics-metrics > .stat-card { min-height:138px; padding:16px; }
  body #content .system-overview .analytics-metrics .lbl { min-height:36px; padding-right:0; }
- body #content .system-overview .analytics-metrics .metric-icon { display:none; }
  body #content .system-overview .dashboard-summary-grid > .card { min-height:0; }
  body #content .system-overview .dashboard-summary-grid .card-head { min-height:0; }
  body #content .system-overview .oversight-attention { padding:14px 16px; }
@@ -81,7 +80,6 @@ body #content .system-overview .oversight-alerts:has(> :only-child) { grid-templ
 body #content .system-overview .oversight-alerts:has(> :only-child) .oversight-alert p { max-width:85ch; }
 body #content .system-overview .oversight-review-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px; }
 body #content .system-overview .oversight-reviewed-at { color:var(--text-soft); font-size:.68rem; font-weight:400; }
-body #content .system-overview .analytics-metrics > .stat-card:nth-child(3) .metric-icon { color:var(--warn); }
 /* Reuse the System Settings layout, without additional nested cards. */
 .health-settings { overflow:hidden; }
 .health-settings .settings-block { padding:22px 24px; }
@@ -553,10 +551,6 @@ body #content .system-overview .dashboard-rings { display:flex; flex-direction:c
 .system-overview .dashboard-columns g:nth-of-type(even) rect { fill:var(--super-chart-2); }
 .system-overview .dashboard-bar-track { background:#fffdf8; }
 .system-overview .dashboard-bar-fill { background:var(--super-chart-2) !important; }
-.system-overview .metric-icon { color:var(--super-chart-1); }
-.system-overview .stat-card:nth-child(2) .metric-icon { color:var(--super-chart-2); }
-.system-overview .stat-card:nth-child(3) .metric-icon { color:var(--super-chart-3); }
-.system-overview .stat-card:nth-child(4) .metric-icon { color:var(--super-chart-1); }
 
 /* Let the overview graph fill its wide card instead of letterboxing the SVG. */
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { align-items:stretch; }
