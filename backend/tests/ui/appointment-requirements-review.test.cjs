@@ -33,3 +33,25 @@ test('readiness changes explicitly mark a file unsaved and enable its save butto
  const note={textContent:'Saved',dataset:{state:'saved'}},button={disabled:true};
  c.markDocumentReadinessUnsaved({querySelector:selector=>selector==='.document-save-state'?note:button});assert.equal(note.textContent,'Unsaved changes');assert.equal(note.dataset.state,'unsaved');assert.equal(button.disabled,false);
 });
+
+test('appointment readiness uses verified counter checks without changing uploaded file decisions',()=>{
+ const c={findService:()=>({}),computeReadiness:()=>({status:'FOR_REVIEW'}),queueRequirementState:(db,q)=>q.requirementReadiness};vm.createContext(c);
+ vm.runInContext(source.slice(source.indexOf('function appointmentReadiness('),source.indexOf('function readinessPillHtml(')),c);
+ const appointment={id:'a',queueId:'q',attachments:[{review:{status:'Pending review'}}]};
+ const db={queues:[{id:'q',appointmentId:'a',requirementReadiness:{ready:true,checked:2,required:2}}]};
+ assert.equal(c.appointmentReadiness(db,appointment).status,'READY');assert.equal(appointment.attachments[0].review.status,'Pending review');
+ db.queues[0].requirementReadiness={ready:false,checked:1,required:2};assert.equal(c.appointmentReadiness(db,appointment).status,'INCOMPLETE');
+ db.queues=[];assert.equal(c.appointmentReadiness(db,appointment).status,'FOR_REVIEW');
+});
+
+test('completed appointment menu contains only details, email and print in order',()=>{
+ const s=setup({status:'Completed',queueId:'q'});const html=s.c.appointmentActionsHtml(s.appointment);
+ const labels=[...html.matchAll(/class="kebab-item" onclick="[^"]*">([^<]+)</g)].map(m=>m[1]);
+ assert.deepEqual(labels,['View details','Email details','Print']);assert.doesNotMatch(html,/Review requirements|Reschedule|Cancel|View visit/);
+});
+
+test('noncompleted appointment menus do not offer print',()=>{
+ for(const status of ['Requested','Booked','Checked-in','Unfinished','No-show','Cancelled']){
+  const s=setup({status});assert.doesNotMatch(s.c.appointmentActionsHtml(s.appointment),/printAppointmentRecord|>Print/);
+ }
+});

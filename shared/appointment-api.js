@@ -177,7 +177,7 @@
     const form=button.closest('.document-review-form'),saveState=form.querySelector('.document-save-state');
     const fields=[...form.querySelectorAll('select,textarea,input,button')];
     fields.forEach(field=>field.disabled=true);button.textContent='Saving...';saveState.textContent='Saving readiness...';saveState.dataset.state='saving';
-    try{const result=cache(await request('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PATCH',{status,reason,requirement,revision:a.revision}));const updated=document.createElement('div');updated.innerHTML=documentReviewHtml(result.appointment,true);const summary=button.closest('.document-review')?.querySelector('.document-review-summary');if(summary&&updated.querySelector('.document-review-summary'))summary.replaceWith(updated.querySelector('.document-review-summary'));button.closest('.document-review-item').replaceWith(updated.querySelectorAll('.document-review-item')[index]);toast('Readiness saved.','ok');}
+    try{const result=cache(await request('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PATCH',{status,reason,requirement,revision:a.revision}));const updated=document.createElement('div');updated.innerHTML=documentReviewHtml(result.appointment,true);const summary=button.closest('.document-review')?.querySelector('.document-review-summary');if(summary&&updated.querySelector('.document-review-summary'))summary.replaceWith(updated.querySelector('.document-review-summary'));button.closest('.document-review-item').replaceWith(updated.querySelectorAll('.document-review-item')[index]);if(typeof state_view!=='undefined'&&state_view==='appointments'&&typeof renderApptTable==='function')renderApptTable();toast('Readiness saved.','ok');}
     catch(e){saveState.textContent='Not saved. '+(e.status===409?'This record changed. Reopen requirements to review the latest version.':'Try saving again.');saveState.dataset.state='unsaved';toast(escapeHtml(e.message),'err');if(e.status===409){try{cache(await request('/appointments'));}catch{}}}
     finally{fields.forEach(field=>field.disabled=false);button.textContent='Save readiness';}
   };
@@ -249,7 +249,7 @@
         cache(await request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Completed'}));closeModal();await records();await renderQueueDashboard();renderSidebar();toast('Visit completed and logged.','ok');}catch(e){toast(escapeHtml(e.message),'err');}
     };
     const original=renderAppointments;
-    renderAppointments=async function(keep){try{cache(await request('/appointments'));if(state_view==='appointments')original(keep);}catch(e){if(state_view==='appointments')toast(escapeHtml(e.message),'err');}};
+    renderAppointments=async function(keep){try{await Promise.all([request('/appointments').then(cache),typeof loadSharedQueue==='function'?loadSharedQueue():Promise.resolve()]);if(state_view==='appointments')original(keep);}catch(e){if(state_view==='appointments')toast(escapeHtml(e.message),'err');}};
     adminCheckInAppointment=async function(id){
       const a=loadDB().appointments.find(a=>a.id===id);
       if(!a?.shared){toast('This legacy appointment must be migrated before check-in.','err');return;}

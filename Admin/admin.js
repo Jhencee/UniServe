@@ -318,6 +318,14 @@ function computeReadiness(svc, attachments) {
   if(files.some(file=>file.review?.status!=='Accepted'))return {status:'FOR_REVIEW',label:'Pending review'};
   return {status:'READY',label:`Accepted — ${accepted} ${accepted===1?'file':'files'}`};
 }
+function appointmentReadiness(db,appointment) {
+  const queue=(db.queues||[]).find(q=>!q.restricted&&(q.id===appointment.queueId||q.appointmentId===appointment.id));
+  if(queue){
+    const readiness=queueRequirementState(db,queue);
+    return {status:readiness.ready?'READY':'INCOMPLETE',label:readiness.ready?'Requirements complete':readiness.checked+' of '+readiness.required+' requirements checked'};
+  }
+  return computeReadiness(findService(db,appointment.serviceKey||appointment.service),appointment.attachments);
+}
 function readinessPillHtml(r, short) {
   if (!r) return '';
   const status = r.status || r;
@@ -1237,7 +1245,7 @@ function renderApptTable() {
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.visitId || '').toLowerCase().includes(q));
   document.getElementById('apptBody').innerHTML = rows.length ? rows.map((r, i) => {
     const linkedQ = r.queueId ? db.queues.find(x => x.id === r.queueId) : null;
-    const readiness=computeReadiness(findService(db,r.service),r.attachments);
+    const readiness=appointmentReadiness(db,r);
     const attentionClass=r.restricted?'':r.status==='Requested'?'appointment-awaiting-review':r.status==='Booked'&&readiness.status!=='READY'?'appointment-requirements-attention':'';
     return `<tr${attentionClass ? ' class="'+attentionClass+'"' : ''}><td class="row-num">${i + 1}</td>
     <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
@@ -1250,7 +1258,15 @@ function renderApptTable() {
 }
 function appointmentActionsHtml(r){
   if(r.restricted)return '<span class="muted">Confidential access required</span>';
-  const buttons=[`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',false,true)">View details</button>`, `<button class="btn btn-ghost btn-sm" onclick="printAppointmentRecord('${r.id}')">Print record</button>`];
+  if(r.status==='Completed'){
+    const actions=[
+      `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">View details</button>`,
+      `<button class="kebab-item" onclick="closeKebabs(); UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`,
+      `<button class="kebab-item" onclick="closeKebabs(); printAppointmentRecord('${r.id}')">Print</button>`
+    ];
+    return `<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${actions.join('')}</div>`;
+  }
+  const buttons=[`<button class="btn btn-ghost btn-sm" onclick="openAppointmentVisit('${r.id}')">View details</button>`];
   const editable=['Requested','Booked','No-show','Unfinished'].includes(r.status);
   if(r.shared&&['Requested','Booked'].includes(r.status)&&r.attachments?.length)buttons.push(`<button class="btn btn-ghost btn-sm" onclick="reviewAppointmentRequirements('${r.id}')">Review requirements</button>`);
   if(editable&&r.status==='Requested')buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Review request</button>`);
@@ -1258,7 +1274,6 @@ function appointmentActionsHtml(r){
     buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
   }
   if(editable&&['No-show','Unfinished'].includes(r.status))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
-  if(r.queueId)buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openAppointmentVisit('${r.id}')">View visit</button>`);
   if(r.shared&&(r.date||r.status==='Cancelled'))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`);
   if(r.shared&&editable)buttons.push(`<button class="btn btn-danger-o btn-sm" onclick="cancelSharedAppointment('${r.id}')">Cancel</button>`);
   const mainIndex=buttons.findIndex(button=>button.includes('btn-primary'));
@@ -1274,15 +1289,17 @@ function reviewAppointmentRequirements(id){
   openModal('Review requirements',`<div class="appointment-detail-panel"><p class="field-hint">${escapeHtml(appointment.name)} &middot; ${escapeHtml(appointment.service)}<br>Open each file to check it, choose a review result, then save the review for that file.</p>${appointment.attachments?.length?documentReviewHtml(appointment,editable):'<p class="field-hint">No requirements uploaded.</p>'}</div>`,[]);
 }
 async function openAppointmentVisit(id){
-  try{await loadSharedQueue();const appointment=loadDB().appointments.find(a=>a.id===id),queue=loadDB().queues.find(q=>q.id===appointment?.queueId);if(queue)openQueueVisitDetail(queue.id);else openApptDetail(id,false,true);}catch(error){toast(escapeHtml(error.message),'err');}
+  try{await loadSharedQueue();if(typeof SharedAppointments!=='undefined'){const result=await SharedAppointments.request('/appointments/visit/'+encodeURIComponent(id));SharedAppointments.cache(result);}openApptDetail(id,false,true);}catch(error){toast(escapeHtml(error.message),'err');}
 }
 function openApptDetail(id, editSchedule = false, viewOnly = false) {
   const db = loadDB(), r = db.appointments.find(x => x.id === id);
   if (!r) return;
+  const linkedVisit=(db.queues||[]).find(q=>q.id===r.queueId||q.appointmentId===r.id);
+  const visitSummary=linkedVisit&&!linkedVisit.restricted?'<section class="appointment-summary"><h4>Visit and service</h4><div class="appointment-summary-grid"><div class="kv"><span>Queue status</span><span>'+statusPill(linkedVisit.status)+'</span></div><div class="kv"><span>Handled by</span><span>'+escapeHtml(linkedVisit.assignedAdminName||'Not assigned')+'</span></div>'+[['Arrival',linkedVisit.checkedInAt],['Called',linkedVisit.calledAt],['Service started',linkedVisit.servingAt],['Completed',linkedVisit.completedAt]].map(([label,value])=>'<div class="kv"><span>'+label+'</span><span>'+(value?escapeHtml(String(fmtDateTime(value)).replace(/&middot;/g,' / ')):'&mdash;')+'</span></div>').join('')+'</div>'+(linkedVisit.serviceHistory?.length&&typeof flowServiceHistory==='function'?flowServiceHistory(linkedVisit.serviceHistory):'')+'</section>':'';
   const inQueue = !!r.queueId && ['Checked-in','Completed','Cancelled'].includes(r.status), canSetSchedule = !inQueue && ['Requested','Booked','No-show','Unfinished'].includes(r.status);
   const showSchedule = !viewOnly && canSetSchedule && (['Requested','No-show','Unfinished'].includes(r.status) || editSchedule);
   const canCheckIn = !inQueue && r.status === 'Booked' && r.date === today() && OfficeCalendar.status().open && !UniServeUX.conflict(r);
-  const readiness = computeReadiness(findService(db, r.service), r.attachments), arrival = canCheckIn ? evaluateArrival(db, r) : null;
+  const readiness = appointmentReadiness(db,r), arrival = canCheckIn ? evaluateArrival(db, r) : null;
   const scheduleBody=showSchedule?`
     <div class="reschedule-editor">
       <div class="reschedule-visitor"><strong>${escapeHtml(r.name)}</strong><span>${escapeHtml(r.service)} &middot; ${escapeHtml(r.office||'Office of Student Services')}</span><small>${escapeHtml(r.visitId||r.code||'')}</small></div>
@@ -1323,6 +1340,7 @@ function openApptDetail(id, editSchedule = false, viewOnly = false) {
       <div class="field"><label for="mApptDate">Date</label><input onchange="calendarAppointmentWarning()" id="mApptDate" type="date" value="${r.date || ''}" min="${today()}"></div>
       <div class="field"><label for="mApptTime">Time</label><input onchange="calendarAppointmentWarning()" id="mApptTime" type="time" value="${UniServeUX.appointmentTime(r.time) || '09:00'}"></div></div>
       <p id="calendarApptWarning" role="alert" class="field-hint"></p></section>` : ''}
+    ${visitSummary}
     <h4 class="staff-detail-heading">Documents</h4>${r.attachments?.length ? documentReviewHtml(r, !viewOnly) : '<p class="field-hint">No requirements uploaded.</p>'}
     <h4 class="staff-detail-heading">History and follow-up</h4><div class="appointment-detail-extras">${r.scheduleHistory?.length ? `<details class="schedule-history"><summary><span>Previous schedules</span><span class="schedule-history-count">${r.scheduleHistory.length}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><ol>${r.scheduleHistory.map(s=>`<li><div class="schedule-history-details"><span class="schedule-history-date">${escapeHtml(s.date||'Not yet scheduled')}${s.time ? ` &middot; ${escapeHtml(UniServeUX.timeLabel(s.time))}` : ''}</span>${s.changedAt ? `<span class="schedule-history-updated">Updated ${escapeHtml(String(fmtDateTime(s.changedAt)).replace(/&middot;/g,String.fromCharCode(183)))}</span>` : ''}</div><span class="schedule-history-status">${escapeHtml(s.status||'Previous')}</span></li>`).join('')}</ol></details>` : ''}${visitExtrasHtml(r,true)}</div></div>`, [
     ...(canCheckIn&&!showSchedule&&!viewOnly ? [{label:'Check in',cls:'btn-primary',action:()=>adminCheckInAppointment(r.id)}] : []),
