@@ -1,5 +1,5 @@
 /* Common surfaces and controls across the four UniServe portals. */
-/* Shared return navigation: color-only hover, with visible keyboard focus. */
+/* Shared return navigation with visible keyboard focus. */
 body .home-back-arrow,
 body #loginScreen .home-back-arrow { display:inline-flex; align-items:center; justify-content:center; width:36px; min-height:36px; padding:0; }
 body .home-back-arrow svg { display:block; flex-shrink:0; }
@@ -26,7 +26,7 @@ body .btn.back-to-transactions:hover,
 body .btn.back-to-transactions:active,
 body .btn.back-to-transactions:focus,
 body .pass-actions-footer > button:first-child:hover {
- background:transparent; color:var(--accent-strong);
+ background:transparent; color:var(--text-soft);
  text-decoration:none; box-shadow:none; transform:none;
 }
 body .system-back-link:focus-visible,
@@ -211,22 +211,18 @@ body #content .analytics-dashboard :is(.card,.stat-card):hover {
  body #content .analytics-dashboard :is(.card,.stat-card):is(a[href],button,[role="button"][tabindex],[onclick]):hover { transform:translateY(-3px); }
 }
 @media(prefers-reduced-motion:reduce) {
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item) { transition:none; }
  body .btn, #visitorApp .visitor-hub-nav .nav-item { transition:none; }
 }
 
 /* Match Manage Services on whole-card actions across the portals. */
 body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]) { position:relative; overflow:hidden; }
-body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { content:""; display:block; position:absolute; inset:0 auto 0 0; width:4px; background:var(--accent); transform:scaleY(0); transform-origin:top; pointer-events:none; }
 body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):focus-visible { border-color:var(--accent); outline:2px solid var(--accent); outline-offset:3px; }
-body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):focus-visible::before { transform:scaleY(1); }
 @media(hover:hover) and (prefers-reduced-motion:no-preference) {
  body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]) { transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease; }
- body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { transition:transform .2s ease; }
- body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:translateY(-2px); border-color:var(--accent); box-shadow:var(--shadow-lift,0 8px 20px rgba(0,0,0,.1)); }
- body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover::before { transform:scaleY(1); }
+ body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:translateY(-2px); }
 }
 @media(prefers-reduced-motion:reduce) {
- body .svc-manage-card, body .svc-manage-card::before, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]), body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"])::before { transition:none; }
  body .svc-manage-card:hover, body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item):is(a[href],button,[role="button"][tabindex],[onclick]):not(:disabled):not([aria-disabled="true"]):hover { transform:none; }
 }
 
@@ -352,3 +348,12 @@ body #content .queue-service-notice .dashboard-attention-count {
  body #content .queue-service-notice-copy { flex-basis:100%; }
  body #content .queue-service-notice .btn { margin-left:0; max-width:100%; }
 }
+/* Portal cards retain their colors on hover; only position changes. */
+body #visitorApp :is(.visitor-hub-nav .nav-item,.svc-card):hover {
+  background:var(--surface);
+  color:var(--text);
+  border-color:var(--border);
+  box-shadow:none;
+}
+body #visitorApp :is(.visitor-hub-nav .nav-item,.svc-card)::before { display:none; }
+body #visitorApp .visitor-section-bar .home-back-arrow { justify-content:flex-start; }

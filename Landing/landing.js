@@ -760,13 +760,3 @@ function contactHoursHtml() {
   if (cfg.lunch.enabled) rows.push('<div class="office-hours-row office-hours-lunch"><dt>Lunch</dt><dd>'+escapeHtml(OfficeCalendar.clock(cfg.lunch.start).replace(':00', '')+' \u2013 '+OfficeCalendar.clock(cfg.lunch.end).replace(':00', ''))+'</dd></div>');
   return '<dl>'+rows.join('')+'</dl>';
 }
-
-
-// Keep the mobile menu control inside the hero even when notices appear.
-(function(){
- const button=document.getElementById('navToggle'),hero=document.querySelector('#landing .hero');
- if(!button||!hero)return;
- const originalParent=button.parentNode,originalNext=button.nextSibling,media=matchMedia('(max-width:600px)');
- function place(){if(media.matches)hero.prepend(button);else originalParent.insertBefore(button,originalNext);}
- media.addEventListener('change',place);place();
-})();

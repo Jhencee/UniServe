@@ -721,7 +721,7 @@ function renderVisitPicker() {
   document.getElementById('visitorContent').innerHTML = `
     <section class="visit-start-page" aria-label="Start your visit">
     ${stepperHtml(1)}
-    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span>${OfficeCalendar.status().lunch ? '<strong>Lunch break.</strong>' : '<strong>The office is closed.</strong> You can still request an appointment.'}</span></div>`:''}
+    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span>Only appointment requests are available at this time.</span></div>`:''}
     <div class="visit-entry-heading visitor-page-wrap"><h3>Choose a service</h3><p>Select your visitor type, then choose the service you need.</p></div>
     <div class="ux-filters">
       <div class="ux-field">
@@ -786,10 +786,10 @@ function renderVisitChoose() {
     ${serviceNoticeHtml(svc)}${requirementsBoxHtml(svc)}${templatesBoxHtml(svc)}
     <div class="visit-entry-heading visitor-page-wrap"><h3>How would you like to visit?</h3><p>Review the documents above, then choose an entry method.</p></div>
     <div class="entry-method-grid">
-      <button class="svc-card entry-method-card" onclick="startWalkIn()">
+      <button id="walkInEntryButton" class="svc-card entry-method-card" onclick="startWalkIn()" disabled aria-describedby="walkInEntryStatus">
         <span class="svc-ic">${icon('ticket', 22)}</span><h3>Walk in today</h3>
         <p>Get your Visit Pass and queue number now.</p>
-        <span class="svc-go">Get a queue number</span>
+        <span id="walkInEntryStatus" class="svc-go" role="status">${isOfficeHours()?'Checking availability…':'Only appointment requests are available at this time.'}</span>
       </button>
       <button class="svc-card entry-method-card" onclick="startSchedule()">
         <span class="svc-ic">${icon('calendar', 22)}</span><h3>Request an appointment</h3>
@@ -798,6 +798,19 @@ function renderVisitChoose() {
       </button>
     </div><div class="visitor-page-wrap visit-calendar-link"><span class="field-hint">Planning an appointment? Check opening days.<button type="button" class="visit-calendar-icon" onclick="UniServeUX.visitorCalendar()" aria-label="View office calendar" title="View office calendar">${icon('calendar', 16)}</button></span></div>
     </section>`;
+  refreshWalkInEntryAvailability();
+}
+async function refreshWalkInEntryAvailability() {
+  const button=document.getElementById('walkInEntryButton'),status=document.getElementById('walkInEntryStatus');
+  if(!button||!status||!isOfficeHours())return;
+  try {
+    const capacity=await UniServeUX.request('/walk-in-capacity');
+    if(document.getElementById('walkInEntryButton')!==button)return;
+    button.disabled=!capacity.accepting;
+    status.textContent=capacity.accepting?'Get a queue number':(capacity.message||'Only appointment requests are available at this time.');
+  } catch (_) {
+    if(document.getElementById('walkInEntryButton')===button){button.disabled=true;status.textContent='Walk-in availability could not be verified. Please try again later.';}
+  }
 }
 function selectedBarHtml(ic, title, svc) {
   return `<div class="svc-selected-bar">
@@ -835,7 +848,8 @@ function validateVisitorFields(p, isStudent) {
 }
 
 async function startWalkIn() {
-  try{const capacity=await UniServeUX.request('/walk-in-capacity');if(!capacity.accepting){openModal('Walk-ins closed',`<p>${escapeHtml(capacity.message)}</p>${capacity.closedTime?`<p>Walk-in intake closed at <b>${escapeHtml(capacity.closedTime)}</b>.</p>`:''}`,[{label:'Back',cls:'btn-ghost',action:closeModal},{label:'Book appointment',cls:'btn-primary',action:()=>{closeModal();startSchedule();}}]);return;}}catch(e){toast(escapeHtml(e.message),'err');return;} captureVisitorDraft(); visitStep = 'walkin'; persistSession(); renderVisitWalkinForm(); }
+  if(!isOfficeHours()){visitStep='choose';renderVisitChoose();return;}
+  try{const capacity=await UniServeUX.request('/walk-in-capacity');if(!capacity.accepting){visitStep='choose';renderVisitChoose();return;}}catch(e){toast(escapeHtml(e.message),'err');return;} captureVisitorDraft(); visitStep = 'walkin'; persistSession(); renderVisitWalkinForm(); }
 function renderVisitWalkinForm() {
   const svc = visitSelectedService, db = loadDB(), isStudent = visitVisitorType === 'Student';
   document.getElementById('visitorContent').innerHTML = `

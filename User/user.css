@@ -3085,7 +3085,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   .visitor-hub-brand > span:last-child { font-size:1.05rem; gap:1px; }
   .visitor-hub-brand small { font-size:.6rem; white-space:nowrap; }
 }
-.visitor-section-bar { width:100%; max-width:1120px; margin:0 auto; padding:26px 40px 0; }
+.visitor-section-bar { width:calc(100% - 64px); max-width:1100px; margin:0 auto; padding:26px 0 0; }
 .visitor-section-bar[hidden], #visitorHub[hidden], #visitorContent[hidden] { display:none; }
 .visitor-hub-reading-tools:empty { display:none; }
 .visitor-hub-reading-tools .a11y-read-btn { width:auto; margin-top:12px; }
@@ -3151,7 +3151,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 #visitorApp .visitor-hub-nav .nav-item[data-service="checkvisit"] { border:1px solid var(--border); }
 .visitor-hub-nav li + li { border:0; }
 #visitorApp .visitor-hub-nav .nav-item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; width:100%; height:100%; min-height:224px; margin:0; padding:26px 18px; border:0; border-radius:12px; background:var(--surface); color:var(--text); font-weight:400; text-align:center; box-shadow:none; transform:none; }
-#visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface-2); color:var(--text); }
+#visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface); color:var(--text); }
 #visitorApp .visitor-hub-nav .nav-item::before { display:none; }
 #visitorApp .visitor-hub-nav .nav-item svg { color:var(--accent-strong); opacity:1; }
 .visitor-hub-icon { display:flex; align-items:center; justify-content:center; flex-shrink:0; width:38px; height:38px; border-radius:10px; background:color-mix(in srgb,var(--accent) 6%,var(--surface)); }
@@ -3162,8 +3162,8 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 /* Match the portal's white cards and maroon accents. */
 .visitor-welcome h1 em { color:var(--accent-strong); }
 .visitor-welcome-eyebrow::before { content:''; display:block; width:32px; height:3px; margin:0 auto 14px; border-radius:3px; background:var(--accent); }
-#visitorApp .visitor-hub-nav .nav-item { background:var(--surface); transition:background .18s ease,box-shadow .18s ease; }
-#visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface); box-shadow:inset 3px 0 0 var(--accent),0 8px 24px #5c00000a; }
+#visitorApp .visitor-hub-nav .nav-item { background:var(--surface); transition:transform .18s ease; }
+#visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface); box-shadow:none; }
 .visitor-hub-icon { width:48px; height:48px; background:var(--accent); }
 #visitorApp .visitor-hub-nav .visitor-hub-icon svg { color:#fff; }
 .visitor-hub-reading-tools { grid-column:1/-1; }
@@ -3307,7 +3307,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   #visitorApp.visitor-hub-layout .topbar { padding:6px 12px; }
   #visitorApp.visitor-hub-layout .topbar > div:first-child { flex:1 1 auto; }
   #visitorApp.visitor-hub-layout .topbar-right { margin-left:0; }
-  .visitor-section-bar { padding:20px 14px 0; }
+  .visitor-section-bar { width:calc(100% - 28px); max-width:600px; padding:20px 0 0; }
 }
 
 
@@ -3635,3 +3635,6 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
  #visitorApp .visit-choose-page .visit-calendar-link { margin-top:16px; padding-top:12px; }
  #visitorApp .visit-choose-page .visit-calendar-link .field-hint { font-size:.73rem; line-height:1.6; }
 }
+/* Unavailable entry methods remain visible without inviting a click. */
+.entry-method-card:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; transform:none; }
+.entry-method-card:disabled:hover { box-shadow:none; transform:none; border-color:var(--border); }
