@@ -146,9 +146,9 @@
       return '<div class="document-review-item"><div class="document-review-heading"><div class="document-review-file">'+attachChip(f)+'</div>'+(!canEdit?'<span class="pill '+cls+'">'+escapeHtml(status)+'</span>':'')+'</div>'+
         (!canEdit&&review.requirement?'<p class="field-hint">Requirement: '+escapeHtml(review.requirement)+'</p>':'')+
         (!canEdit&&review.reason?'<p class="field-hint">'+escapeHtml(review.reason)+'</p>':'')+
-        (review.reviewedAt?'<p class="field-hint">Reviewed '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))+'</p>':'')+
+        (!canEdit&&review.reviewedAt?'<p class="field-hint">Reviewed '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))+'</p>':'')+
         (!editable&&typeof visitorView!=='undefined'&&status==='Needs correction'&&['Requested','Booked'].includes(a.status)?'<div class="field"><label for="replacement'+i+'">Corrected document</label><input id="replacement'+i+'" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-index="'+i+'" onclick="replaceVisitDocument(this)">Submit replacement</button></div>':'')+
-        (canEdit?'<div class="document-review-form">'+documentRequirementSelect(a,i,review)+'<div class="field"><label for="documentStatus'+i+'">Review decision</label><select id="documentStatus'+i+'" data-review-index="'+i+'" onchange="toggleDocumentReviewCorrection(this)">'+['Pending review','Accepted','Needs correction'].map(decision=>'<option'+(decision===status?' selected':'')+'>'+decision+'</option>').join('')+'</select></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'</div><button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)">Save review</button></div>':'')+'</div>';
+        (canEdit?'<div class="document-review-form" oninput="markDocumentReadinessUnsaved(this)" onchange="markDocumentReadinessUnsaved(this)">'+documentRequirementSelect(a,i,review)+'<div class="field"><label for="documentStatus'+i+'">Readiness decision</label><select id="documentStatus'+i+'" data-review-index="'+i+'" onchange="toggleDocumentReviewCorrection(this)">'+['Pending review','Accepted','Needs correction'].map(decision=>'<option'+(decision===status?' selected':'')+'>'+decision+'</option>').join('')+'</select></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'</div><button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)"'+(review.reviewedAt?' disabled':'')+'>Save readiness</button><p class="field-hint document-save-state" role="status" aria-live="polite" data-state="'+(review.reviewedAt?'saved':'unsaved')+'">'+(review.reviewedAt?'Saved &middot; '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g,' / ')):'Not saved yet')+'</p></div>':'')+'</div>';
     }).join('')+historyButton+'</section>';
   };
   window.replaceVisitDocument=async function(button){
@@ -157,6 +157,10 @@
     if(file.size>5*1024*1024){toast('Each file must be at most 5 MB.','err');return;}
     button.disabled=true;
     try{const [attachment]=await readFilesAsAttachments([file]);const result=await visitorRequest('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PUT',{name:attachment.name,dataUrl:attachment.dataUrl,revision:a.revision});if(result){cache(result);showPassModalReadonly(result.appointment,true);toast('Replacement submitted for staff review.','ok');}}catch(e){toast(escapeHtml(e.message),'err');}finally{button.disabled=false;}
+  };
+  window.markDocumentReadinessUnsaved=function(form){
+    const note=form.querySelector('.document-save-state'),button=form.querySelector('button[data-review-id]');
+    note.textContent='Unsaved changes';note.dataset.state='unsaved';button.disabled=false;
   };
   window.toggleDocumentReviewCorrection=function(select){
     const field=document.getElementById('documentCorrection'+select.dataset.reviewIndex);
@@ -170,10 +174,12 @@
     if(status==='Needs correction'&&!reason){toast('Explain what the visitor needs to correct.','err');document.getElementById('documentReason'+index).focus();return;}
     const requirementField=document.getElementById('documentRequirement'+index),requirement=requirementField?.value||'';
     if(status==='Accepted'&&requirementField&&!requirement){toast('Select the requirement this document covers.','err');requirementField.focus();return;}
-    button.disabled=true;
-    try{const result=cache(await request('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PATCH',{status,reason,requirement,revision:a.revision}));const updated=document.createElement('div');updated.innerHTML=documentReviewHtml(result.appointment,true);const summary=button.closest('.document-review')?.querySelector('.document-review-summary');if(summary&&updated.querySelector('.document-review-summary'))summary.replaceWith(updated.querySelector('.document-review-summary'));button.closest('.document-review-item').replaceWith(updated.querySelectorAll('.document-review-item')[index]);toast('Document review saved.','ok');}
-    catch(e){toast(escapeHtml(e.message),'err');if(e.status===409){try{cache(await request('/appointments'));}catch{}}}
-    finally{button.disabled=false;}
+    const form=button.closest('.document-review-form'),saveState=form.querySelector('.document-save-state');
+    const fields=[...form.querySelectorAll('select,textarea,input,button')];
+    fields.forEach(field=>field.disabled=true);button.textContent='Saving...';saveState.textContent='Saving readiness...';saveState.dataset.state='saving';
+    try{const result=cache(await request('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PATCH',{status,reason,requirement,revision:a.revision}));const updated=document.createElement('div');updated.innerHTML=documentReviewHtml(result.appointment,true);const summary=button.closest('.document-review')?.querySelector('.document-review-summary');if(summary&&updated.querySelector('.document-review-summary'))summary.replaceWith(updated.querySelector('.document-review-summary'));button.closest('.document-review-item').replaceWith(updated.querySelectorAll('.document-review-item')[index]);toast('Readiness saved.','ok');}
+    catch(e){saveState.textContent='Not saved. '+(e.status===409?'This record changed. Reopen requirements to review the latest version.':'Try saving again.');saveState.dataset.state='unsaved';toast(escapeHtml(e.message),'err');if(e.status===409){try{cache(await request('/appointments'));}catch{}}}
+    finally{fields.forEach(field=>field.disabled=false);button.textContent='Save readiness';}
   };
   window.SharedAppointments={request,cache,verify,visitorRequest,ensureEmail,clearPrivateCache:()=>{attachmentCache.clear();privateRecords.clear();}};
   window.requestNewSchedule=function(id){

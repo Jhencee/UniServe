@@ -1,4 +1,7 @@
 /* Appointment views and detail dialogs share a quiet, consistent hierarchy. */
+.document-save-state { margin:8px 0 0; text-align:right; font-size:.72rem; }
+.document-save-state[data-state="unsaved"] { color:var(--warn); }
+.document-save-state[data-state="saved"] { color:var(--text-soft); }
 body #content #apptBody > .appointment-awaiting-review > td { background:color-mix(in srgb,var(--warn-bg) 65%,var(--surface)); }
 body #content #apptBody > .appointment-awaiting-review:hover > td { background:var(--warn-bg); }
 body #content #apptBody > .appointment-requirements-attention > td { background:color-mix(in srgb,#3b82f6 7%,var(--surface)); }

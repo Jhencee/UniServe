@@ -22,7 +22,14 @@ test('document review uses one decision dropdown and save action with conditiona
  const c={state_view:'appointments',loadDB:()=>({services:[{key:'id',label:'Student ID',requirements:['Valid ID']}]}),escapeHtml:String,attachChip:file=>'<a>'+file.name+'</a>',fmtDateTime:String};c.window=c;
  vm.createContext(c);vm.runInContext(api.slice(api.indexOf('  const correctionOptions='),api.indexOf('  window.replaceVisitDocument=')),c);
  const appointment={id:'a',serviceKey:'id',shared:true,status:'Booked',attachments:[{name:'ID.pdf',review:{status:'Accepted',requirement:'Valid ID',serviceKey:'id'}}]};
- const html=c.documentReviewHtml(appointment,true);assert.match(html,/1 of 1 files accepted/);assert.match(html,/<select id="documentStatus0"/);assert.ok(html.includes('>Save review</button>'));assert.match(html,/id="documentCorrection0" hidden/);assert.match(html,/value="Valid ID" selected/);assert.doesNotMatch(html,/document-decision-accept|document-decision-correct|class="pill /);
+ const html=c.documentReviewHtml(appointment,true);assert.match(html,/1 of 1 files accepted/);assert.match(html,/Not saved yet/);assert.match(html,/<select id="documentStatus0"/);assert.ok(html.includes('>Save readiness</button>'));assert.match(html,/id="documentCorrection0" hidden/);assert.match(html,/value="Valid ID" selected/);assert.doesNotMatch(html,/document-decision-accept|document-decision-correct|class="pill /);
  appointment.attachments[0].review={status:'Needs correction',reason:'Please include a signature'};
  const correction=c.documentReviewHtml(appointment,true);assert.match(correction,/id="documentCorrection0">/);assert.match(correction,/<option selected>Other/);assert.match(correction,/Please include a signature/);
+});
+
+test('readiness changes explicitly mark a file unsaved and enable its save button',()=>{
+ const api=fs.readFileSync(path.resolve(__dirname,'../../../shared/appointment-api.js'),'utf8');const c={};c.window=c;vm.createContext(c);
+ vm.runInContext(api.slice(api.indexOf('  window.markDocumentReadinessUnsaved='),api.indexOf('  window.toggleDocumentReviewCorrection=')),c);
+ const note={textContent:'Saved',dataset:{state:'saved'}},button={disabled:true};
+ c.markDocumentReadinessUnsaved({querySelector:selector=>selector==='.document-save-state'?note:button});assert.equal(note.textContent,'Unsaved changes');assert.equal(note.dataset.state,'unsaved');assert.equal(button.disabled,false);
 });
