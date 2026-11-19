@@ -3268,10 +3268,12 @@ html[data-theme="dark"] .profile-avatar {
   }
 }
 
-.reports-controls .reports-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+.reports-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:10px 20px; }
+.reports-controls .reports-heading { grid-column:2; grid-row:1; }
 .reports-controls h3 { margin:0; font-size:.9rem; }
 .reports-controls .field-hint { margin:6px 0 0; }
-.reports-controls .subnav { margin-top:20px; margin-bottom:12px; }
+.reports-controls .subnav { grid-column:1; grid-row:1; margin:0; }
+.reports-controls #reportRange { grid-column:1 / -1; margin:0; }
 .reports-overview { display:grid; gap:16px; margin-top:16px; }
 .reports-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); padding:20px 0; }
 .reports-summary > div { padding:0 24px; border-right:1px solid var(--border, #e2e5eb); }
@@ -3289,7 +3291,12 @@ html[data-theme="dark"] .profile-avatar {
   #printArea .compact-report-table th, #printArea .compact-report-table td { padding:1.7mm 2mm; font-size:8pt; line-height:1.35; }
   #printArea .compact-office-report .doc-footnote { margin:2mm 0 4mm; font-size:7.5pt; }
 }
-.reports-appointments > div { padding:11px 0; }
+.reports-appointments { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:24px; }
+.reports-appointments > div { padding:12px 0; }
+.reports-summary-note { margin:-6px 0 0; font-size:.72rem; line-height:1.5; color:var(--muted, #718096); }
+.reports-side .reports-timing > div:last-child { border-bottom:0; }
+.reports-side .reports-timing { padding-bottom:12px; }
+@media(max-width:600px) { .reports-controls { grid-template-columns:1fr; } .reports-controls .reports-heading { grid-column:1; grid-row:2; } .reports-controls #reportRange { grid-row:3; } .reports-appointments { column-gap:16px; } }
 .reports-count { text-align:right; width:110px; font-variant-numeric:tabular-nums; }
 .reports-timing { margin:0; padding:0 24px; }
 .reports-timing > div { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--border, #e2e5eb); }
@@ -3423,8 +3430,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar, body *::-webkit-scrollbar { di
 .cl-val-label { font-weight: 600; font-size: 9px; }
 
 /* Soft curve styling for dashboard and report trends. */
-:root { --trend-color: #2563eb; }
-html[data-theme="dark"] { --trend-color: #2563eb; }
+:root { --trend-color: var(--accent); }
+html[data-theme="dark"] { --trend-color: var(--accent); }
 .cl-line { stroke: var(--trend-color) !important; stroke-width: 3; }
 .cl-dot { stroke: var(--trend-color) !important; opacity: 0; }
 .cl-point-group:last-of-type .cl-dot, .cl-point-group:hover .cl-dot { opacity: 1; }

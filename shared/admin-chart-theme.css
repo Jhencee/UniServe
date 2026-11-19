@@ -1,18 +1,10 @@
 /* UniServe chart colors, scoped to the Admin overview. */
-html[data-theme] {
-  --chart-1:#2563eb;
-  --chart-2:#0f766e;
-  --chart-3:#b45309;
-  --chart-4:#6b7280;
-  --chart-5:#b91c1c;
-  --chart-6:#94a3b8;
-}
 .staff-overview {
-  --dashboard-chart-1:#2563eb;
-  --dashboard-chart-2:#0f766e;
-  --dashboard-chart-3:#b45309;
-  --dashboard-chart-4:#6b7280;
-  --dashboard-chart-5:#b91c1c;
+  --dashboard-chart-1:#a51d40;
+  --dashboard-chart-2:#e65e83;
+  --dashboard-chart-3:#9273c4;
+  --dashboard-chart-4:#c24e78;
+  --dashboard-chart-5:#b58ec6;
   --dashboard-chart-6:#94a3b8;
   --trend-color:var(--dashboard-chart-1);
 }
@@ -29,7 +21,7 @@ html[data-theme] {
 html[data-theme] .analytics-dashboard.staff-overview { --trend-color:var(--dashboard-chart-1); }
 html[data-theme] .staff-overview .cl-dot { fill:var(--dashboard-chart-1) !important; }
 
-.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#dbeafe; --super-heat-2:#93c5fd; --super-heat-3:#3b82f6; }
+.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#fce7ed; --super-heat-2:#f5b3c5; --super-heat-3:#dd6284; }
 .staff-overview .dashboard-trend-section .trend-chart-scroll { width:100%; min-width:0; }
 body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg { width:100% !important; height:220px !important; min-width:0 !important; max-height:none !important; }
 .staff-overview .cl-line { animation:none; stroke-dasharray:none; stroke-dashoffset:0; vector-effect:non-scaling-stroke; }
@@ -44,7 +36,7 @@ body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg {
 .staff-overview .super-heatmap svg text { fill:var(--text-soft); font-size:12px; font-family:inherit; }
 .staff-overview .super-heatmap-key { display:flex; justify-content:center; align-items:center; gap:5px; font-size:.7rem; color:var(--text-soft); margin-top:12px; }
 .staff-overview .super-heatmap-key i { width:12px; height:12px; border-radius:2px; }
-.staff-overview .dashboard-bar-fill { background:var(--dashboard-chart-1) !important; }
+.staff-overview .dashboard-bar-fill { background:linear-gradient(90deg,var(--dashboard-chart-1),var(--dashboard-chart-2)) !important; }
 
 .staff-overview :is(.super-comparison-chart,.super-bubble-chart,.super-opposing-chart) { width:100%; min-width:0; }
 .staff-overview :is(.super-comparison-chart,.super-bubble-chart,.super-opposing-chart) svg { width:100%; height:auto; display:block; }
@@ -85,7 +77,7 @@ body #content .admin-service-dashboard .admin-insight-card .analytics-footer { l
 .admin-satisfaction-heading span, .admin-satisfaction p, .admin-satisfaction-average { font-size:.74rem; color:var(--text-soft); }
 .satisfaction-figures { display:flex; gap:10px; margin:22px 0 14px; }
 .satisfaction-person { position:relative; display:block; color:var(--border); }
-.satisfaction-person-fill { position:absolute; inset:0; color:var(--dashboard-chart-2); }
+.satisfaction-person-fill { position:absolute; inset:0; color:var(--dashboard-chart-1); }
 body #content .admin-service-dashboard .satisfaction-person svg { display:block; width:18px; height:30px; fill:currentColor; }
 .admin-satisfaction p { margin:0 0 18px; line-height:1.6; }
 .admin-satisfaction-average { display:flex; gap:12px; align-items:baseline; }

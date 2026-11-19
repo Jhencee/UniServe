@@ -1956,7 +1956,7 @@ async function renderReports() {
   try { await loadSharedQueue(); } catch (_) { reportRefreshFailed = true; }
   if (state_view !== 'reports') return;
   document.getElementById('content').innerHTML = `
-    <section class="card card-pad reports-controls no-print"><div class="reports-heading"><div><h3>Office reports</h3><p class="field-hint">Review transaction totals and service performance.</p></div><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
+    <section class="card card-pad reports-controls no-print"><div class="reports-heading"><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
       <div class="subnav" aria-label="Report period">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map(p => `<button class="${p===reportPeriod?'active':''}" aria-pressed="${p===reportPeriod}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div><p id="reportRange" class="field-hint"></p></section>
     <div id="reportOverview" class="reports-overview"></div>
     <div id="reportSheet" hidden aria-hidden="true">${reportLetterhead()}
@@ -1971,7 +1971,7 @@ function reportDuration(minutes) {
 }
 function reportAppointmentSummary(db,startDate,endDate) {
   const appointments=(db.appointments||[]).filter(a=>a.date&&a.date>=startDate&&a.date<=endDate);
-  const rows=[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-show','No-show']];
+  const rows=[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-shows','No-show']];
   const unscheduled=(db.appointments||[]).filter(a=>a.status==='Requested'&&!a.date).length;
   return '<section class="card"><div class="card-head"><div><h3>Appointment summary</h3><div class="desc">Scheduled within the selected period</div></div></div><dl class="reports-timing reports-appointments">'+rows.map(([label,status])=>'<div><dt>'+label+'</dt><dd>'+appointments.filter(a=>a.status===status).length+'</dd></div>').join('')+'</dl><p class="reports-note">Unscheduled requests: <strong>'+unscheduled+'</strong> · All dates</p></section>';
 }
@@ -1984,9 +1984,9 @@ function renderReportOverview() {
   for(const key of new Set(records.map(t=>t.service)))if(!db.services.some(s=>s.key===key))services.push({label:serviceLabel(db,key),count:records.filter(t=>t.service===key).length});
   services.sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));
   document.getElementById('reportRange').textContent=fmtDate(start)+' to '+today();
-  document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</section>
+  document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</section><p class="reports-summary-note">Completion rate uses transactions logged in this period. Confidential records are included in totals.</p>
     <div class="reports-columns"><section class="card"><div class="card-head"><div><h3>Service totals</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th class="reports-count">Transactions</th></tr></thead><tbody>${services.map(s=>`<tr><td>${escapeHtml(s.label)}</td><td class="reports-count">${s.count}</td></tr>`).join('')||'<tr><td colspan="2">No services configured.</td></tr>'}</tbody></table></div></section>
-    <div class="reports-side"><section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl><p class="reports-note">Completion rate uses transactions logged in this period. Confidential records contribute to totals; their identities require print authorization.</p></section>${reportAppointmentSummary(db,fmtDate(start),today())}</div></div>`;
+    <div class="reports-side"><section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl></section>${reportAppointmentSummary(db,fmtDate(start),today())}</div></div>`;
 }
 let reportIncludeConf = false;
 function printReport(includeConf) {
@@ -2028,7 +2028,7 @@ function buildReport() {
     ])+'<p class="doc-footnote">Completion rate uses transactions logged in this period. Timing averages use valid recorded durations for each metric.'+(hidden?' '+hidden+' confidential record(s) included in totals; identities excluded.':'')+'</p>'+
     table('Service totals',['Service','Transactions'],servicesRows)+
     table('Transaction status',['Status','Transactions'],statusRows)+
-    table('Appointments scheduled in this period',['Status','Appointments'],[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-show','No-show']].map(([label,status])=>[label,scheduled.filter(a=>a.status===status).length]))+
+    table('Appointments scheduled in this period',['Status','Appointments'],[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-shows','No-show']].map(([label,status])=>[label,scheduled.filter(a=>a.status===status).length]))+
     table('Transaction records',['Reference','Visitor','Service','Status','Logged','Completed','Handled by'],visible.length?visible.map(t=>[t.code,t.name,serviceLabel(db,t.service),t.status,String(fmtDateTime(t.createdAt)).replace(/&middot;/g,' / '),t.completedAt?String(fmtDateTime(t.completedAt)).replace(/&middot;/g,' / '):'?',t.servedBy||'Not recorded']):[['No accessible transaction records in this period.','','','','','','']])+
     reportSignatureBlock()+'</div>';
 }
