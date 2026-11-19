@@ -246,6 +246,20 @@ it('does not expose unrelated transactions in logbook or appointment report snap
  Cache::forget('conf-unlock:head:private-case:print');
 });
 
+it('includes completed visit detail only in its authorized individual report',function(){
+ roleAuditAppointment();
+ $q=QueueData::read(DB::table('queues')->where('id','private')->value('portal_payload'));
+ $q['assignedAdminName']='Handling staff';$q['notes']='PRIVATE SERVICE NOTES';$q['serviceHistory']=[['serviceLabel'=>'Incident report','outcome'=>'Completed']];
+ DB::table('queues')->where('id','private')->update(['portal_payload'=>QueueData::write($q)]);
+ $snapshot=$this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>false],roleDataHeaders('head'))->assertOk()->json();
+ expect(json_encode($snapshot))->not->toContain('PRIVATE SERVICE NOTES');
+ Cache::put('conf-unlock:head:private-case:print',true,300);
+ $snapshot=$this->postJson('/api/report-data',['kind'=>'appointment','id'=>'private-appt','includeConf'=>true],roleDataHeaders('head'))->assertOk()->json();
+ $visit=collect($snapshot['queues'])->firstWhere('id','private');
+ expect($visit['assignedAdminName'])->toBe('Handling staff')->and($visit['notes'])->toBe('PRIVATE SERVICE NOTES')->and($visit['requirementReadiness'])->toHaveKey('items');
+ expect(json_encode($snapshot))->not->toContain('PRIVATE FILE');
+});
+
 it('keeps service report unlocks scoped to the selected service and blocks other roles',function(){
  roleAuditAppointment();
  Cache::put('report-print:head:svc:incident_report',true,300);

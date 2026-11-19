@@ -483,8 +483,6 @@ function printInjected(html) {
   window.addEventListener('afterprint', cleanup);
   const imgs = Array.from(wrap.querySelectorAll('img')).map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
   Promise.all([...imgs, document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()]).then(() => {
-    const fi = wrap.querySelector('.print-footer img');
-    if (fi && fi.naturalWidth) wrap.style.setProperty('--footer-h', Math.min(20, Math.max(14, 187.9 * 0.70 * fi.naturalHeight / fi.naturalWidth)).toFixed(1) + 'mm');
     window.print();
     setTimeout(() => { if (document.body.contains(wrap)) wrap.remove(); }, 8000);
   });
@@ -1369,6 +1367,19 @@ function openApptDetail(id, editSchedule = false, viewOnly = false) {
   if(showSchedule)refreshStaffAppointmentSlots();
 }
 
+function completedVisitPrintDetails(db,q,transaction) {
+  if(!q||q.restricted)return '<p class="doc-footnote">Linked visit details are unavailable. No service times or requirement checks could be verified.</p>';
+  const row=(label,value)=>'<tr><th>'+escapeHtml(label)+'</th><td>'+escapeHtml(String(value??'Not recorded'))+'</td></tr>';
+  const stamp=value=>value?String(fmtDateTime(value)).replace(/&middot;/g,' / '):'Not recorded';
+  const table=(title,body)=>'<table class="doc-form-table"><caption>'+title+'</caption><colgroup><col style="width:32%"><col style="width:68%"></colgroup>'+body+'</table>';
+  const readiness=queueRequirementState(db,q);
+  const duration=(start,end)=>{const seconds=Math.round((new Date(end)-new Date(start))/1000);return start&&end&&Number.isFinite(seconds)&&seconds>=0?Math.floor(seconds/60)+' min '+seconds%60+' sec':'Not recorded';};
+  return table('Visit and service outcome',row('Final visit status',q.status)+row('Handled by',transaction?.servedBy||q.assignedAdminName)+row('Actual check-in',stamp(q.checkedInAt))+row('Called',stamp(q.calledAt))+row('Service started',stamp(q.servingAt))+row('Completed',stamp(q.completedAt||transaction?.completedAt))+row('Notes',transaction?.details||q.notes||q.details||q.closeReason||'None recorded'))+
+    table('Visit duration',row('Waiting time',duration(q.checkedInAt,q.servingAt))+row('Service time',duration(q.servingAt,q.completedAt))+row('Total visit time',duration(q.checkedInAt,q.completedAt)))+
+    table('Requirement readiness',row('Readiness',readiness.ready?'Requirements complete':'Incomplete requirements')+(readiness.items||[]).map(item=>row(item.label,item.checked?(item.source==='upload'?'Accepted upload':'Checked at counter'):'Not checked')).join(''))+
+    (q.serviceHistory?.length?table('Service history',q.serviceHistory.map((step,index)=>row('Service '+(index+1),[step.serviceLabel||step.serviceKey,step.outcome,step.adminName,'Started: '+stamp(step.servingAt),'Ended: '+stamp(step.endedAt)].filter(Boolean).join(' / '))).join('')):'');
+}
+
 async function printAppointmentRecord(id, unlocked=false) {
   try {
     let r=loadDB().appointments.find(record=>record.id===id);
@@ -1378,14 +1389,17 @@ async function printAppointmentRecord(id, unlocked=false) {
       if(linked)return requireConfUnlock(linked,()=>printAppointmentRecord(id,true),'print');
       openModal('Unlock appointment printing','<div class="field"><label for="appointmentPrintPassword">Your password</label><input id="appointmentPrintPassword" type="password" autocomplete="current-password"></div>',[{label:'Unlock and print',cls:'btn-primary',action:async()=>{try{await SharedAppointments.request('/confidential/cases/'+encodeURIComponent('apt:'+id)+'/unlock','POST',{password:document.getElementById('appointmentPrintPassword').value,reason:'Print appointment record',scope:'print'});closeModal();await printAppointmentRecord(id,true);}catch(error){toast(error.message,'err');}}}]);return;
     }
-    if(r.shared){const result=await SharedAppointments.request('/report-data','POST',{kind:'appointment',id,includeConf:isConfidentialTxn({...r,service:r.serviceKey||r.service})});r=result.appointments[0];}
+    let reportDb=loadDB();
+    if(r.shared){const result=await SharedAppointments.request('/report-data','POST',{kind:'appointment',id,includeConf:isConfidentialTxn({...r,service:r.serviceKey||r.service})});r=result.appointments[0];reportDb={...reportDb,appointments:result.appointments,queues:result.queues||[],transactions:result.transactions||[]};}
     if(!r||r.restricted){toast('This appointment is unavailable or requires confidential access.','err');return;}
     const rows=items=>items.map(([label,value])=>'<tr><th>'+escapeHtml(label)+'</th><td>'+escapeHtml(String(value??'?'))+'</td></tr>').join('');
     const columns='<colgroup><col style="width:32%"><col style="width:68%"></colgroup>';
-    printInjected(reportLetterhead()+'<div class="doc-title-block"><h2>Appointment Record</h2></div>'+
+    const linkedVisit=(reportDb.queues||[]).find(q=>q.id===r.queueId||q.appointmentId===r.id);
+    printInjected(reportLetterhead()+'<div class="doc-title-block"><h2>'+(r.status==='Completed'?'Completed Visit Record':'Appointment Record')+'</h2></div>'+
       '<table class="doc-form-table"><caption>I. Visitor details</caption>'+columns+rows([['Name',r.name],['Visitor type',r.type],['ID number',r.idNumber],['Contact',r.contact],['Email',r.email]])+'</table>'+
       '<table class="doc-form-table"><caption>II. Appointment details</caption>'+columns+rows([['Visit ID',r.visitId],['Request reference',r.code||r.requestReference],['Office',r.office||'Office of Student Services'],['Service',r.service],['Date',r.date||'Not scheduled'],['Time',r.time?UniServeUX.timeLabel(r.time):'Not scheduled'],['Status',r.status],['Requested',r.createdAt?String(fmtDateTime(r.createdAt)).replace(/&middot;/g,' ? '):'?']])+'</table>'+
-      '<table class="doc-form-table"><caption>III. Supporting documents</caption>'+columns+rows((r.attachments||[]).length?r.attachments.map((file,index)=>['Document '+(index+1),file.name]):[['Documents','No documents uploaded']])+'</table>'+
+      completedVisitPrintDetails(reportDb,linkedVisit)+
+      '<table class="doc-form-table"><caption>III. Supporting documents</caption>'+columns+rows((r.attachments||[]).length?r.attachments.map((file,index)=>['Document '+(index+1),[file.name,file.review?.status||'Pending review',file.review?.requirement,file.review?.reason,file.review?.reviewedAt?String(fmtDateTime(file.review.reviewedAt)).replace(/&middot;/g,' / '):null].filter(Boolean).join(' / ')]):[['Documents','No documents uploaded']])+'</table>'+
       (r.scheduleHistory?.length?'<table class="doc-form-table"><caption>IV. Schedule history</caption>'+columns+rows(r.scheduleHistory.map((entry,index)=>['Previous schedule '+(index+1),(entry.date||'Not scheduled')+(entry.time?' ? '+UniServeUX.timeLabel(entry.time):'')+' ? '+(entry.status||'')]))+'</table>':'')+
       '<p class="doc-footnote">Printed '+escapeHtml(String(fmtDateTime(new Date())).replace(/&middot;/g,' ? '))+'</p>');
   } catch(error){toast(error.message||'Could not print the appointment record. Please try again.','err');}
@@ -1766,6 +1780,7 @@ function printTransactionSnapshot(id) {
       ${r.totalTimeMin != null ? `<tr><th>Total Visit Time</th><td>${fmtMinutes(r.totalTimeMin)}</td></tr>` : ''}</table>
     <table class="doc-form-table"><caption>III. Uploaded Requirements</caption>${cg}
       ${files.length ? files.map((f, i) => `<tr><th>File ${i + 1}</th><td>${escapeHtml(f.name)} &mdash; ${fmtFileSize(f.size)}</td></tr>`).join('') : `<tr><th>Files</th><td><em>No files were uploaded with this visit.</em></td></tr>`}</table>
+    ${completedVisitPrintDetails(db,linkedQueue,r)}
     ${reportSignatureBlock('Served by', 'Verified by, Head, Office of Student Services')}
     <p class="doc-footnote">This report was generated by the OSS UniServe system.</p>`);
   const db2 = loadDB();

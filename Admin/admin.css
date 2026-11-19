@@ -3226,7 +3226,7 @@ html[data-theme="dark"] .profile-avatar {
   #printArea .print-footer {
     display: flex !important;
     align-items: flex-end;
-    gap: 2%;
+    gap: 6mm;
     position: fixed;
     left: 0;
     right: 0;
@@ -3235,8 +3235,8 @@ html[data-theme="dark"] .profile-avatar {
     border: 0 !important;
   }
   #printArea .print-footer .pf-text {
-    flex: 0 0 28%;
-    width: 28%;
+    flex: 0 0 65mm;
+    width: 65mm;
     min-width: 0;
     color: #000;
     line-height: 1.35;
@@ -3256,9 +3256,9 @@ html[data-theme="dark"] .profile-avatar {
     margin-top: 1.5mm;
   }
   #printArea .print-footer img {
-    flex: 0 1 auto;
-    width: auto;
-    max-width: 70%;
+    flex: 0 0 110mm;
+    width: 110mm;
+    max-width: 110mm;
     min-width: 0;
     margin: 0 0 0 auto;
     height: 100%;

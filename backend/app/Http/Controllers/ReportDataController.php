@@ -53,14 +53,22 @@ class ReportDataController extends Controller
             // Combined reports need scheduling metrics, not appointment identities.
             if($kind==='appointment')$a=AppointmentController::present($row);
             else $a=['id'=>$row->id,'status'=>$row->status,'date'=>$row->date,'time'=>$row->time,'createdAt'=>$row->created_at,'shared'=>true];
-            if(isset($a['attachments']))$a['attachments']=array_map(fn($f)=>array_intersect_key($f,array_flip(['name','size','type'])),$a['attachments']);
+            if(isset($a['attachments']))$a['attachments']=array_map(fn($f)=>array_intersect_key($f,array_flip(['name','size','type','review'])),$a['attachments']);
             $appointments[]=$a;
         }
         if($kind==='appointment')abort_unless(count($appointments),404,'Appointment not found.');
         foreach(DB::table('queues')->get() as $row){
             $q=QueueData::read($row->portal_payload);
             // Queue data is used only for references/timings in generated reports.
-            $queues[]=array_intersect_key($q,array_flip(['id','visitId','number','source','status','serviceKey','serviceLabel','scheduledAt','createdAt','checkedInAt','calledAt','servingAt','completedAt','shared']));
+            $fields=['id','visitId','number','source','status','serviceKey','serviceLabel','scheduledAt','createdAt','checkedInAt','calledAt','servingAt','completedAt','shared'];
+            $authorizedDetail=($kind==='appointment'&&collect($appointments)->contains(fn($a)=>($a['queueId']??null)===$row->id||(!empty($q['appointmentId'])&&$q['appointmentId']===($a['id']??null))))
+                ||($kind==='transaction'&&collect($transactions)->contains(fn($t)=>empty($t['restricted'])&&($t['queueId']??null)===$row->id));
+            if(ServicePrivacy::confidential($q['serviceKey']??'')&&(!$include||!isset($caseByQueue[$row->id])||!$this->canPrint($u,$caseByQueue[$row->id])))$authorizedDetail=false;
+            if($authorizedDetail){
+                $q['requirementReadiness']=QueueData::requirements($q);
+                $fields=array_merge($fields,['appointmentId','assignedAdminName','requirementChecks','requirementReadiness','serviceHistory','notes','details','closeReason']);
+            }
+            $queues[]=array_intersect_key($q,array_flip($fields));
         }
         SystemAudit::record($u,'Data','Authorized report output',$kind,[['field'=>'Confidential details','from'=>'','to'=>$include?'Included':'Redacted']]);
         return response()->json(['transactions'=>$transactions,'visitorLog'=>$logs,'appointments'=>$appointments,'queues'=>$queues,'confidentialIncluded'=>$include]);

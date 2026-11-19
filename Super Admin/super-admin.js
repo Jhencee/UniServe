@@ -315,8 +315,6 @@ function printInjected(html) {
   window.addEventListener('afterprint', cleanup);
   const imgs = Array.from(wrap.querySelectorAll('img')).map(img => img.complete ? Promise.resolve() : new Promise(r => { img.onload = r; img.onerror = r; }));
   Promise.all([...imgs, document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()]).then(() => {
-    const fi = wrap.querySelector('.print-footer img');
-    if (fi && fi.naturalWidth) wrap.style.setProperty('--footer-h', Math.min(20, Math.max(14, 187.9 * 0.70 * fi.naturalHeight / fi.naturalWidth)).toFixed(1) + 'mm');
     window.print();
     setTimeout(() => { if (document.body.contains(wrap)) wrap.remove(); }, 8000);
   });
