@@ -1,17 +1,17 @@
 /* UniServe chart colors, scoped to the Admin overview. */
 .staff-overview {
-  --dashboard-chart-1:#a51d40;
-  --dashboard-chart-2:#e65e83;
-  --dashboard-chart-3:#9273c4;
-  --dashboard-chart-4:#c24e78;
-  --dashboard-chart-5:#b58ec6;
+  --dashboard-chart-1:#800000;
+  --dashboard-chart-2:#0f766e;
+  --dashboard-chart-3:#2563eb;
+  --dashboard-chart-4:#b45309;
+  --dashboard-chart-5:#047857;
   --dashboard-chart-6:#94a3b8;
   --trend-color:var(--dashboard-chart-1);
 }
 .staff-overview .cl-line { stroke:var(--dashboard-chart-1) !important; stroke-width:2; stroke-linecap:round; }
 .staff-overview .cl-dot { stroke:var(--surface) !important; fill:var(--dashboard-chart-1); }
 .staff-overview .dashboard-columns rect { rx:5; }
-.staff-overview .dashboard-bar-track { background:var(--surface-2); border-radius:4px; }
+.staff-overview .dashboard-bar-track { background:#fffdf8; border-radius:4px; }
 .staff-overview .dashboard-bar-fill { border-radius:4px; }
 .staff-overview .dashboard-donut svg > :is(path,circle) { stroke-width:13; }
 .staff-overview .stat-card .metric-icon { color:var(--dashboard-chart-1); }
@@ -21,7 +21,7 @@
 html[data-theme] .analytics-dashboard.staff-overview { --trend-color:var(--dashboard-chart-1); }
 html[data-theme] .staff-overview .cl-dot { fill:var(--dashboard-chart-1) !important; }
 
-.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#fce7ed; --super-heat-2:#f5b3c5; --super-heat-3:#dd6284; }
+.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#fffdf8; --super-heat-2:#99d5cb; --super-heat-3:#0f766e; }
 .staff-overview .dashboard-trend-section .trend-chart-scroll { width:100%; min-width:0; }
 body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg { width:100% !important; height:220px !important; min-width:0 !important; max-height:none !important; }
 .staff-overview .cl-line { animation:none; stroke-dasharray:none; stroke-dashoffset:0; vector-effect:non-scaling-stroke; }
@@ -36,7 +36,7 @@ body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg {
 .staff-overview .super-heatmap svg text { fill:var(--text-soft); font-size:12px; font-family:inherit; }
 .staff-overview .super-heatmap-key { display:flex; justify-content:center; align-items:center; gap:5px; font-size:.7rem; color:var(--text-soft); margin-top:12px; }
 .staff-overview .super-heatmap-key i { width:12px; height:12px; border-radius:2px; }
-.staff-overview .dashboard-bar-fill { background:linear-gradient(90deg,var(--dashboard-chart-1),var(--dashboard-chart-2)) !important; }
+.staff-overview .dashboard-bar-fill { background:var(--dashboard-chart-2) !important; }
 
 .staff-overview :is(.super-comparison-chart,.super-bubble-chart,.super-opposing-chart) { width:100%; min-width:0; }
 .staff-overview :is(.super-comparison-chart,.super-bubble-chart,.super-opposing-chart) svg { width:100%; height:auto; display:block; }

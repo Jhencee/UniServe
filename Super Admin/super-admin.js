@@ -519,7 +519,7 @@ function renderDashboard() {
   const chartRows=items=>items.map(([label,count])=>({label,count}));
   const roleNames=['Super Admin','Head Admin','Admin'];
   const roleOf=user=>user.role==='SUPER_ADMIN'?'Super Admin':user.confidentialApprover?'Head Admin':'Admin';
-  const roleSeries=[{label:'Active',color:'var(--super-chart-1)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&u.active).length)},{label:'Disabled',color:'var(--super-chart-neutral)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&!u.active).length)}];
+  const roleSeries=[{label:'Active',color:'var(--super-chart-5)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&u.active).length)},{label:'Disabled',color:'var(--super-chart-neutral)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&!u.active).length)}];
   const card=(title,desc,body,footer='')=>'<div class="card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+desc+'</div></div></div><div class="card-pad">'+body+'</div>'+(footer?'<div class="analytics-footer">'+footer+'</div>':'')+'</div>';
   const categorySummary=auditCategories.slice(0,5);
   if(auditCategories.length>5)categorySummary.push({label:'Other activity',count:auditCategories.slice(5).reduce((sum,row)=>sum+row.count,0)});

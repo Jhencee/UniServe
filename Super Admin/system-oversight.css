@@ -518,22 +518,12 @@ body #content .system-overview .super-dashboard-grid [data-chart=overview] .tren
 .super-dashboard-grid .super-dashboard-section-head > button { display:none; }
 
 /* Reference-inspired chart treatment, scoped to the Super Admin overview. */
-.system-overview { --trend-color:#8b5cf6; }
-.system-overview .cl-line { stroke:#8b5cf6; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-.system-overview .cl-dot { fill:#8b5cf6; stroke:var(--surface); opacity:0; }
+.system-overview .cl-line { stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.system-overview .cl-dot { stroke:var(--surface); opacity:0; }
 .system-overview .cl-point-group:hover .cl-dot { opacity:1; r:4; }
-.system-overview [data-chart=security] { --trend-color:#e76883; }
-.system-overview [data-chart=security] .cl-line { stroke:#e76883; }
-.system-overview [data-chart=security] .cl-dot { fill:#e76883; }
 .system-overview .super-grouped-chart rect { rx:4; }
-.system-overview .super-grouped-chart rect[fill='#2563eb'] { fill:#7c5ce7; }
-.system-overview .super-chart-key i[style*='#2563eb'] { background:#7c5ce7 !important; }
 .system-overview .super-grouped-chart line { opacity:.45; }
 .system-overview .dashboard-columns rect { rx:5; }
-.system-overview .dashboard-columns g:nth-of-type(odd) rect { fill:#7065ed; }
-.system-overview .dashboard-columns g:nth-of-type(even) rect { fill:#b16bea; }
-.system-overview .dashboard-bar-fill { background:linear-gradient(90deg,#6961e8,#b16bea) !important; }
-.system-overview .dashboard-bar-track { background:var(--surface-2); }
 .system-overview .dashboard-donut svg > path { stroke-width:13; }
 .system-overview .dashboard-donut svg > circle { stroke-width:13; }
 body #content .system-overview .dashboard-rings { display:flex; flex-direction:column; align-items:center; gap:8px; }
@@ -541,42 +531,28 @@ body #content .system-overview .dashboard-rings { display:flex; flex-direction:c
 .system-overview .dashboard-rings .chart-legend { width:100%; }
 .system-overview .super-pie-chart svg path { stroke-width:3; }
 
-/* Vibrant cool palette shared across Super Admin charts. */
-.system-overview { --trend-color:#2563eb; }
-.system-overview .cl-line { stroke:#2563eb; }
-.system-overview .cl-dot { fill:#2563eb; }
-.system-overview [data-chart=security] { --trend-color:#8b5cf6; }
-.system-overview [data-chart=security] .cl-line { stroke:#8b5cf6; }
-.system-overview [data-chart=security] .cl-dot { fill:#8b5cf6; }
-.system-overview .super-grouped-chart rect[fill='#2563eb'] { fill:#2563eb; }
-.system-overview .super-chart-key i[style*='#2563eb'] { background:#2563eb !important; }
-.system-overview .dashboard-columns g:nth-of-type(odd) rect { fill:#06b6d4; }
-.system-overview .dashboard-columns g:nth-of-type(even) rect { fill:#8b5cf6; }
-.system-overview .dashboard-bar-fill { background:linear-gradient(90deg,#2563eb,#06b6d4) !important; }
-.system-overview .metric-icon { color:#2563eb; }
-.system-overview .stat-card:nth-child(2) .metric-icon { color:#06b6d4; }
-.system-overview .stat-card:nth-child(3) .metric-icon { color:#8b5cf6; }
-.system-overview .stat-card:nth-child(4) .metric-icon { color:#14b8a6; }
-
-/* UniServe chart palette: maroon identity with related rose and mauve accents. */
+/* Dashboard chart palette: maroon, teal, blue, amber and emerald. */
 .system-overview {
-  --super-chart-1:#a51d40;
-  --super-chart-2:#e65e83;
-  --super-chart-3:#9273c4;
+  --super-chart-1:#800000;
+  --super-chart-2:#0f766e;
+  --super-chart-3:#2563eb;
+  --super-chart-4:#b45309;
+  --super-chart-5:#047857;
   --super-chart-neutral:#94a3b8;
-  --super-heat-1:#fce7ed;
-  --super-heat-2:#f5b3c5;
-  --super-heat-3:#dd6284;
+  --super-heat-1:#fffdf8;
+  --super-heat-2:#99d5cb;
+  --super-heat-3:#0f766e;
   --trend-color:var(--super-chart-1);
 }
 .system-overview .cl-line { stroke:var(--super-chart-1); }
 .system-overview .cl-dot { fill:var(--super-chart-1); }
-.system-overview [data-chart=security] { --trend-color:var(--super-chart-2); }
-.system-overview [data-chart=security] .cl-line { stroke:var(--super-chart-2); }
-.system-overview [data-chart=security] .cl-dot { fill:var(--super-chart-2); }
+.system-overview [data-chart=security] { --trend-color:var(--super-chart-4); }
+.system-overview [data-chart=security] .cl-line { stroke:var(--super-chart-4); }
+.system-overview [data-chart=security] .cl-dot { fill:var(--super-chart-4); }
 .system-overview .dashboard-columns g:nth-of-type(odd) rect { fill:var(--super-chart-1); }
 .system-overview .dashboard-columns g:nth-of-type(even) rect { fill:var(--super-chart-2); }
-.system-overview .dashboard-bar-fill { background:linear-gradient(90deg,var(--super-chart-1),var(--super-chart-2)) !important; }
+.system-overview .dashboard-bar-track { background:#fffdf8; }
+.system-overview .dashboard-bar-fill { background:var(--super-chart-2) !important; }
 .system-overview .metric-icon { color:var(--super-chart-1); }
 .system-overview .stat-card:nth-child(2) .metric-icon { color:var(--super-chart-2); }
 .system-overview .stat-card:nth-child(3) .metric-icon { color:var(--super-chart-3); }
@@ -595,7 +571,7 @@ body #content .system-overview .super-dashboard-grid [data-chart=overview] .tren
 
 /* Override the shared dashboard's blue dark-mode trend token. */
 html[data-theme] .analytics-dashboard.system-overview { --trend-color:var(--super-chart-1); }
-html[data-theme] .system-overview [data-chart=security] { --trend-color:var(--super-chart-2); }
+html[data-theme] .system-overview [data-chart=security] { --trend-color:var(--super-chart-4); }
 html[data-theme] .system-overview .cl-line { stroke:var(--trend-color) !important; }
 html[data-theme] .system-overview .cl-dot { fill:var(--trend-color) !important; stroke:var(--trend-color) !important; }
 
