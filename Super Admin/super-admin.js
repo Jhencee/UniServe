@@ -655,7 +655,10 @@ function renderReports(){
 }
 function renderSystemReportOverview(){
  const model=systemReportModel(loadDB());
- document.getElementById('systemReportOverview').innerHTML='<p class="system-report-period">'+escapeHtml(model.period)+'</p><div class="system-report-grid">'+model.sections.map(section=>'<section class="card'+(section.headers.length>3?' system-report-wide':'')+'"><div class="card-head"><div><h3>'+escapeHtml(section.title)+'</h3>'+(section.note?'<p class="desc">'+escapeHtml(section.note)+'</p>':'')+'</div></div><div class="table-wrap"><table><thead><tr>'+section.headers.map(h=>'<th>'+escapeHtml(h)+'</th>').join('')+'</tr></thead><tbody>'+(section.rows.length?section.rows.map(row=>'<tr>'+row.map(value=>'<td>'+escapeHtml(value)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+section.headers.length+'">No recorded activity for these dates.</td></tr>')+'</tbody></table></div></section>').join('')+'</div>';
+ const card=section=>'<section class="card'+(section.headers.length>3?' system-report-wide':'')+'"><div class="card-head"><div><h3>'+escapeHtml(section.title)+'</h3>'+(section.note?'<p class="desc">'+escapeHtml(section.note)+'</p>':'')+'</div></div><div class="table-wrap"><table><thead><tr>'+section.headers.map(h=>'<th>'+escapeHtml(h)+'</th>').join('')+'</tr></thead><tbody>'+(section.rows.length?section.rows.map(row=>'<tr>'+row.map(value=>'<td>'+escapeHtml(value)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+section.headers.length+'">No recorded activity for these dates.</td></tr>')+'</tbody></table></div></section>';
+ const summary=systemReportType==='overview'?model.sections[0]:null;
+ const metrics=summary?'<section class="card system-report-metrics" aria-label="Period summary">'+summary.rows.map(([label,value])=>'<div><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>').join('')+'</section>':'';
+ document.getElementById('systemReportOverview').innerHTML='<p class="system-report-period">'+escapeHtml(model.period)+'</p>'+metrics+'<div class="system-report-grid">'+model.sections.filter(section=>section!==summary).map(card).join('')+'</div>';
 }
 function buildReport(){
  const model=systemReportModel(loadDB());
