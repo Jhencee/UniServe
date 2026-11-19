@@ -3235,8 +3235,8 @@ html[data-theme="dark"] .profile-avatar {
     border: 0 !important;
   }
   #printArea .print-footer .pf-text {
-    flex: 0 0 65mm;
-    width: 65mm;
+    flex: 0 0 95mm;
+    width: 95mm;
     min-width: 0;
     color: #000;
     line-height: 1.35;
@@ -3256,9 +3256,9 @@ html[data-theme="dark"] .profile-avatar {
     margin-top: 1.5mm;
   }
   #printArea .print-footer img {
-    flex: 0 0 110mm;
-    width: 110mm;
-    max-width: 110mm;
+    flex: 0 0 85mm;
+    width: 85mm;
+    max-width: 85mm;
     min-width: 0;
     margin: 0 0 0 auto;
     height: 100%;
