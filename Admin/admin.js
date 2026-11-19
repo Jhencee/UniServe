@@ -871,7 +871,7 @@ function renderDashboard() {
     task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
     task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
     '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
-    adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records &middot; Philippine time</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
+    adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
   window.adminDashboardTrendObserver?.disconnect();
   const plot=document.querySelector?.('.admin-activity-card .card-pad');
   if(plot&&txns.length){
@@ -1828,9 +1828,9 @@ function printTxnReport(serviceKey, which, includeConf) {
       <div class="rpt-stat"><div class="rpt-stat-lbl">Completion Rate</div><div class="rpt-stat-val">${rate}%</div></div></div>
       <div class="stat-grid rpt-stat-grid">
       <div class="rpt-stat"><div class="rpt-stat-lbl">Walk-in / Scheduled</div><div class="rpt-stat-val" style="font-size:1.15rem;">${walkIns} / ${sched}</div></div>
-      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Waiting Time</div><div class="rpt-stat-val" style="font-size:1.15rem;">${fmtCompactMinutes(avgOf('waitingTimeMin'))}</div></div>
-      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Service Time</div><div class="rpt-stat-val" style="font-size:1.15rem;">${fmtCompactMinutes(avgOf('serviceTimeMin'))}</div></div>
-      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Total Visit</div><div class="rpt-stat-val" style="font-size:1.15rem;">${fmtCompactMinutes(avgOf('totalTimeMin'))}</div></div></div></div>
+      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Waiting Time</div><div class="rpt-stat-val" style="font-size:1.15rem;">${reportDuration(avgOf('waitingTimeMin'))}</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Service Time</div><div class="rpt-stat-val" style="font-size:1.15rem;">${reportDuration(avgOf('serviceTimeMin'))}</div></div>
+      <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Total Visit</div><div class="rpt-stat-val" style="font-size:1.15rem;">${reportDuration(avgOf('totalTimeMin'))}</div></div></div></div>
     <div class="rpt-section rpt-grid-2"><div class="rpt-table-wrap"><h3 class="rpt-h">Status Breakdown</h3><table class="rpt-table"><colgroup><col style="width:50%"><col style="width:25%"><col style="width:25%"></colgroup><thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
         <tbody>${ORDER.map(s => `<tr><td>${s}</td><td>${sc[s]}</td><td>${pct(sc[s])}%</td></tr>`).join('')}<tr class="rpt-total-row"><td>Total</td><td>${total}</td><td>${total ? '100%' : '0%'}</td></tr></tbody></table></div>
       ${!svc ? `<div class="rpt-table-wrap"><h3 class="rpt-h">By Service</h3><table class="rpt-table"><colgroup><col style="width:64%"><col style="width:18%"><col style="width:18%"></colgroup><thead><tr><th>Service</th><th>Count</th><th>%</th></tr></thead>
@@ -1956,15 +1956,31 @@ async function renderReports() {
   try { await loadSharedQueue(); } catch (_) { reportRefreshFailed = true; }
   if (state_view !== 'reports') return;
   document.getElementById('content').innerHTML = `
-    <div class="card card-pad no-print">
-      <div class="subnav">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map((p, i) => `<button class="${i ? '' : 'active'}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap;"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
-    <div class="card card-pad" id="reportSheet" style="margin-top:16px;">${reportLetterhead()}
+    <section class="card card-pad reports-controls no-print"><div class="reports-heading"><div><h3>Office reports</h3><p class="field-hint">Review transaction totals and service performance.</p></div><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
+      <div class="subnav" aria-label="Report period">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map(p => `<button class="${p===reportPeriod?'active':''}" aria-pressed="${p===reportPeriod}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div><p id="reportRange" class="field-hint"></p></section>
+    <div id="reportOverview" class="reports-overview"></div>
+    <div id="reportSheet" hidden aria-hidden="true">${reportLetterhead()}
       <div class="report-title-block"><h2 id="repTitle">Daily Transaction Report</h2><div class="report-meta"><span id="repPeriodLbl"></span><span id="repGenLbl"></span></div></div>
       <div id="repBody"></div></div>`;
-  reportPeriod = 'Daily';
-  buildReport();
-  document.getElementById('content').insertAdjacentHTML('beforeend', (reportRefreshFailed ? '<div class="err-box">Shared queue could not be refreshed. Showing available records. <button class="btn btn-ghost btn-sm" onclick="renderReports()">Retry</button></div>' : '') + UniServeUX.reportHtml(loadDB()));
+  renderReportOverview();
+  if(reportRefreshFailed)document.getElementById('reportOverview').insertAdjacentHTML('afterbegin','<div class="err-box">Shared queue could not be refreshed. Showing available records. <button class="btn btn-ghost btn-sm" onclick="renderReports()">Retry</button></div>');
+}
+function reportDuration(minutes) {
+  if(typeof minutes!=='number'||!Number.isFinite(minutes)||minutes<0)return 'No timed records';
+  const seconds=Math.round(minutes*60);return Math.floor(seconds/60)+' min '+String(seconds%60).padStart(2,'0')+' sec';
+}
+function renderReportOverview() {
+  const db=loadDB(),start=periodStart(reportPeriod),end=new Date();
+  const records=db.transactions.filter(t=>new Date(t.createdAt)>=start&&new Date(t.createdAt)<=end);
+  const completed=records.filter(t=>t.status==='Completed').length;
+  const pending=records.filter(t=>['Pending','Processing'].includes(t.status)).length;
+  const services=db.services.map(s=>({label:s.label,count:records.filter(t=>t.service===s.key).length}));
+  for(const key of new Set(records.map(t=>t.service)))if(!db.services.some(s=>s.key===key))services.push({label:serviceLabel(db,key),count:records.filter(t=>t.service===key).length});
+  services.sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));
+  document.getElementById('reportRange').textContent=fmtDate(start)+' to '+today();
+  document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</section>
+    <div class="reports-columns"><section class="card"><div class="card-head"><div><h3>Service totals</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th class="reports-count">Transactions</th></tr></thead><tbody>${services.map(s=>`<tr><td>${escapeHtml(s.label)}</td><td class="reports-count">${s.count}</td></tr>`).join('')||'<tr><td colspan="2">No services configured.</td></tr>'}</tbody></table></div></section>
+    <section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl><p class="reports-note">Completion rate uses transactions logged in this period. Confidential records contribute to totals; their identities require print authorization.</p></section></div>`;
 }
 let reportIncludeConf = false;
 function printReport(includeConf) {
@@ -1980,8 +1996,8 @@ function printReport(includeConf) {
   reportIncludeConf = false; buildReport();
   const db = loadDB(); logActivity(db, currentUser, `Printed ${reportPeriod} report${includeConf ? ' (confidential records listed by name)' : ''}`); saveDB(db);
 }
-function setReportPeriod(p, el) { reportPeriod = p; document.querySelectorAll('.subnav button').forEach(b => b.classList.remove('active')); el.classList.add('active'); buildReport(); }
-function periodStart(p) { const d = new Date(); if (p === 'Daily') d.setHours(0, 0, 0, 0); else d.setDate(d.getDate() - ({ Weekly: 7, Monthly: 30 }[p] || 90)); return d; }
+function setReportPeriod(p, el) { reportPeriod = p; document.querySelectorAll('.reports-controls .subnav button').forEach(b => {b.classList.remove('active');b.setAttribute('aria-pressed','false');}); el.classList.add('active');el.setAttribute('aria-pressed','true');renderReportOverview(); }
+function periodStart(p) { const d=new Date(today()+'T00:00:00+08:00'),calendar=new Date(today()+'T00:00:00Z');if(p==='Weekly')calendar.setUTCDate(calendar.getUTCDate()-((calendar.getUTCDay()+6)%7));else if(p==='Monthly')calendar.setUTCDate(1);else if(p==='Quarterly'){calendar.setUTCDate(1);calendar.setUTCMonth(Math.floor(calendar.getUTCMonth()/3)*3);}return p==='Daily'?d:new Date(calendar.toISOString().slice(0,10)+'T00:00:00+08:00'); }
 function buildReport() {
   const db = loadDB(), start = periodStart(reportPeriod);
   document.getElementById('repTitle').textContent = `${reportPeriod} Transaction Report`;
@@ -2006,18 +2022,18 @@ function buildReport() {
   }).filter(g => g.total);
   document.getElementById('repBody').innerHTML = `
     ${txns.some(isConfidentialTxn)?`<p class="doc-footnote">${reportIncludeConf?'Confidential details included for authorized printing.':'Confidential details excluded. These transactions are included in summary totals.'}</p>`:''}
-    <div class="rpt-section"><h3 class="rpt-h">Executive Summary</h3>
+    <div class="rpt-section"><h3 class="rpt-h">Summary</h3>
       <div class="stat-grid rpt-stat-grid">
         <div class="rpt-stat"><div class="rpt-stat-lbl">Total Transactions</div><div class="rpt-stat-val">${total}</div></div>
         <div class="rpt-stat"><div class="rpt-stat-lbl">Completed</div><div class="rpt-stat-val">${completed}</div></div>
         <div class="rpt-stat"><div class="rpt-stat-lbl">Pending</div><div class="rpt-stat-val">${pending}</div></div>
         <div class="rpt-stat"><div class="rpt-stat-lbl">Completion Rate</div><div class="rpt-stat-val">${rate}%</div></div></div>
       ${withTimes.length ? `<div class="stat-grid rpt-stat-grid">
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Waiting Time</div><div class="rpt-stat-val">${fmtCompactMinutes(avgOf('waitingTimeMin'))}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Service Time</div><div class="rpt-stat-val">${fmtCompactMinutes(avgOf('serviceTimeMin'))}</div></div>
-        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Total Visit</div><div class="rpt-stat-val">${fmtCompactMinutes(avgOf('totalTimeMin'))}</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Waiting Time</div><div class="rpt-stat-val">${reportDuration(avgOf('waitingTimeMin'))}</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Service Time</div><div class="rpt-stat-val">${reportDuration(avgOf('serviceTimeMin'))}</div></div>
+        <div class="rpt-stat"><div class="rpt-stat-lbl">Avg. Total Visit</div><div class="rpt-stat-val">${reportDuration(avgOf('totalTimeMin'))}</div></div>
         <div class="rpt-stat"><div class="rpt-stat-lbl">No-Shows</div><div class="rpt-stat-val">${noShows}</div></div></div>` : ''}
-      <p class="rpt-narrative">During the period ${fmtDate(start)} to ${today()}, the office logged <strong>${total}</strong> transaction${total === 1 ? '' : 's'} across ${svcRows.filter(row=>row.count>0).length} service categories, averaging <strong>${per}</strong> per ${trend.unit}. <strong>${completed}</strong> request${completed === 1 ? '' : 's'} ${completed === 1 ? 'was' : 'were'} completed (${rate}% completion rate), while <strong>${pending}</strong> remain${pending === 1 ? 's' : ''} pending${rejected ? ` and ${rejected} ${rejected === 1 ? 'was' : 'were'} rejected` : ''}.${busiest && busiest.count > 0 ? ` The most requested service was <strong>${busiest.label}</strong> with ${busiest.count} transaction${busiest.count === 1 ? '' : 's'}.` : ''} A total of <strong>${appts.length}</strong> appointment${appts.length === 1 ? '' : 's'} ${appts.length === 1 ? 'was' : 'were'} booked in the same period${noShows ? `, of which ${noShows} resulted in a no-show` : ''}.</p></div>
+      <p class="rpt-narrative">During the period ${fmtDate(start)} to ${today()}, the office logged <strong>${total}</strong> transaction${total === 1 ? '' : 's'} across ${svcRows.filter(row=>row.count>0).length} service categories, averaging <strong>${per}</strong> per ${trend.unit}. <strong>${completed}</strong> request${completed === 1 ? '' : 's'} ${completed === 1 ? 'was' : 'were'} completed (${rate}% completion rate), while <strong>${pending}</strong> remain${pending === 1 ? 's' : ''} pending${rejected ? ` and ${rejected} ${rejected === 1 ? 'was' : 'were'} rejected` : ''}.${busiest && busiest.count > 0 ? ` The most requested service was <strong>${busiest.label}</strong> with ${busiest.count} transaction${busiest.count === 1 ? '' : 's'}.` : ''} A total of <strong>${appts.length}</strong> appointment${appts.length === 1 ? '' : 's'} ${appts.length === 1 ? 'was' : 'were'} requested in the same period${noShows ? `, of which ${noShows} resulted in a no-show` : ''}.</p></div>
     <div class="rpt-section"><h3 class="rpt-h">Transaction Trend</h3><div class="rpt-desc">Transactions logged per ${trend.unit} over the reporting period</div>${svgLineChart(trend)}</div>
     <div class="rpt-section rpt-grid-2"><div><h3 class="rpt-h">Status Breakdown</h3>${svgBarChart(ORDER.map(s => ({ label: s, count: sc[s] })))}</div>
       <div class="rpt-table-wrap"><table class="rpt-table"><colgroup><col style="width:50%"><col style="width:25%"><col style="width:25%"></colgroup><thead><tr><th>Status</th><th>Count</th><th>%</th></tr></thead>
