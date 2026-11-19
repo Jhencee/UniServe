@@ -134,7 +134,7 @@
   function documentReviewSummary(a) {
     const files=a.attachments||[],accepted=files.filter(f=>f.review?.status==='Accepted').length,corrections=files.filter(f=>f.review?.status==='Needs correction').length,pending=files.length-accepted-corrections;
     const next=corrections?'Review correction instructions and follow up with the visitor.':pending?'Review the remaining uploaded documents.':'Uploaded documents are accepted. Check the service requirements before proceeding.';
-    return '<div class="document-review-summary"><p>'+accepted+' accepted &middot; '+pending+' pending review &middot; '+corrections+' need correction</p><p class="field-hint">'+next+'</p></div>';
+    return '<div class="document-review-summary"><p><strong>'+accepted+' of '+files.length+' files accepted</strong> &middot; '+pending+' pending &middot; '+corrections+' need correction</p><p class="field-hint">'+next+'</p></div>';
   }
   window.documentReviewHtml=function(a,editable=false){
     if(!a?.attachments?.length)return '';
@@ -148,8 +148,8 @@
         (!canEdit&&review.reason?'<p class="field-hint">'+escapeHtml(review.reason)+'</p>':'')+
         (review.reviewedAt?'<p class="field-hint">Reviewed '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))+'</p>':'')+
         (!editable&&typeof visitorView!=='undefined'&&status==='Needs correction'&&['Requested','Booked'].includes(a.status)?'<div class="field"><label for="replacement'+i+'">Corrected document</label><input id="replacement'+i+'" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-index="'+i+'" onclick="replaceVisitDocument(this)">Submit replacement</button></div>':'')+
-        (canEdit?'<div class="document-review-form">'+documentRequirementSelect(a,i,review)+'<div class="field"><label for="documentStatus'+i+'">Review result</label><select id="documentStatus'+i+'">'+['Pending review','Accepted','Needs correction'].map(s=>'<option'+(s===status?' selected':'')+'>'+s+'</option>').join('')+'</select></div>'+correctionSelectHtml(i,review.reason||'')+'<div class="document-review-actions">'+(i===a.attachments.length-1?historyButton:'')+'<button type="button" class="btn btn-ghost btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)"><span>Save review</span></button></div></div>':'')+'</div>';
-    }).join('')+(!canEdit?historyButton:'')+'</section>';
+        (canEdit?'<div class="document-review-form">'+documentRequirementSelect(a,i,review)+'<input id="documentStatus'+i+'" type="hidden" value="'+escapeHtml(status)+'"><div class="document-decision-actions"><button type="button" class="document-decision-accept" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="setDocumentDecision(this,\'Accepted\')">Accept</button><button type="button" class="document-decision-correct" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" aria-expanded="'+(status==='Needs correction')+'" aria-controls="documentCorrection'+i+'" onclick="setDocumentDecision(this,\'Needs correction\')">Needs correction</button></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'<button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)">Save correction</button></div></div>':'')+'</div>';
+    }).join('')+historyButton+'</section>';
   };
   window.replaceVisitDocument=async function(button){
     const id=button.dataset.visitId,index=button.dataset.index,a=loadDB().appointments.find(a=>a.id===id),input=document.getElementById('replacement'+index),file=input.files?.[0];
@@ -158,11 +158,20 @@
     button.disabled=true;
     try{const [attachment]=await readFilesAsAttachments([file]);const result=await visitorRequest('/appointments/'+encodeURIComponent(id)+'/documents/'+index,'PUT',{name:attachment.name,dataUrl:attachment.dataUrl,revision:a.revision});if(result){cache(result);showPassModalReadonly(result.appointment,true);toast('Replacement submitted for staff review.','ok');}}catch(e){toast(escapeHtml(e.message),'err');}finally{button.disabled=false;}
   };
+  window.setDocumentDecision=function(button,status){
+    const index=button.dataset.reviewIndex;
+    document.getElementById('documentStatus'+index).value=status;
+    document.getElementById('documentCorrection'+index).hidden=status!=='Needs correction';
+    const correction=button.closest('.document-review-form').querySelector('.document-decision-correct');
+    correction?.setAttribute('aria-expanded',String(status==='Needs correction'));
+    if(status==='Accepted')return saveDocumentReview(button);
+    document.getElementById('documentReason'+index).focus();
+  };
   window.saveDocumentReview=async function(button){
     const id=button.dataset.reviewId,index=Number(button.dataset.reviewIndex),a=loadDB().appointments.find(a=>a.id===id);
     if(!a)return;
     const status=document.getElementById('documentStatus'+index).value,choice=document.getElementById('documentReason'+index).value;
-    const reason=choice==='Other'?document.getElementById('documentReason'+index+'Other').value.trim():choice;
+    const reason=status==='Needs correction'?(choice==='Other'?document.getElementById('documentReason'+index+'Other').value.trim():choice):'';
     if(status==='Needs correction'&&!reason){toast('Explain what the visitor needs to correct.','err');document.getElementById('documentReason'+index).focus();return;}
     const requirementField=document.getElementById('documentRequirement'+index),requirement=requirementField?.value||'';
     if(status==='Accepted'&&requirementField&&!requirement){toast('Select the requirement this document covers.','err');requirementField.focus();return;}
