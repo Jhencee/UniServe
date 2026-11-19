@@ -22,7 +22,7 @@
       const records = loadDB().transactions.filter(isConfidentialTxn);
       if(currentUser.confidentialAccess)for (const record of records) await register(record);
       accessData = await api();
-      document.getElementById('content').innerHTML = `<div class="card"><div class="card-head"><div><h3>Confidential Access</h3><div class="desc">Case assignments and temporary access approvals</div></div><button class="btn btn-ghost btn-sm back-to-transactions" onclick="renderTransactions()">Back to transactions</button></div>
+      document.getElementById('content').innerHTML = `<div class="card"><div class="card-head"><div><h3>Confidential Access</h3><div class="desc">Case assignments and temporary access approvals</div></div><button class="home-back-arrow btn btn-ghost btn-sm back-to-transactions" onclick="renderTransactions()" aria-label="Back to transactions" title="Back to transactions"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></button></div>
         <div class="confidential-access-tabs">${accessData.approver ? '<button class="active" onclick="paintConfidentialRequests()">Access Requests</button>' : '<h4 class="my-requests-heading">My Requests</h4>'}${accessData.approver ? '<button onclick="paintConfidentialAssignments()">Case Assignments</button>' : ''}</div><div id="confidentialAccessBody"></div></div>`;
       paintConfidentialRequests();
     } catch (error) { toast(escapeHtml(error.message), 'err'); }
