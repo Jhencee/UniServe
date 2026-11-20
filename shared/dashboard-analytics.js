@@ -10,9 +10,35 @@ function dashboardMetricIcon(label) {
     'Failed or denied events':['amber','<path d="m12 3 10 18H2Z" fill="currentColor" opacity=".18"/><path d="m12 3 10 18H2Zm0 6v5m0 3h.01"/>'],
     'Configuration updates':['teal','<rect x="3" y="4" width="18" height="16" rx="3" fill="currentColor" opacity=".18"/><path d="M4 8h16M4 16h16M9 5v6m6 2v6"/>']
   };
-  const design=designs[label];
+  const aliases={
+    'Currently Waiting':'Waiting', 'Currently Serving':'Serving', 'Completed Today':'Completed today',
+    'Average Wait':'Waiting', 'Average waiting':'Waiting', 'Average service':'Serving',
+    'Logged':'Active staff accounts', 'Currently Inside':'Serving', 'Checked Out':'Completed today',
+    'Average Visit Duration':'Waiting', 'Documents to review':'Configuration updates',
+    'Waiting 30+ minutes':'Waiting', 'Unfinished visits':'Waiting', 'Overdue follow-ups':'Failed or denied events',
+    'Missed appointments':'Failed or denied events', 'Responses':'Called', 'Average Rating':'Completed today',
+    'Satisfied (4–5 stars)':'Completed today', 'Response Rate':'Completed today', 'Comments received':'Called'
+  };
+  const design=designs[label] || designs[aliases[label]];
   return design?'<span class="dashboard-metric-symbol tone-'+design[0]+'" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+design[1]+'</svg></span>':'';
 }
+// Summary cards are rendered by several independent views, often after an API refresh.
+function addSummaryCardIcons(root) {
+  if (!(root instanceof Element)) return;
+  const labels = root.matches('.stat-card > .lbl') ? [root] : root.querySelectorAll('.stat-card > .lbl');
+  labels.forEach(label => {
+    if (label.querySelector('.dashboard-metric-symbol') || label.closest('.rpt-stat-grid, #reportSheet')) return;
+    const markup = dashboardMetricIcon(label.textContent.trim());
+    if (markup) { label.classList.add('dashboard-metric-label'); label.insertAdjacentHTML('afterbegin', markup); }
+  });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  const content = document.getElementById('content');
+  if (!content) return;
+  addSummaryCardIcons(content);
+  new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(addSummaryCardIcons)))
+    .observe(content, {childList:true, subtree:true});
+});
 function dashboardOperationalData(db, start, end = new Date()) {
   const dayKey = value => {
     const date = new Date(value);

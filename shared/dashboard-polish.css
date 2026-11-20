@@ -44,4 +44,5 @@ body #content .analytics-dashboard .analytics-link:focus-visible { outline:2px s
 /* Quiet inline icons shared by both staff dashboards. */
 body #content :is(.staff-overview,.system-overview) .dashboard-metric-label { display:flex; align-items:center; gap:7px; }
 .dashboard-metric-symbol { display:inline-flex; flex:0 0 16px; width:16px; height:16px; align-items:center; justify-content:center; color:var(--text-soft); }
+.stat-card .dashboard-metric-label { display:flex; align-items:center; gap:7px; }
 .dashboard-metric-symbol svg { width:16px; height:16px; }

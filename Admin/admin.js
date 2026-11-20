@@ -1255,7 +1255,7 @@ function renderApptTable() {
   }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
 }
 function appointmentActionsHtml(r){
-  if(r.restricted)return '<span class="muted">Confidential access required</span>';
+  if(r.restricted)return `<button type="button" class="icon-btn" aria-label="Confidential access required" title="Confidential access required" data-appointment-id="${escapeHtml(r.id)}" onclick="showAppointmentAccess(this.dataset.appointmentId)">${icon('lock', 16)}</button>`;
   if(r.status==='Completed'){
     const actions=[
       `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">View details</button>`,
@@ -1278,6 +1278,14 @@ function appointmentActionsHtml(r){
   const main=mainIndex<0?'':buttons.splice(mainIndex,1)[0];
   const items=buttons.map(button=>button.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); '));
   return `${main}<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
+}
+function showAppointmentAccess(id) {
+  const db=loadDB(), appointment=db.appointments.find(a=>a.id===id);
+  if(!appointment)return;
+  const record=appointment.visitId && db.transactions.find(t=>t.visitId===appointment.visitId && isConfidentialTxn(t));
+  const actions=[{label:'Close',cls:'btn-ghost',action:closeModal}];
+  if(record && typeof requireConfUnlock==='function') actions.push({label:'Request access',cls:'btn-primary',action:()=>requireConfUnlock(record,async()=>{await SharedAppointments.reloadRecords();if(state_view==='appointments')await renderAppointments(true);},'view')});
+  openModal('Confidential access required', `<p class="field-hint">${record?'This appointment is linked to a confidential record. Request access or unlock it if access has already been granted.':'This appointment requires confidential access. Contact the Head Admin for access.'}</p>`, actions);
 }
 function reviewAppointmentRequirements(id){
   const appointment=loadDB().appointments.find(record=>record.id===id);
