@@ -29,3 +29,7 @@ it('loads the UniServe logo from HTTPS without attaching it to emails',function(
  expect($message->getHtmlBody())->toContain('https://oss.uniserve.vercel.app/Landing/uniserve.png')->not->toContain('cid:');
  expect($message->getAttachments())->toHaveCount(0);
 });
+it('uses a readable email brand block with the original UniServe logo',function(){
+ $html=OfficeMail::html('Appointment confirmation','Your appointment is confirmed.');
+ expect($html)->toContain('Landing/uniserve.png','width="64" height="64"','font-size:12px;line-height:18px','color:#475467','Office of Student Services')->not->toContain('uniserve-outlined');
+});
