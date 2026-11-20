@@ -82,8 +82,8 @@ html[data-theme="dark"] #content .staff-messages { --chat-accent:var(--accent); 
 .staff-messages .thread-list-head .lbl { font-size:.9rem; font-weight:500; letter-spacing:0; }
 .staff-messages .thread-search { border-bottom:0; padding:0 16px 12px; }
 .staff-messages .thread-search input { min-height:40px; border-radius:6px; }
-.staff-messages .chat-thread-item { padding:14px 12px 14px 60px; border-radius:6px; min-height:82px; }
-.staff-messages .staff-thread-avatar { width:36px; height:36px; top:16px; left:12px; color:var(--chat-accent); background:var(--chat-selected); font-size:.74rem; }
+.staff-messages .chat-thread-item { padding:10px 12px 10px 60px; border-radius:6px; min-height:68px; }
+.staff-messages .staff-thread-avatar { width:36px; height:36px; top:12px; left:12px; color:var(--chat-accent); background:var(--chat-selected); font-size:.74rem; }
 .staff-messages .chat-thread-item.active { background:var(--chat-selected); box-shadow:none; }
 .staff-messages .chat-thread-item .thread-name { font-size:.82rem; font-weight:500; }
 .staff-messages .chat-thread-item .thread-contact { display:block; font-size:.68rem; }
