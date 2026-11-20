@@ -110,7 +110,7 @@ return [
     |
     */
 
-    'logo_url' => env('MAIL_LOGO_URL', 'https://oss.uniserve.vercel.app/User/pup.jpg'),
+    'logo_url' => env('MAIL_LOGO_URL', 'https://oss.uniserve.vercel.app/Landing/uniserve.png'),
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),

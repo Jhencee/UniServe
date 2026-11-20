@@ -18,7 +18,7 @@ class AppointmentController extends Controller {
   $record['needsRescheduling']=!empty($a['reviewExpiredAt'])&&$row->status==='Requested'&&!$row->date;
   $record['arrivalPolicy']=['earlyMinutes'=>30,'lateMinutes'=>max(1,(int)(\App\Support\VisitFlow::settings()['noShowThresholdMinutes']??60))];
   if(!request()->bearerToken())unset($record['documentVersions']);
-  $record['ticketHtml']= view('tickets.appointment',['ticket'=>$record,'logoSrc'=>'pup.jpg'])->render();
+  $record['ticketHtml']= view('tickets.appointment',['ticket'=>$record,'logoSrc'=>'../Landing/uniserve.png'])->render();
   unset($record['permissions']);
   if(request()->bearerToken()){
    $staff=StaffAuth::user(request(),'ADMIN');
