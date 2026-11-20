@@ -1255,7 +1255,7 @@ function renderApptTable() {
   }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
 }
 function appointmentActionsHtml(r){
-  if(r.restricted)return `<button type="button" class="icon-btn" aria-label="Confidential access required" title="Confidential access required" data-appointment-id="${escapeHtml(r.id)}" onclick="showAppointmentAccess(this.dataset.appointmentId)">${icon('lock', 16)}</button>`;
+  if(r.restricted)return `<button type="button" class="icon-btn kebab-btn" aria-label="Confidential access required" title="Confidential access required" data-appointment-id="${escapeHtml(r.id)}" onclick="showAppointmentAccess(this.dataset.appointmentId)">${icon('lock', 16)}</button>`;
   if(r.status==='Completed'){
     const actions=[
       `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">View details</button>`,
@@ -1282,7 +1282,7 @@ function appointmentActionsHtml(r){
 function showAppointmentAccess(id) {
   const db=loadDB(), appointment=db.appointments.find(a=>a.id===id);
   if(!appointment)return;
-  const record=appointment.visitId && db.transactions.find(t=>t.visitId===appointment.visitId && isConfidentialTxn(t));
+  const record=appointment.confidentialCase ? {...appointment.confidentialCase,service:appointment.serviceKey} : null;
   const actions=[{label:'Close',cls:'btn-ghost',action:closeModal}];
   if(record && typeof requireConfUnlock==='function') actions.push({label:'Request access',cls:'btn-primary',action:()=>requireConfUnlock(record,async()=>{await SharedAppointments.reloadRecords();if(state_view==='appointments')await renderAppointments(true);},'view')});
   openModal('Confidential access required', `<p class="field-hint">${record?'This appointment is linked to a confidential record. Request access or unlock it if access has already been granted.':'This appointment requires confidential access. Contact the Head Admin for access.'}</p>`, actions);
@@ -1684,9 +1684,9 @@ function renderTxnTable() {
     <td>${locked ? '<span class="muted" style="font-size:.76rem;">Hidden</span>' : (r.visitId ? `<span class="mono" style="font-size:.72rem;">${escapeHtml(r.visitId)}</span>${r.queueNumber ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.queueNumber)} &middot; ${escapeHtml(r.entryMethod || '')}</div>` : (r.entryMethod ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.entryMethod)}</div>` : '')}` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
     <td>${locked ? '<span class="muted" style="font-size:.76rem;">&bull;&bull;</span>' : (files.length ? `<span class="pill pill-gold">${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
     <td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td class="muted">${fmtDateTime(r.createdAt)}</td>
-    <td class="act-cell appointment-action-cell"><button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
+    <td class="act-cell appointment-action-cell">${locked ? `<button type="button" class="icon-btn kebab-btn" title="Request or unlock confidential access" aria-label="Request or unlock confidential access" data-record-id="${escapeHtml(r.id)}" onclick="openTxnDetail(this.dataset.recordId)">${icon('lock',16)}</button>` : `<button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
       <div class="kebab-menu" id="kebab_${r.id}" hidden>
-        ${isConfidentialTxn(r)&&!currentUser.confidentialApprover&&!(window.isAssignedConfidentialRecord?.(r.id)) ? `<button class="kebab-item" onclick="closeKebabs();requestTransactionAccess('${r.id}')">Request access</button>` : `<button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button><button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button>`}</div></td></tr>`;
+        <button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button><button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button></div>`}</td></tr>`;
   }).join('') : `<tr class="empty-row"><td colspan="${showService ? 9 : 8}">${db.transactions.length?'No transactions match these filters.':'No transactions yet.'}</td></tr>`;
 }
 function closeKebabs() { document.querySelectorAll('.kebab-menu').forEach(m => { m.hidden = true; }); }

@@ -52,7 +52,7 @@ class AppointmentController extends Controller {
  }
  public function index(Request $r) {
   $u=StaffAuth::user($r,'ADMIN');\App\Support\QueueDayClosure::run();
-  return response()->json(['appointments'=>DB::table('shared_appointments')->orderByDesc('created_at')->get()->map(function($a)use($u){$record=self::present($a);if(!\App\Support\CaseAccess::canViewAppointment($u,$a))$record=array_intersect_key($record,array_flip(['id','visitId','code','service','serviceKey','status','date','time','revision','shared','createdAt']))+['name'=>'Restricted record','type'=>'','attachments'=>[],'restricted'=>true];return $record;})]);
+  return response()->json(['appointments'=>DB::table('shared_appointments')->orderByDesc('created_at')->get()->map(function($a)use($u){$record=self::present($a);if(!\App\Support\CaseAccess::canViewAppointment($u,$a)){$caseId=null;if($a->queue_id){$queue=DB::table('queues')->where('id',$a->queue_id)->first();$data=$queue?\App\Support\QueueData::read($queue->portal_payload):[];$caseId=$data['transactionId']??DB::table('shared_transactions')->where('queue_id',$a->queue_id)->value('id');} $case=$caseId?DB::table('confidential_cases')->where('id',$caseId)->first(['id','code']):null;$record=array_intersect_key($record,array_flip(['id','visitId','code','service','serviceKey','status','date','time','revision','shared','createdAt']))+['name'=>'Restricted record','type'=>'','attachments'=>[],'restricted'=>true,'confidentialCase'=>$case?['id'=>$case->id,'code'=>$case->code]:null];}return $record;})]);
  }
  public function show(Request $r,string $visitId) {
   \App\Support\QueueDayClosure::run();
