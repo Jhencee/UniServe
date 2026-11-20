@@ -1652,7 +1652,7 @@ select option {
 .ticket-v2-logo {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 4px;
   background: #fff;
   padding: 3px;
   object-fit: contain;
