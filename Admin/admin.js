@@ -1282,10 +1282,10 @@ function appointmentActionsHtml(r){
 function showAppointmentAccess(id) {
   const db=loadDB(), appointment=db.appointments.find(a=>a.id===id);
   if(!appointment)return;
-  const record=appointment.confidentialCase ? {...appointment.confidentialCase,service:appointment.serviceKey} : null;
+  const record=appointment.confidentialCase ? {...appointment.confidentialCase,service:appointment.serviceKey} : {id:'appointment:'+appointment.id,code:appointment.visitId || appointment.code,service:appointment.serviceKey};
   const actions=[{label:'Close',cls:'btn-ghost',action:closeModal}];
   if(record && typeof requireConfUnlock==='function') actions.push({label:'Request access',cls:'btn-primary',action:()=>requireConfUnlock(record,async()=>{await SharedAppointments.reloadRecords();if(state_view==='appointments')await renderAppointments(true);},'view')});
-  openModal('Confidential access required', `<p class="field-hint">${record?'This appointment is linked to a confidential record. Request access or unlock it if access has already been granted.':'This appointment requires confidential access. Contact the Head Admin for access.'}</p>`, actions);
+  openModal('Confidential access required', '<p class="field-hint">Request access to this confidential appointment, or unlock it if access has already been granted.</p>', actions);
 }
 function reviewAppointmentRequirements(id){
   const appointment=loadDB().appointments.find(record=>record.id===id);

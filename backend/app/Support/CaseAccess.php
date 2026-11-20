@@ -40,6 +40,7 @@ class CaseAccess
     public static function canViewAppointment(object $user, object $appointment): bool
     {
         if (!ServicePrivacy::confidential($appointment->service_key)) return true;
+        if (self::canView($user, 'appointment:'.$appointment->id)) return true;
         if ($appointment->queue_id) {
             $row = DB::table('queues')->where('id', $appointment->queue_id)->first();
             $queue = $row ? QueueData::read($row->portal_payload) : [];

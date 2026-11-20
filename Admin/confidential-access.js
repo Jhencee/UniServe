@@ -10,7 +10,7 @@
   setInterval(async () => {
     for (const id of confUnlocked.keys()) {
       try {await api('/cases/'+encodeURIComponent(id)+'/status');}
-      catch (_) {lockConfTxn(id);}
+      catch (_) {lockConfTxn(id);if(id.startsWith('appointment:')&&state_view==='appointments')await renderAppointments(true);}
     }
   }, 10000);
   async function register(record) {
@@ -54,13 +54,13 @@
     }
     if(r.requester_id===currentUser.id){
       items.push(['Unlock',`openRequestRecord('${r.id}','view')`,!approved]);
-      items.push(['Print',`openRequestRecord('${r.id}','print')`,!approved||r.scope!=='print']);
+      if(!r.case_id.startsWith('appointment:'))items.push(['Print',`openRequestRecord('${r.id}','print')`,!approved||r.scope!=='print']);
     }
     return items.length?accessMenu('access_'+r.id,items):'&mdash;';
   }
   window.requestTransactionAccess=function(id){const record=loadDB().transactions.find(t=>t.id===id);if(record)requestConfidentialAccess(record,'view');};
   window.viewAccessRequest=function(id){const r=accessData.requests.find(item=>item.id===id);if(!r)return;const expired=r.status==='Approved'&&r.expires_at&&new Date(r.expires_at.replace(' ','T')+'Z')<=new Date();openModal('Access request',`<div class="access-request-summary"><strong>${escapeHtml(r.requester_name)}</strong><div class="access-request-meta"><span class="mono">${escapeHtml(r.code)}</span>${statusPill(expired?'Expired':r.status)}</div><div class="access-request-reason"><span>Reason</span><p>${escapeHtml(r.reason)}</p></div></div><div class="kv"><span>Access</span><span>${r.scope==='print'?'View and Print':'View'}</span></div><div class="kv"><span>Expires</span><span>${r.expires_at?accessTime(r.expires_at):'&mdash;'}</span></div>${r.decision_note?`<p class="field-hint">${escapeHtml(r.decision_note)}</p>`:''}`,[{label:'Done',cls:'btn-ghost',action:closeModal},...(accessData.approver&&r.requester_id!==currentUser.id?[{label:'Edit decision',cls:'btn-primary',action:()=>reviewConfidentialRequest(r.id)}]:[])]);};
-  window.openRequestRecord=async function(id,action){const request=accessData.requests.find(r=>r.id===id);if(!request)return;try{await SharedAppointments.reloadRecords();const record=loadDB().transactions.find(t=>t.id===request.case_id);if(!record)throw Error('Record unavailable. Refresh transactions and try again.');if(action==='request')requestConfidentialAccess(record,request.scope);else if(action==='print'){if(request.scope==='print')printTransaction(record.id);else requestConfidentialAccess(record,'print');}else openTxnDetail(record.id);}catch(e){toast(escapeHtml(e.message),'err');}};
+  window.openRequestRecord=async function(id,action){const request=accessData.requests.find(r=>r.id===id);if(!request)return;try{if(request.case_id.startsWith('appointment:')){const appointmentId=request.case_id.slice(12);const record={id:request.case_id,code:request.code,service:'concern'};await requireConfUnlock(record,async()=>{navigate('appointments');await renderAppointments(true);const appointment=loadDB().appointments.find(a=>a.id===appointmentId);if(appointment&&!appointment.restricted)openApptDetail(appointmentId,true);},'view');return;}await SharedAppointments.reloadRecords();const record=loadDB().transactions.find(t=>t.id===request.case_id);if(!record)throw Error('Record unavailable. Refresh transactions and try again.');if(action==='request')requestConfidentialAccess(record,request.scope);else if(action==='print'){if(request.scope==='print')printTransaction(record.id);else requestConfidentialAccess(record,'print');}else openTxnDetail(record.id);}catch(e){toast(escapeHtml(e.message),'err');}};
   window.isAssignedConfidentialRecord=function(id){return accessData?.cases?.some(c=>c.id===id&&c.assigned_admin_id===currentUser.id)||false;};
   function selectAccessTab(index){document.querySelectorAll(".confidential-access-tabs button").forEach((button,i)=>{button.classList.toggle("active",i===index);button.setAttribute("aria-selected",String(i===index));});}
   window.paintConfidentialRequests = function () {
@@ -105,14 +105,14 @@
     requireConfUnlock(record,async()=>{await SharedAppointments.reloadRecords();if(state_view==='logbook')await renderVisitorLogbook(true);},'view');
   };
   window.requireConfUnlock = async function(record, onOk, scope='view') {
-    if (!isConfidentialTxn(record)) {onOk();return;}
+    if (!record.id.startsWith('appointment:') && !isConfidentialTxn(record)) {onOk();return;}
     const report=record.id.startsWith('rpt:')||record.id.startsWith('svc:');
     if(report&&!currentUser.confidentialApprover){toast('Print confidential records individually after approval.','err');return;}
     try{if(report){const access=await api();if(!access.approver){toast('Only the Head Admin can include confidential records in combined reports.','err');return;}}else await api('/cases/'+encodeURIComponent(record.id)+'/status?scope='+encodeURIComponent(scope));}catch(e){if(e.status===403&&!report){requestConfidentialAccess(record,scope);return;}toast(escapeHtml(e.message),'err');return;}
     openModal((scope==='print'?'Unlock print access: ':'Unlock ')+escapeHtml(record.code), `<p class="field-hint">${scope==='print'?'Print access is locked. Your permission is valid; enter your password to unlock and print.':'Access granted. Enter your password to open this record.'}</p><div class="field"><label for="confPassword">Your password</label><div class="profile-password-input"><input id="confPassword" type="password" autocomplete="current-password"><button type="button" class="profile-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleProfilePassword('confPassword',this)">${profilePasswordEye(true)}</button></div></div>`,[
       {label:'Cancel',cls:'btn-ghost',action:closeModal},
       {label:'Unlock',cls:'btn-primary',action:async()=>{
-        try {const result=await api('/cases/'+encodeURIComponent(record.id)+'/unlock','POST',{password:document.getElementById('confPassword').value,reason:'Open record with granted access',scope});if(report)await SharedAppointments.reloadRecords();assignments.set(record.id,result.assignedAdmin || 'Unassigned');confUnlocked.set(record.id,new Date(result.expiresAt).getTime());clearTimeout(confTimers[record.id]);confTimers[record.id]=setTimeout(()=>lockConfTxn(record.id),Math.max(0,new Date(result.expiresAt)-Date.now()));closeModal();await onOk();}catch(e){toast(escapeHtml(e.message),'err');}
+        try {const result=await api('/cases/'+encodeURIComponent(record.id)+'/unlock','POST',{password:document.getElementById('confPassword').value,reason:'Open record with granted access',scope});if(report)await SharedAppointments.reloadRecords();assignments.set(record.id,result.assignedAdmin || 'Unassigned');confUnlocked.set(record.id,new Date(result.expiresAt).getTime());clearTimeout(confTimers[record.id]);confTimers[record.id]=setTimeout(()=>{lockConfTxn(record.id);if(record.id.startsWith('appointment:')&&state_view==='appointments')renderAppointments(true);},Math.max(0,new Date(result.expiresAt)-Date.now()));closeModal();await onOk();}catch(e){toast(escapeHtml(e.message),'err');}
       }}
     ]);
   };

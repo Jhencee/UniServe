@@ -72,6 +72,12 @@ class ConfidentialAccessController extends Controller {
     }
     public function store(Request $r) {
         $u=$this->actor($r,true); $d=$r->validate(['caseId'=>'required|string|max:80','scope'=>'required|in:view,print','reason'=>'required|string|min:5|max:500']);
+        if(str_starts_with($d['caseId'],'appointment:')) {
+            abort_unless($d['scope']==='view',422,'Appointment requests are for viewing.');
+            $appointment=DB::table('shared_appointments')->where('id',substr($d['caseId'],12))->first();
+            abort_unless($appointment && \App\Support\ServicePrivacy::confidential($appointment->service_key),404,'Confidential appointment not found.');
+            DB::table('confidential_cases')->insertOrIgnore(['id'=>$d['caseId'],'code'=>$appointment->visit_id,'created_at'=>now(),'updated_at'=>now()]);
+        }
         abort_unless(DB::table('confidential_cases')->where('id',$d['caseId'])->exists(),404);
         $id=(string)Str::uuid();
         DB::transaction(function() use($u,$d,$id) {
