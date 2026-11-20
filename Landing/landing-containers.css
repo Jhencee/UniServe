@@ -84,7 +84,7 @@ body #landing .footer-brand .fb-row img {
  height:40px;
  flex-shrink:0;
  object-fit:contain;
- background:#fff;
+ background:transparent;
  border:0;
  border-radius:4px;
  padding:0;

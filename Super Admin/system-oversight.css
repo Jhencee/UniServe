@@ -559,11 +559,18 @@ body #content .system-report-controls .date-range { order:1; margin:0; flex:0 1 
 
 /* Dashboard chart palette: maroon, teal, blue, amber and emerald. */
 .system-overview {
-  --super-chart-1:#3b82f6;
-  --super-chart-2:#14b8a6;
-  --super-chart-3:#800000;
-  --super-chart-4:#f59e0b;
-  --super-chart-5:#10b981;
+  --super-chart-1:#007bff;
+  --super-chart-2:#00b8a9;
+  --super-chart-3:#e84d96;
+  --super-chart-4:#f5b700;
+  --super-chart-5:#f47721;
+  --super-chart-6:#00a86b;
+  --dashboard-chart-1:var(--super-chart-1);
+  --dashboard-chart-2:var(--super-chart-2);
+  --dashboard-chart-3:var(--super-chart-3);
+  --dashboard-chart-4:var(--super-chart-4);
+  --dashboard-chart-5:var(--super-chart-5);
+  --dashboard-chart-6:var(--super-chart-6);
   --super-chart-neutral:#94a3b8;
   --super-heat-1:#fffdf8;
   --super-heat-2:#99d5cb;
@@ -578,7 +585,6 @@ body #content .system-report-controls .date-range { order:1; margin:0; flex:0 1 
 .system-overview .dashboard-columns g:nth-of-type(odd) rect { fill:var(--super-chart-1); }
 .system-overview .dashboard-columns g:nth-of-type(even) rect { fill:var(--super-chart-2); }
 .system-overview .dashboard-bar-track { background:#fffdf8; }
-.system-overview .dashboard-bar-fill { background:var(--super-chart-2) !important; }
 
 /* Let the overview graph fill its wide card instead of letterboxing the SVG. */
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { align-items:stretch; }

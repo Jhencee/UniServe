@@ -83,7 +83,7 @@ function dashboardOperationalHtml(db, start, end, card) {
 function dashboardBarChart(rows, label = 'Bar chart') {
   const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const max = Math.max(1, ...rows.map(r => r.count));
-  const shades = ['var(--dashboard-chart-1, #2563eb)','var(--dashboard-chart-2, #00b894)','var(--dashboard-chart-3, #f5a623)','var(--dashboard-chart-4, #9b51e0)','var(--dashboard-chart-5, #f15a24)','var(--dashboard-chart-6, #00a8cc)'];
+  const shades = ['var(--dashboard-chart-1, #2563eb)','var(--dashboard-chart-2, #00b894)','var(--dashboard-chart-3, #e84d96)','var(--dashboard-chart-4, #f5b700)','var(--dashboard-chart-5, #f47721)','var(--dashboard-chart-6, #00a86b)','#8454e8','#00a6d6','#d94b4b','#76a820','#c54fba','#a87737','#4670a2','#52797c','#a95768','#7c70a5'];
   return '<div class="dashboard-bars" role="img" aria-label="' + safe(label) + '">' + rows.map((r, i) =>
     '<div class="dashboard-bar-row"><span class="dashboard-bar-label" title="' + safe(r.label) + '">' + safe(r.label) + '</span><span class="dashboard-bar-track"><span class="dashboard-bar-fill" style="width:' + (r.count / max * 100).toFixed(1) + '%;background:' + shades[i % shades.length] + '"></span></span><strong>' + r.count + '</strong></div>'
   ).join('') + '</div>';
