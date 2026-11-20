@@ -1538,7 +1538,8 @@ function renderChatThreadList() {
   const db = loadDB(), body = document.getElementById('chatThreadBody');
   if (!body) return;
   const q = (document.getElementById('chatCodeSearch')?.value || '').trim().toLowerCase();
-  let rows = [...db.chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const chatTime = c => { const time = new Date(c.updatedAt || c.createdAt || 0).getTime(); return Number.isNaN(time) ? 0 : time; };
+  let rows = [...db.chats].sort((a, b) => chatTime(b) - chatTime(a) || String(a.id).localeCompare(String(b.id)));
   if (q) rows = rows.filter(c => String(c.visitorName || '').toLowerCase().includes(q));
   body.innerHTML = rows.length ? rows.map(c => {
     const last = c.messages[c.messages.length - 1];
