@@ -1535,7 +1535,8 @@ a.is-disabled:hover {
 .contact-calendar-button svg { flex-shrink:0; }
 .contact-card .svc-preview-head { align-items: center; min-height: 44px; }
 .contact-details { min-width: 0; }
-.contact-card a { color: inherit; text-decoration: underline; text-decoration-color: var(--line-accent); text-underline-offset: 4px; overflow-wrap: anywhere; }
+.contact-card a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
+.contact-card a.contact-map-link { color: var(--accent-strong); }
 .contact-card a:hover { color: var(--accent); }
 .office-hours-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding: 5px 0; font-size: .8rem; line-height: 1.6; }
 .office-hours-row dt { color: var(--text-soft); }
