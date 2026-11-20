@@ -1070,7 +1070,6 @@ function appointmentPassHtml(appt) {
         <div class="ticket-v2-main">
           <div class="ticket-v2-top">
             <div class="ticket-v2-header">
-              <img src="../Landing/uniserve.png" alt="UniServe logo" class="ticket-v2-logo">
               <div class="ticket-v2-org"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div>
               <div class="ticket-v2-issued">Requested<br>${fmtDateTime(appt.createdAt)}</div>
             </div>
@@ -1220,7 +1219,6 @@ async function renderQueueTicket() {
               <div class="ticket-v2-main">
                 <div class="ticket-v2-top">
                   <div class="ticket-v2-header">
-                    <img src="../Landing/uniserve.png" alt="UniServe logo" class="ticket-v2-logo">
                     <div class="ticket-v2-org"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div>
                     <div class="ticket-v2-issued">Issued<br>${fmtDateTime(q.createdAt)}</div>
                   </div>
