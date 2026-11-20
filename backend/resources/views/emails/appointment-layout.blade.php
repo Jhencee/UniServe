@@ -1,7 +1,6 @@
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;margin:0 auto;border:1px solid #800000;background:#ffffff;font-family:Arial,sans-serif;color:#252525;table-layout:fixed;border-collapse:collapse">
 <tr><td style="padding:22px;background:#800000;background-image:linear-gradient(160deg, #800000, #5c0000);color:#ffffff">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed"><tr>
-<td width="66" style="width:66px;vertical-align:middle"><img src="{{ $logoSrc??config('mail.logo_url') }}" alt="UniServe logo" width="56" height="56" style="display:block;width:56px;height:56px;object-fit:contain;border:0;background:transparent"></td>
 <td style="vertical-align:top;padding-right:8px"><strong style="font-family:Georgia,serif;font-size:13px;line-height:1.4">Polytechnic University of the Philippines</strong><div style="font-size:9px;line-height:1.6;margin-top:3px;text-transform:uppercase">Santa Maria Campus<br>{{ $ticket['office']??'Office of Student Services' }}</div></td>
 <td width="78" style="width:78px;vertical-align:top;text-align:right;font-family:monospace;font-size:9px;line-height:1.6">{{ $scheduled?'Issued':'Requested' }}<br>{{ $issued->format('M j, Y') }}<br>{{ $issued->format('g:i A') }}</td>
 </tr></table>

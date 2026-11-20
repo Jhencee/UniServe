@@ -50,6 +50,19 @@ window.downloadVisitorTicket = async function(button) {
       cloned[index].style.setProperty('animation','none');
       cloned[index].style.setProperty('transition','none');
     });
+    // Pseudo-elements are not included in cloneNode, so recreate ticket cutouts
+    // and decoration in the standalone image using their rendered styles.
+    original.forEach((node,index)=>{
+      for(const pseudo of ['::before','::after']){
+        const style=getComputedStyle(node,pseudo);
+        if(!style.content||style.content==='none'||style.content==='normal')continue;
+        const element=document.createElement('span');
+        for(const property of style)element.style.setProperty(property,style.getPropertyValue(property));
+        element.style.setProperty('content','normal');
+        element.setAttribute('aria-hidden','true');
+        if(pseudo==='::before')cloned[index].prepend(element);else cloned[index].append(element);
+      }
+    });
     copy.style.setProperty('margin','0');
     copy.style.setProperty('width',width+'px');
     copy.style.setProperty('height',height+'px');
@@ -92,9 +105,6 @@ window.downloadVisitorTicket = async function(button) {
       const x=rect.left-bounds.left+insetLeft+(availableWidth-logoWidth)/2;
       const y=rect.top-bounds.top+insetTop+(availableHeight-logoHeight)/2;
       context.save();
-      context.beginPath();
-      context.ellipse((rect.left-bounds.left+rect.width/2)*scale,(rect.top-bounds.top+rect.height/2)*scale,rect.width*scale/2,rect.height*scale/2,0,0,Math.PI*2);
-      context.clip();
       context.imageSmoothingEnabled=true;
       context.imageSmoothingQuality='high';
       context.drawImage(sourceLogo,x*scale,y*scale,logoWidth*scale,logoHeight*scale);

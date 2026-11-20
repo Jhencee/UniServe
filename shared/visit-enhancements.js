@@ -146,8 +146,10 @@
     }
   };
   window.maskAssistedStudentNumber=function(input){
-    const digits=input.value.replace(/\D/g,'').slice(0,10);
-    input.value=digits.slice(0,4)+(digits.length>4?'-'+digits.slice(4,9):'')+(digits.length>9?'-SM-'+digits.slice(9):'');
+    input.value=input.value.toUpperCase();
+  };
+  window.formatAssistedStudentNumber=function(input){
+    if(/^\d{10}$/.test(input.value))input.value=input.value.slice(0,4)+'-'+input.value.slice(4,9)+'-SM-'+input.value.slice(9);
   };
   window.toggleAssistedIdentityOther=function(){
     const other=document.getElementById('assistedIdentity').value==='Other';
@@ -164,7 +166,7 @@
       '<div class="field"><label for="assistedType">Visitor type '+required+'</label><select id="assistedType" onchange="updateAssistedVisitorType()"><option>Student</option><option>Guest</option></select></div>'+
       '<div class="field"><label for="assistedService">Service</label><select id="assistedService">'+services.map(s=>'<option value="'+esc(s.key)+'">'+esc(s.label)+'</option>').join('')+'</select></div>'+
       '<fieldset class="assisted-form-section"><legend>Personal details</legend><div class="form-row"><div class="field"><label for="assistedFirst">First name '+required+'</label><input id="assistedFirst" maxlength="75" autocomplete="given-name" placeholder="Juan" required></div><div class="field"><label for="assistedLast">Last name '+required+'</label><input id="assistedLast" maxlength="74" autocomplete="family-name" placeholder="Dela Cruz" required></div></div>'+
-      '<div class="field" id="assistedStudentField"><label for="assistedStudentNumber">Student number <span class="opt">(if available)</span></label><input id="assistedStudentNumber" inputmode="numeric" maxlength="15" autocomplete="off" placeholder="0000-00000-SM-0" oninput="maskAssistedStudentNumber(this)"></div>'+
+      '<div class="field" id="assistedStudentField"><label for="assistedStudentNumber">Student number <span class="opt">(if available)</span></label><input id="assistedStudentNumber" maxlength="15" autocomplete="off" autocapitalize="characters" placeholder="0000-00000-SM-0" oninput="maskAssistedStudentNumber(this)" onblur="formatAssistedStudentNumber(this)"></div>'+
       '<div class="field" id="assistedGuestField" hidden><label for="assistedIdType">Valid ID type <span class="opt">(if available)</span></label><select id="assistedIdType"><option value="">Select ID type</option>'+idTypes.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+'</select></div></fieldset>'+
       '<fieldset class="assisted-priority"><legend>Priority assistance <span>(optional)</span></legend><div class="assisted-priority-options"><label for="assistedSenior"><input id="assistedSenior" type="checkbox"> Senior citizen</label><label for="assistedPWD"><input id="assistedPWD" type="checkbox"> Person with disability</label></div></fieldset>'+
       '<fieldset class="assisted-form-section"><legend>Contact details</legend><div class="field"><label for="assistedContact">Contact number '+required+'</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span></span><input id="assistedContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if(!this.value)this.value=\'+63\'" oninput="formatAssistedContact(this)" required></div></div><div class="field"><label for="assistedEmail">Email address <span class="opt">(optional)</span></label><input id="assistedEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com"></div></fieldset>'+
@@ -184,7 +186,8 @@
           if(value('assistedIdentity')==='Other'&&!identityOther.reportValidity()){if(button)button.disabled=false;return;}
           const identityCheck=value('assistedIdentity')==='Other'?identityOther.value.trim():value('assistedIdentity');
           if(identityCheck.length<5)throw Error('Explain how identity was confirmed.');
-          if(first.length<2||last.length<2)throw Error('Enter the first and last name.');
+          const validName=name=>name.length>=2&&/^[\p{L}\p{M}][\p{L}\p{M}'\u2019\u2018 .-]*$/u.test(name);
+          if(!validName(first)||!validName(last))throw Error('Enter valid first and last names using letters.');
           if(idNumber&&!/^\d{4}-\d{5}-SM-\d$/.test(idNumber))throw Error('Use student number format 0000-00000-SM-0.');
           const result=await SharedAppointments.request('/visits','POST',{assisted:true,visitorType:value('assistedType'),name:[first,last].join(' '),idNumber,idType:student?'':value('assistedIdType'),serviceKey:service.key,serviceLabel:service.label,contact:value('assistedContact'),email:value('assistedEmail')||null,identityCheck,isSenior:document.getElementById('assistedSenior').checked,isPWD:document.getElementById('assistedPWD').checked});
           SharedAppointments.cache(result);const q=result.queue;

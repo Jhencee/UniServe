@@ -73,9 +73,9 @@ test('clock-based refresh runs even with a connected realtime socket',()=>{
 });
 test('board fetches backend intake and clears stale status when its request fails',async()=>{
   const source=fs.readFileSync(path.resolve(__dirname,'../../../shared/portal-api.js'),'utf8');
-  const start=source.indexOf('renderPublicDisplay=async function(){if(loading)');const end=source.indexOf("    Promise.all([request('/public-queue')",start);
+  const start=source.indexOf('renderPublicDisplay=async function(){if(loading)');const end=source.indexOf('    Promise.all([refreshPublicQueue()',start);
   let fail=false,rendered=0;const paths=[];
-  const c={loading:false,window:{},cache(){},renderLandingLive(){},original(){rendered++;},document:{getElementById:()=>null},request:async path=>{paths.push(path);if(path==='/walk-in-capacity'){if(fail)throw Error('offline');return {accepting:false};}return {};}};
+  const c={loading:false,window:{},cache(){},refreshPublicQueue:async()=>{},renderLandingLive(){},original(){rendered++;},document:{getElementById:()=>null},request:async path=>{paths.push(path);if(path==='/walk-in-capacity'){if(fail)throw Error('offline');return {accepting:false};}return {};}};
   vm.createContext(c);vm.runInContext(source.slice(start,end),c);
   await c.renderPublicDisplay();assert.equal(c.window.UniServeWalkInCapacity.accepting,false);assert.ok(paths.includes('/walk-in-capacity'));
   fail=true;await c.renderPublicDisplay();assert.equal(c.window.UniServeWalkInCapacity,null);assert.equal(rendered,2);

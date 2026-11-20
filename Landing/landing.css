@@ -2665,6 +2665,8 @@ a.is-disabled:hover {
     font-size: .95rem;
     color: var(--text-soft);
 }
+.qd-foot a { color: var(--accent); font-weight: 700; text-decoration: none; }
+.qd-foot a:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
 
 @media (max-width: 980px) {
     .qd-cols {

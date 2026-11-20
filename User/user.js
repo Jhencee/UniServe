@@ -137,7 +137,7 @@ const STUDENT_NO_RE = /^\d{4}-\d{5}-SM-\d$/;
 function isValidContact(v) { return PH_CONTACT_RE.test(String(v || '').trim()) || /^9\d{9}$/.test(String(v || '').trim()); }
 function normEmail(v) { return String(v || '').trim().toLowerCase(); }
 function isValidEmail(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(normEmail(v)); }
-function isValidPersonName(v) { return String(v || '').trim().length >= 2; }
+function isValidPersonName(v) { const name=String(v || '').trim(); return name.length >= 2 && name.length <= 74 && /^[\p{L}\p{M}][\p{L}\p{M}'\u2019\u2018 .-]*$/u.test(name); }
 function isValidStudentNo(v) { return STUDENT_NO_RE.test(String(v || '').trim().toUpperCase()); }
 function maskStudentNo(v) {
   const d = String(v || '').replace(/\D/g, '').slice(0, 10);
@@ -146,7 +146,8 @@ function maskStudentNo(v) {
   if (d.length > 9) out += '-SM-' + d.slice(9);
   return out;
 }
-function maskStudentNoInput(el) { el.value = maskStudentNo(el.value); }
+function maskStudentNoInput(el) { el.value = el.value.toUpperCase(); }
+function formatStudentNoOnBlur(el) { if (/^\d{10}$/.test(el.value)) el.value = maskStudentNo(el.value); }
 
 function markField(wrapId, ok, message) {
   const wrap = document.getElementById(wrapId);
@@ -465,7 +466,7 @@ function confirmSummaryHtml({ intro, notice, sections }) {
 }
 function confirmAction(title, bodyHtml, confirmLabel, onConfirm, onCancel, cancelLabel) {
   openModal(title, bodyHtml, [
-    { label: cancelLabel || 'Cancel', cls: 'btn-ghost', action: () => { closeModal(); if (onCancel) onCancel(); } },
+    { label: cancelLabel || 'Cancel', cls: 'btn-ghost' + (cancelLabel === 'Edit details' ? ' edit-details-button' : ''), action: () => { closeModal(); if (onCancel) onCancel(); } },
     { label: confirmLabel || 'Confirm', cls: 'btn-primary', action: () => { closeModal(); onConfirm(); } },
   ]);
 }
@@ -493,8 +494,8 @@ async function openVisitorTerms(prefix) {
       closeModal();
     };
     openModal('Terms &amp; Conditions', `<div class="visitor-terms-content"><p>Please read these portal usage guidelines before submitting your visit.</p>${article.innerHTML}</div>`, [
-      { label: 'Decline', cls: 'btn-ghost', action: () => decide(false) },
-      { label: 'Accept', cls: 'btn-primary', action: () => decide(true) },
+      { label: 'No, I decline', cls: 'btn-ghost', action: () => decide(false) },
+      { label: 'Yes, I accept', cls: 'btn-primary', action: () => decide(true) },
     ]);
   } catch (error) {
     toast('Could not load the Terms & Conditions. Please try again.', 'err');
@@ -826,7 +827,7 @@ function visitorFieldsHtml(p, isStudent) {
       <div class="field" id="fw${P}Last"><label for="${p}Last">Last name ${uxReq}</label><input id="${p}Last" placeholder="Dela Cruz" autocomplete="family-name" oninput="autoCapitalizeInput(this)"><div class="field-error"></div></div>
     </div>
     ${isStudent
-      ? `<div class="field" id="fw${P}IdNum"><label for="${p}IdNum">Student number ${uxReq}</label><input id="${p}IdNum" inputmode="numeric" maxlength="15" placeholder="0000-00000-SM-0" autocomplete="off" oninput="maskStudentNoInput(this)"><div class="field-error"></div></div>`
+      ? `<div class="field" id="fw${P}IdNum"><label for="${p}IdNum">Student number ${uxReq}</label><input id="${p}IdNum" maxlength="15" placeholder="0000-00000-SM-0" autocomplete="off" autocapitalize="characters" oninput="maskStudentNoInput(this)" onblur="formatStudentNoOnBlur(this)"><div class="field-error"></div></div>`
       : `<div class="field" id="fw${P}IdType"><label for="${p}IdType">Valid ID type ${uxReq}</label>${idTypeSelectHtml(p + 'IdType')}<div class="field-error"></div></div>`}`;
 }
 function validateVisitorFields(p, isStudent) {
@@ -837,8 +838,8 @@ function validateVisitorFields(p, isStudent) {
   const idNumber = isStudent ? v('IdNum').toUpperCase() : '';
   const email = normEmail(v('Email'));
   let ok = true;
-  ok = markField(`fw${P}First`, isValidPersonName(first), 'Enter your first name.') && ok;
-  ok = markField(`fw${P}Last`, isValidPersonName(last), 'Enter your last name.') && ok;
+  ok = markField(`fw${P}First`, isValidPersonName(first), 'Enter a valid first name using letters.') && ok;
+  ok = markField(`fw${P}Last`, isValidPersonName(last), 'Enter a valid last name using letters.') && ok;
   if (isStudent) ok = markField(`fw${P}IdNum`, isValidStudentNo(idNumber), 'Use the format 0000-00000-SM-0.') && ok;
   else ok = markField(`fw${P}IdType`, !!idType, 'Select the type of ID you will present.') && ok;
   ok = markField(`fw${P}Contact`, isValidContact(contact), 'Enter a valid PH mobile number (e.g. +639171234567).') && ok;
@@ -1070,7 +1071,7 @@ function appointmentPassHtml(appt) {
         <div class="ticket-v2-main">
           <div class="ticket-v2-top">
             <div class="ticket-v2-header">
-              <div class="ticket-v2-org"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div>
+              <div class="ticket-v2-org"><img class="ticket-v2-logo" src="../User/ticket.png" alt=""><div class="ticket-v2-org-text"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div></div>
               <div class="ticket-v2-issued">Requested<br>${fmtDateTime(appt.createdAt)}</div>
             </div>
             <div class="ticket-v2-body">
@@ -1111,16 +1112,16 @@ function timelineStepsHtml(q, appointment = null) {
     { lbl: 'Checked In', ic: 'checkin', ts: q.checkedInAt || q.createdAt },
     { lbl: 'Called', ic: 'megaphone', ts: q.calledAt },
     { lbl: 'Service Started', ic: 'clock', ts: q.servingAt },
-    { lbl: 'Completed', ic: 'check', ts: q.completedAt },
+    { lbl: 'Completed', ic: 'check', ts: q.completedAt, completed: q.status === 'Completed' },
   ];
   let lastDone = -1;
-  steps.forEach((s, i) => { if (s.ts) lastDone = i; });
+  steps.forEach((s, i) => { if (s.ts || s.completed) lastDone = i; });
   const allDone = lastDone === steps.length - 1;
   return `<div class="vjt-v">${steps.map((s, i) => {
-    const done = !!s.ts, cur = !allDone && i === lastDone;
+    const done = !!s.ts || !!s.completed, cur = !allDone && i === lastDone;
     return `<div class="vjt-v-step ${done ? 'done' : ''} ${cur ? 'current' : ''}">
       <div class="vjt-v-dotcol"><div class="vjt-v-dot">${icon(done ? 'check' : s.ic, 15)}</div>${i < steps.length - 1 ? '<div class="vjt-v-line"></div>' : ''}</div>
-      <div class="vjt-v-body"><div class="vjt-v-lbl">${s.lbl}</div><div class="vjt-v-ts">${s.ts ? fmtDateTime(s.ts) : 'Pending'}</div></div></div>`;
+      <div class="vjt-v-body"><div class="vjt-v-lbl">${s.lbl}</div><div class="vjt-v-ts">${s.ts ? fmtDateTime(s.ts) : s.completed ? 'Completed' : 'Pending'}</div></div></div>`;
   }).join('')}</div>`;
 }
 function feedbackSectionHtml(q) {
@@ -1148,7 +1149,7 @@ function submitVisitFeedback(queueId) {
 }
 let sharedTicketLoading = false;
 let lastTicketRender = {id:null,status:null};
-async function renderQueueTicket() {
+async function renderQueueTicket(queueAlreadyRefreshed = false) {
   if (sharedTicketLoading) return;
   const selectedQueueId=myActiveQueueId,navigation=typeof visitorNavigationVersion==='undefined'?0:visitorNavigationVersion;
   const local = loadDB().queues.find(q => q.id === selectedQueueId);
@@ -1156,10 +1157,10 @@ async function renderQueueTicket() {
     sharedTicketLoading = true;
     try {
       const api=globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api';
-      const [response,capacity]=await Promise.all([fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)}),fetch(api+'/walk-in-capacity',{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null)]);
+      const [response,capacity]=await Promise.all([queueAlreadyRefreshed?Promise.resolve(null):fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)}),fetch(api+'/walk-in-capacity',{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null)]);
       window.UniServeWalkInCapacity=capacity;
-      const result = await response.json();
-      if (response.ok) {
+      const result = response?.ok ? await response.json() : null;
+      if (result?.queue) {
         const latest = loadDB();
         latest.queues = latest.queues.filter(q => q.id !== result.queue.id).concat(result.queue);
         saveDB(latest);
@@ -1186,7 +1187,6 @@ async function renderQueueTicket() {
   else if (q.status === 'Unfinished') topLine = `<div class="ticket-v2-line ticket-v2-warn">This visit was unfinished on a previous day. Please start a new visit. Your old record remains in history.</div>`;
   else if (q.status === 'Skipped') topLine = `<div class="ticket-v2-line ticket-v2-warn">${icon('alert', 13)} We called you but couldn't reach you &mdash; please see the front desk.</div>`;
   else if (q.status === 'Cancelled') topLine = `<div class="ticket-v2-line ticket-v2-warn">${icon('x', 13)} This visit was cancelled.${q.closureReason?' '+escapeHtml(q.closureReason):''}</div>`;
-  else if (q.status === 'Waiting') topLine = `<div class="ticket-v2-line">You are in the queue. Wait for OSS to call you.</div>`;
 
   let waitBanner = '';
   if (q.status === 'Waiting') {
@@ -1219,7 +1219,7 @@ async function renderQueueTicket() {
               <div class="ticket-v2-main">
                 <div class="ticket-v2-top">
                   <div class="ticket-v2-header">
-                    <div class="ticket-v2-org"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div>
+                    <div class="ticket-v2-org"><img class="ticket-v2-logo" src="../User/ticket.png" alt=""><div class="ticket-v2-org-text"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div></div>
                     <div class="ticket-v2-issued">Issued<br>${fmtDateTime(q.createdAt)}</div>
                   </div>
                   <div class="ticket-v2-body">

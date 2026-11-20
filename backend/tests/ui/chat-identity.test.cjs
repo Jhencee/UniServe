@@ -1,5 +1,5 @@
 const test=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const path=require('node:path');
-function setup(){const c={visitorView:'visit',currentPublicChatId:null};vm.createContext(c);const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');vm.runInContext(source.slice(source.indexOf('const PH_CONTACT_RE'),source.indexOf('function isValidPersonName')),c);vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../../User/chat-identity.js'),'utf8'),c);return c;}
+function setup(){const c={visitorView:'visit',currentPublicChatId:null};vm.createContext(c);const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');vm.runInContext(source.slice(source.indexOf('const PH_CONTACT_RE'),source.indexOf('function isValidStudentNo')),c);vm.runInContext(fs.readFileSync(path.resolve(__dirname,'../../../User/chat-identity.js'),'utf8'),c);return c;}
 
 test('chat renders the same Philippine prefix as the visit form',()=>{
  const c=setup(),content={innerHTML:''};

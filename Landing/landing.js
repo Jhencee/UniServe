@@ -570,7 +570,7 @@ function renderPublicDisplay() {
         <li><b>Appointment</b><span>Called when the scheduled time arrives, before walk-ins.</span></li>
         <li><b>Walk-in</b><span>First come, first served.</span></li>
       </ul>
-      <p class="qd-foot">${open ? 'Lost your pass? Open <b>Check My Visit</b> on your phone.' : 'Start Visit and Check My Visit resume when the office reopens.'}</p>
+      <p class="qd-foot">${open ? 'Lost your pass? Open <a href="../User/user.html?flow=checkvisit">Check My Visit</a>.' : 'Start Visit and Check My Visit resume when the office reopens.'}</p>
     </aside>`;
 }
 

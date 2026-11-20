@@ -28,7 +28,7 @@ class QueueController extends Controller
             'visitorType' => ['required', 'in:Student,Guest'],
             'serviceKey' => ['required', 'string', 'max:50'],
             'serviceLabel' => ['required', 'string', 'max:150'],
-            'name' => ['required', 'string', 'max:150'],
+            'name' => ['required', 'string', 'max:150', 'regex:/^[\p{L}\p{M}][\p{L}\p{M}\x{27}\x{2019}\x{2018} .-]*$/u'],
             'idNumber' => ['nullable', 'string', 'max:50'],
             'idType' => ['nullable', 'string', 'max:100'],
             'guestClass' => ['nullable', 'string', 'max:100'],
@@ -113,6 +113,8 @@ class QueueController extends Controller
         abort_unless($row, 404, 'Visit not found.');
         $queue=\App\Support\QueueData::read($row->portal_payload);
         \App\Support\VisitorAccess::ownsQueue($request,$queue);
+        $queue['status']=$row->status;
+        if ($row->completed_at) $queue['completedAt']=\Illuminate\Support\Carbon::parse($row->completed_at)->toIso8601String();
         $appointment=!empty($queue['appointmentId'])?DB::table('shared_appointments')->where('id',$queue['appointmentId'])->first():null;
         if($appointment){$a=AppointmentController::present($appointment);$queue['appointmentProgress']=array_intersect_key($a,array_flip(['createdAt','scheduledConfirmedAt']));$queue['followUpTask']=$a['followUpTask']??null;}
         return response()->json(['queue' => $queue]);

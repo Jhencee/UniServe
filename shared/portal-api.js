@@ -139,7 +139,7 @@
         else if(['visit','checkvisit'].includes(visitorView)&&myActiveQueueId)await renderQueueTicket();
         else if(['visit','checkvisit'].includes(visitorView)&&sessionStorage.getItem('oss_activeAppointmentId'))await refreshAppointmentPass();
       }else if(typeof renderPublicDisplay==='function'){
-        cache(await request('/public-queue'));renderLandingLive();if(document.getElementById('publicDisplayContent'))await renderPublicDisplay();
+        await refreshPublicQueue();if(!document.getElementById('publicDisplay').hidden)await renderPublicDisplay();
       }
     }catch(_){}finally{realtimeRefreshBusy=false;}
   });
@@ -266,12 +266,24 @@
     if(currentPublicChatId)request('/chats/'+currentPublicChatId).then(cache).then(()=>{if(visitorView==='chat')renderChatScreen();}).catch(()=>{currentPublicChatId=null;});
   }
   if(!staff&&!visitor&&typeof renderPublicDisplay==='function'){
+    // The public endpoint is a complete snapshot of active entries, not a delta.
+    // Entries that disappear from it have finished and must not remain cached.
+    let publicQueues=[];
+    const loadLandingState=loadDB,saveLandingState=saveDB;
+    loadDB=function(){return {...loadLandingState(),queues:publicQueues};};
+    saveDB=function(db){saveLandingState({...db,queues:loadLandingState().queues});};
+    var refreshPublicQueue=async function(){
+      const queue=await request('/public-queue','GET',null,{cache:'no-store'});
+      publicQueues=queue.queues||[];renderLandingLive();
+    };
     request('/services').then(cache).then(()=>{renderServicesPreview();renderLandingInfo();}).catch(()=>{});
     const original=renderPublicDisplay;let loading=false;
     renderPublicDisplay=async function(){if(loading)return;loading=true;try{
-      const [queue,settings,intake]=await Promise.all([request('/public-queue'),request('/settings'),request('/walk-in-capacity').catch(()=>null)]);
-      cache(queue);cache(settings);window.UniServeWalkInCapacity=intake;original();renderLandingLive();
+      const [,settings,intake]=await Promise.all([refreshPublicQueue(),request('/settings'),request('/walk-in-capacity').catch(()=>null)]);
+      cache(settings);window.UniServeWalkInCapacity=intake;original();
     }catch(_){window.UniServeWalkInCapacity=null;const el=document.getElementById('publicDisplayContent');if(el)el.innerHTML='<div class="card card-pad">Live queue unavailable. Reconnecting…</div>';}finally{loading=false;}};
-    Promise.all([request('/public-queue'),request('/walk-in-capacity').catch(()=>null)]).then(([queue,intake])=>{cache(queue);window.UniServeWalkInCapacity=intake;renderLandingLive();}).catch(()=>{});
+    Promise.all([refreshPublicQueue(),request('/walk-in-capacity').catch(()=>null)]).then(([,intake])=>{window.UniServeWalkInCapacity=intake;renderLandingLive();}).catch(()=>{});
+    setInterval(()=>{if(!document.hidden&&!document.getElementById('landing').hidden)refreshPublicQueue().catch(()=>{});},15000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!document.getElementById('landing').hidden)refreshPublicQueue().catch(()=>{});});
   }
 })();

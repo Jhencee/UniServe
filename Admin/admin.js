@@ -1534,7 +1534,6 @@ function findVisitByRef(db, ref) {
   if (!ref) return null;
   return db.queues.find(q => (q.visitId || '').toUpperCase() === ref) || db.appointments.find(a => (a.visitId || '').toUpperCase() === ref) || null;
 }
-const chatRef = c => c.email || c.visitId || 'General inquiry';
 function renderChatThreadList() {
   const db = loadDB(), body = document.getElementById('chatThreadBody');
   if (!body) return;
@@ -1545,7 +1544,7 @@ function renderChatThreadList() {
     const last = c.messages[c.messages.length - 1];
     return `<div class="chat-thread-item ${activeStaffChatId === c.id ? 'active' : ''}" style="cursor:pointer;" onclick="openStaffChat('${c.id}')">
       <span class="staff-thread-avatar" aria-hidden="true">${escapeHtml((c.visitorName||'Visitor').trim().split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase())}</span>
-      <div class="ttl"><span class="thread-identity"><span class="thread-name">${escapeHtml(c.visitorName || 'Visitor')}</span><span class="thread-contact muted" title="${escapeHtml(chatRef(c))}">${escapeHtml(chatRef(c))}</span></span><span class="thread-actions">${c.staffUnread ? '<span class="unread-dot"></span>' : ''}<button class="icon-btn" title="Delete conversation" onclick="event.stopPropagation(); removeChatThread('${c.id}')">${icon('trash', 13)}</button></span></div>
+      <div class="ttl"><span class="thread-identity"><span class="thread-name">${escapeHtml(c.visitorName || 'Visitor')}</span></span><span class="thread-actions">${c.staffUnread ? '<span class="unread-dot"></span>' : ''}<button class="icon-btn" title="Delete conversation" onclick="event.stopPropagation(); removeChatThread('${c.id}')">${icon('trash', 13)}</button></span></div>
       <div class="meta-row"><div class="prev">${last ? escapeHtml(last.text) : 'No messages yet'}</div>${statusPill(c.status)}</div></div>`;
   }).join('') : `<div class="helper-empty" style="padding:40px 16px;"><p>${q ? 'No conversations match your search. Try another name.' : 'No conversations yet. New visitor messages will appear here.'}</p></div>`;
 }
@@ -1561,7 +1560,7 @@ function openStaffChat(id) {
   const closed = c.status === 'Closed';
   document.getElementById('chatPanel').innerHTML = `
     <div class="chat-panel-head"><button type="button" class="staff-chat-back" aria-label="Back to conversations" onclick="document.querySelector('.staff-messages').classList.remove('conversation-open')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></button><span class="staff-chat-header-avatar" aria-hidden="true">${escapeHtml((c.visitorName||'Visitor').trim().split(/\s+/).map(part=>part[0]).slice(0,2).join('').toUpperCase())}</span><div class="staff-chat-person"><div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><b class="staff-chat-name">${escapeHtml(c.visitorName || 'Visitor')}</b>${c.visitId ? `<button class="btn btn-ghost btn-sm" onclick="copyText('${escapeHtml(c.visitId)}')">Copy Visit ID</button>` : ''}</div>
-      <div class="muted" style="font-size:.76rem; margin-top:3px;">${escapeHtml(c.visitorName || 'Visitor')}${c.visitorType ? ' &middot; ' + escapeHtml(c.visitorType) : ''}${c.contact ? ' &middot; ' + escapeHtml(c.contact) : ''}${c.email ? ' &middot; ' + escapeHtml(c.email) : ''}</div>
+      <div class="muted" style="font-size:.76rem; margin-top:3px;">${escapeHtml(c.visitorName || 'Visitor')}${c.visitorType ? ' &middot; ' + escapeHtml(c.visitorType) : ''}${c.contact ? ' &middot; ' + escapeHtml(c.contact) : ''}</div>
       ${c.messages.some(m => m.sender === 'visitor') ? '' : `<div class="field-hint" style="margin-top:4px;">The visitor opens this chat in the portal with their Visit ID.</div>`}</div>
       <div class="chat-status-toggle"><button class="cst-btn ok ${c.status === 'Open' ? 'active' : ''}" onclick="setChatStatus('${c.id}','Open')">${icon('check', 12)}<span>Open</span></button><button class="cst-btn danger ${closed ? 'active' : ''}" onclick="setChatStatus('${c.id}','Closed')">${icon('x', 12)}<span>Closed</span></button></div></div>
     <div class="chat-messages" id="chatMsgArea">${renderBubbles(c)}</div>
