@@ -2048,33 +2048,20 @@ td .pill {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: var(--shadow);
+  box-shadow: none;
   overflow: hidden;
   transition:
-    transform 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+    transform 0.15s ease;
 }
 
 .svc-manage-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 4px;
-  background: var(--accent);
-  transform: scaleY(0);
-  transform-origin: top;
-  transition: transform 0.2s ease;
+  content: none;
 }
 .svc-manage-card:hover {
   transform: translateY(-2px);
-  border-color: var(--accent);
-  box-shadow: var(--shadow-lift);
 }
 .svc-manage-card:hover::before {
-  transform: scaleY(1);
+  transform: none;
 }
 
 .svc-manage-card .top {
@@ -2084,11 +2071,11 @@ td .pill {
   gap: 8px;
 }
 .svc-manage-card .ic {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: var(--maroon-800);
-  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2096,7 +2083,7 @@ td .pill {
 }
 .svc-manage-card h4 {
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--font-display);
 }
 .svc-manage-card .desc-txt {
@@ -2859,7 +2846,6 @@ html[data-theme="dark"] .btn-primary:hover {
   background: #a01818;
 }
 
-html[data-theme="dark"] .svc-manage-card .ic,
 html[data-theme="dark"] .profile-avatar {
   background: #800000;
   border: 1px solid #a01818;

@@ -3149,7 +3149,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 #visitorApp .visitor-hub-nav .nav-item[data-service="visit"],
 #visitorApp .visitor-hub-nav .nav-item[data-service="checkvisit"] { border:1px solid var(--border); }
 .visitor-hub-nav li + li { border:0; }
-#visitorApp .visitor-hub-nav .nav-item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; width:100%; height:100%; min-height:224px; margin:0; padding:26px 18px; border:0; border-radius:12px; background:var(--surface); color:var(--text); font-weight:400; text-align:center; box-shadow:none; transform:none; }
+#visitorApp .visitor-hub-nav .nav-item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; width:100%; height:100%; min-height:200px; margin:0; padding:22px 18px; border:0; border-radius:12px; background:var(--surface); color:var(--text); font-weight:400; text-align:center; box-shadow:none; transform:none; }
 #visitorApp .visitor-hub-nav .nav-item:hover { background:var(--surface); color:var(--text); }
 #visitorApp .visitor-hub-nav .nav-item::before { display:none; }
 #visitorApp .visitor-hub-nav .nav-item svg { color:var(--accent-strong); opacity:1; }
@@ -3176,7 +3176,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   .visitor-welcome { text-align:center; }
   .visitor-welcome h1 { max-width:none; margin:14px 0 10px; font-size:1.85rem; }
   .visitor-hub-nav ul { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-  #visitorApp .visitor-hub-nav .nav-item { min-height:206px; padding:22px 14px; }
+  #visitorApp .visitor-hub-nav .nav-item { min-height:184px; padding:18px 14px; }
 }
 #visitorApp.visitor-hub-layout .content { margin:0 auto; padding-top:28px; }
 #visitorApp.visitor-hub-layout .visit-start-page { max-width:none; }

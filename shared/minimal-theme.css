@@ -264,6 +264,18 @@ body :is(.info-banner, .alert-banner, .qd-closed):is(.success, .ok) { --banner-b
 body :is(.visitor-maint-banner, .maint-banner) { grid-template-columns:minmax(0,1fr); }
 html[data-theme="dark"] body :is(.info-banner, .alert-banner, .qd-closed):not(.warn):not(.warning):not(.danger):not(.error):not(.success):not(.ok) { --banner-foreground:#93c5fd; }
 /* Keep the application logo artwork uncropped; printed seals use their own styles. */
+body :is(#landing .svc-preview-grid .svc-preview-ic, #visitorApp .svc-card .svc-ic, #visitorApp .svc-item-ic, #visitorApp .visitor-hub-icon, #content .svc-manage-card .ic) {
+ border:0;
+ border-radius:7px;
+ background:color-mix(in srgb, var(--accent) 9%, var(--surface));
+ color:var(--accent);
+}
+html[data-theme="dark"] body :is(#landing .svc-preview-grid .svc-preview-ic, #visitorApp .svc-card .svc-ic, #visitorApp .svc-item-ic, #visitorApp .visitor-hub-icon, #content .svc-manage-card .ic) {
+ border:0;
+ background:color-mix(in srgb, var(--accent) 18%, var(--surface));
+ color:var(--accent);
+}
+body #visitorApp .visitor-hub-nav .visitor-hub-icon svg { color:var(--accent); }
 body .sidebar-brand .crest img.uniserve-app-logo,
 body #crestSlotF img.uniserve-app-logo {
  display:block;
