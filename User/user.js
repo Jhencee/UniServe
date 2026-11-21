@@ -672,6 +672,11 @@ function navigateVisitor(key) {
   if(typeof setVisitorHubState==='function')setVisitorHubState(false);
   captureVisitorDraft();
   stopTicketPolling(); stopChatPolling();
+  if (key === 'checkvisit') {
+    myActiveQueueId = null;
+    sessionStorage.removeItem('oss_activeAppointmentId');
+    persistSession();
+  }
   visitorView = key;
   document.getElementById('visitorPageTitle').textContent = VISITOR_TITLES[key][0];
   document.getElementById('visitorPageSub').textContent = VISITOR_TITLES[key][1];

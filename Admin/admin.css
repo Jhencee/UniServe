@@ -3720,8 +3720,8 @@ html[data-theme="dark"] { --trend-color: var(--accent); }
 .arrival-visitor-actions { display:flex; align-items:center; gap:8px; flex-shrink:0; }
 .arrival-visitor-actions .pill { font-size:.68rem; }
 .arrival-empty { margin:16px 0; padding:20px 16px; border-radius:8px; background:var(--surface-2); color:var(--text-soft); font-size:.78rem; line-height:1.5; text-align:center; }
-.arrival-lookup .btn { color:var(--accent-strong); background:var(--surface-2); border-color:transparent; font-weight:600; }
-.arrival-lookup .btn:hover { background:color-mix(in srgb,var(--accent) 8%,var(--surface)); border-color:transparent; }
+.arrival-lookup .btn { color:var(--accent-strong); background:var(--surface); border-color:var(--accent); font-weight:600; }
+.arrival-lookup .btn:hover { background:color-mix(in srgb,var(--accent) 8%,var(--surface)); border-color:var(--accent); }
 @media(max-width:600px) {
  .arrival-toolbar { flex-wrap:wrap; gap:10px; }
  .arrival-lookup { width:100%; }

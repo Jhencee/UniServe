@@ -11,7 +11,7 @@
 .staff-overview .cl-line { stroke:var(--dashboard-chart-1) !important; stroke-width:2; stroke-linecap:round; }
 .staff-overview .cl-dot { stroke:var(--surface) !important; fill:var(--dashboard-chart-1); }
 .staff-overview .dashboard-columns rect { rx:5; }
-.staff-overview .dashboard-bar-track { background:#fffdf8; border-radius:4px; }
+.staff-overview .dashboard-bar-track { background:var(--border); border-radius:4px; }
 .staff-overview .dashboard-bar-fill { border-radius:4px; }
 .staff-overview .dashboard-donut svg > :is(path,circle) { stroke-width:13; }
 .staff-overview .stat-card .metric-icon { color:var(--dashboard-chart-1); }
