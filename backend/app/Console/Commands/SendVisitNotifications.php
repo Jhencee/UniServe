@@ -9,18 +9,20 @@ use Illuminate\Support\Facades\Mail;
 class SendVisitNotifications extends Command
 {
     protected $signature = 'notifications:send {--limit=50 : Maximum messages to process}';
-    protected $description = 'Send pending appointment confirmations and reminders';
+    protected $description = 'Send pending visit and document notifications';
     public function handle(): int
     {
         if (config('mail.default') !== 'smtp' || !config('mail.mailers.smtp.username') || !config('mail.mailers.smtp.password')) {
             $this->warn('Configure Gmail SMTP credentials before sending notifications.'); return self::FAILURE;
         }
         DB::table('notification_outbox')->where('status','sending')->where('updated_at','<',now()->subMinutes(10))->update(['status'=>'pending','updated_at'=>now()]);
+        // Pickup notices do not depend on an appointment time and should not remain paused.
+        DB::table('notification_outbox')->where('kind','document-ready')->where('status','paused')->update(['status'=>'pending','updated_at'=>now()]);
         $limit=max(1,min(50,(int)$this->option('limit')));
         $rows = DB::table('notification_outbox')->where('status','pending')->where('send_at','<=',now())->where('attempts','<',5)->orderBy('id')->limit($limit)->get();
         foreach ($rows as $row) {
             $scheduled = \Carbon\CarbonImmutable::parse($row->scheduled_at, 'UTC')->setTimezone('Asia/Manila');
-            if (!in_array($row->kind,['cancelled','calendar-change','request-expired','document-correction','follow-up-task']) && ($scheduled->isPast() || !\App\Support\OfficeCalendar::status($scheduled)['open'])) {
+            if (!in_array($row->kind,['cancelled','calendar-change','request-expired','document-correction','follow-up-task','document-ready']) && ($scheduled->isPast() || !\App\Support\OfficeCalendar::status($scheduled)['open'])) {
                 DB::table('notification_outbox')->where('id',$row->id)->where('status','pending')->update(['status'=>'paused','updated_at'=>now()]);
                 \App\Support\SystemAudit::record((object)['id'=>null,'full_name'=>'System'],'Appointments','Appointment email paused',$row->visit_id,[['field'=>'Reason','from'=>'','to'=>$scheduled->isPast()?'Appointment time has passed':'Scheduled time is outside office hours']]);
                 continue;
@@ -28,7 +30,13 @@ class SendVisitNotifications extends Command
             if (!DB::table('notification_outbox')->where('id',$row->id)->where('status','pending')->update(['status'=>'sending','attempts'=>$row->attempts+1,'updated_at'=>now()])) continue;
             try {
                 $message=\App\Support\PrivateNotification::read($row);
-                $message['subject']=match($row->kind){'calendar-change'=>'Appointment needs rescheduling','cancelled'=>'Appointment cancelled','reminder'=>'Appointment reminder','rescheduled'=>'Appointment rescheduled','request-expired'=>'Appointment request needs rescheduling','document-correction'=>'Document correction required','follow-up-task'=>'Follow-up action updated',default=>'Appointment confirmation'};
+                $message['subject']=match($row->kind){'calendar-change'=>'Appointment needs rescheduling','cancelled'=>'Appointment cancelled','reminder'=>'Appointment reminder','rescheduled'=>'Appointment rescheduled','request-expired'=>'Appointment request needs rescheduling','document-correction'=>'Document correction required','follow-up-task'=>'Follow-up action updated','document-ready'=>'Document ready for pickup',default=>'Appointment confirmation'};
+                if($row->kind==='document-ready'){
+                    $queue=DB::table('queues')->where('visit_id',$row->visit_id)->first();
+                    if(!$queue||(\App\Support\QueueData::read($queue->portal_payload)['pickupStatus']??'')!=='Ready'){
+                        DB::table('notification_outbox')->where('id',$row->id)->update(['status'=>'superseded','updated_at'=>now()]);continue;
+                    }
+                }
                 if(in_array($row->kind,['confirmation','rescheduled','reminder']) && \Illuminate\Support\Facades\Schema::hasTable('shared_appointments')){
                     $appointment=DB::table('shared_appointments')->where('visit_id',$row->visit_id)->first();
                     if(!$appointment || $appointment->status!=='Booked' || $appointment->date!==$scheduled->format('Y-m-d') || $appointment->time!==$scheduled->format('H:i')){
@@ -39,10 +47,10 @@ class SendVisitNotifications extends Command
                 }
                 \App\Support\OfficeMail::send($message['recipient'],$message['subject'],$message['body']);
                 DB::table('notification_outbox')->where('id',$row->id)->update(['status'=>'sent','sent_at'=>now(),'last_error'=>null,'updated_at'=>now()]);
-                \App\Support\SystemAudit::record((object)['id'=>null,'full_name'=>'System'],'Appointments','Appointment email sent',$row->visit_id,[['field'=>'Email type','from'=>'','to'=>$row->kind]]);
+                \App\Support\SystemAudit::record((object)['id'=>null,'full_name'=>'System'],$row->kind==='document-ready'?'Transactions':'Appointments',$row->kind==='document-ready'?'Document pickup email sent':'Appointment email sent',$row->visit_id,[['field'=>'Email type','from'=>'','to'=>$row->kind]]);
             } catch (\Throwable $e) {
                 DB::table('notification_outbox')->where('id',$row->id)->update(['status'=>$row->attempts >= 4 ? 'failed' : 'pending','last_error'=>'Mail transport failed. Check SMTP configuration.','updated_at'=>now()]);
-                \App\Support\SystemAudit::record((object)['id'=>null,'full_name'=>'System'],'Appointments','Appointment email delivery failed',$row->visit_id,[['field'=>'Email type','from'=>'','to'=>$row->kind]]);
+                \App\Support\SystemAudit::record((object)['id'=>null,'full_name'=>'System'],$row->kind==='document-ready'?'Transactions':'Appointments',$row->kind==='document-ready'?'Document pickup email delivery failed':'Appointment email delivery failed',$row->visit_id,[['field'=>'Email type','from'=>'','to'=>$row->kind]]);
             }
         }
         return self::SUCCESS;

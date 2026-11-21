@@ -113,10 +113,27 @@ class QueueController extends Controller
         abort_unless($row, 404, 'Visit not found.');
         $queue=\App\Support\QueueData::read($row->portal_payload);
         \App\Support\VisitorAccess::ownsQueue($request,$queue);
-        $queue['status']=$row->status;
-        if ($row->completed_at) $queue['completedAt']=\Illuminate\Support\Carbon::parse($row->completed_at)->toIso8601String();
+        $queue['status']=$row->status ?? ($queue['status'] ?? null);
+        if (empty($queue['completedAt']) && !empty($row->completed_at)) $queue['completedAt']=\Illuminate\Support\Carbon::parse($row->completed_at,'UTC')->toIso8601String();
         $appointment=!empty($queue['appointmentId'])?DB::table('shared_appointments')->where('id',$queue['appointmentId'])->first():null;
         if($appointment){$a=AppointmentController::present($appointment);$queue['appointmentProgress']=array_intersect_key($a,array_flip(['createdAt','scheduledConfirmedAt']));$queue['followUpTask']=$a['followUpTask']??null;}
+        $originalRow = !empty($queue['pickupOfVisitId']) ? DB::table('queues')->where('visit_id', $queue['pickupOfVisitId'])->first() : $row;
+        if ($originalRow && $originalRow->portal_payload) {
+            $original = \App\Support\QueueData::read($originalRow->portal_payload);
+            $linked = empty($queue['pickupOfVisitId']) || (($original['pickupQueueId'] ?? null) === $row->id && strtolower(trim($original['email'] ?? '')) === strtolower(trim($queue['email'] ?? '')));
+            if ($linked && (!empty($original['pickupStatus']) || !empty($queue['pickupOfVisitId']))) {
+                $pickupRow = !empty($original['pickupQueueId']) ? DB::table('queues')->where('id', $original['pickupQueueId'])->first() : null;
+                $pickup = $pickupRow && $pickupRow->portal_payload ? \App\Support\QueueData::read($pickupRow->portal_payload) : null;
+                if ($pickup && (($pickup['pickupOfVisitId'] ?? null) !== ($original['visitId'] ?? null) || strtolower(trim($pickup['email'] ?? '')) !== strtolower(trim($original['email'] ?? '')))) $pickup = null;
+                $project = static function ($data, $record) {
+                    $progress = array_intersect_key($data, array_flip(['visitId','createdAt','checkedInAt','calledAt','servingAt','completedAt']));
+                    $progress['status'] = $record->status ?? ($data['status'] ?? null);
+                    if (empty($progress['completedAt']) && !empty($record->completed_at)) $progress['completedAt'] = \Illuminate\Support\Carbon::parse($record->completed_at,'UTC')->toIso8601String();
+                    return $progress;
+                };
+                $queue['pickupProgress'] = ['original'=>$project($original,$originalRow),'documentStatus'=>$original['pickupStatus'] ?? null,'pickup'=>$pickup ? $project($pickup,$pickupRow) : null];
+            }
+        }
         return response()->json(['queue' => $queue]);
     }
 
@@ -128,6 +145,7 @@ class QueueController extends Controller
             'serviceKey' => 'required|string|max:50',
             'requirement' => 'required|string|max:200',
             'checked' => 'required|boolean',
+            'identityCheck' => 'nullable|string|max:500',
         ]);
         $queue = DB::transaction(function () use ($id, $actor, $data) {
             $row = DB::table('queues')->where('id', $id)->lockForUpdate()->first();
@@ -137,6 +155,28 @@ class QueueController extends Controller
             $queue = \App\Support\QueueData::read($row->portal_payload);
             abort_if(\App\Support\QueueData::forStaff($queue, $actor)['restricted'] ?? false, 403, 'Confidential access required to check these requirements.');
             abort_unless(($queue['serviceKey'] ?? '') === $data['serviceKey'], 409, 'The visit service changed. Refresh the checklist.');
+            if(!empty($queue['pickupTransactionId'])) {
+                abort_unless(in_array($data['requirement'],['Identity verified','Document claimed'],true),422,'Invalid pickup requirement.');
+                $field=$data['requirement']==='Identity verified'?'pickupIdentityVerified':'pickupClaimed';$previous=(bool)($queue[$field]??false);$checked=(bool)$data['checked'];
+                if($field==='pickupIdentityVerified'&&!$checked)abort_if(!empty($queue['pickupClaimed']),409,'The identity check cannot be removed after the document is claimed.');
+                if($field==='pickupClaimed'&&$previous&&!$checked)abort(409,'A recorded release cannot be unchecked.');
+                if($field==='pickupClaimed'&&$checked&&!$previous){
+                    abort_unless(!empty($queue['pickupIdentityVerified']),409,'Check the visitor’s identity first.');
+                    $identity=trim($data['identityCheck']??'');abort_unless(in_array($identity,['Student ID checked','Government-issued ID checked','Authorized representative ID and authorization checked'],true),422,'Select the ID checked.');
+                    $recordRow=DB::table('shared_transactions')->where('id',$queue['pickupTransactionId'])->lockForUpdate()->first();abort_unless($recordRow,404,'Original record not found.');
+                    $record=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($recordRow->payload),true);
+                    if(\App\Support\ServicePrivacy::confidential($record['service']??''))abort_unless(\App\Support\CaseAccess::canEdit($actor,$recordRow->id),403,'Assigned Admin and active confidential access are required.');
+                    abort_unless(($record['pickupStatus']??'')==='Ready',409,'This document is not ready for pickup.');
+                    $originalRow=DB::table('queues')->where('id',$recordRow->queue_id)->lockForUpdate()->first();abort_unless($originalRow,409,'Original visit not found.');
+                    $original=\App\Support\QueueData::read($originalRow->portal_payload);abort_unless(($original['pickupQueueId']??'')===$id,409,'This pickup is no longer active.');
+                    $record['pickupStatus']='Claimed';$record['pickupUpdatedAt']=now()->toIso8601String();$record['pickupClaimedBy']=$actor->full_name;$record['pickupIdentityCheck']=$identity;
+                    DB::table('shared_transactions')->where('id',$recordRow->id)->update(['payload'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode($record)),'updated_at'=>now()]);
+                    $original['pickupStatus']='Claimed';DB::table('queues')->where('id',$originalRow->id)->update(['portal_payload'=>\App\Support\QueueData::write($original)]);$queue['pickupIdentityCheck']=$identity;$queue['pickupStatus']='Claimed';
+                    DB::table('notification_outbox')->where('visit_id',$original['visitId'])->where('kind','document-ready')->whereIn('status',['pending','paused','failed'])->update(['status'=>'cancelled','updated_at'=>now()]);
+                }
+                if($previous!==$checked){$queue[$field]=$checked;DB::table('queues')->where('id',$id)->update(['portal_payload'=>\App\Support\QueueData::write($queue)]);\App\Support\SystemAudit::record($actor,'Queue',$field==='pickupClaimed'?'Recorded document release':'Pickup identity check updated',$queue['visitId'],[['field'=>$data['requirement'],'from'=>$previous?'Checked':'Unchecked','to'=>$checked?'Checked':'Unchecked']]);}
+                request()->attributes->set('system_audit_recorded',true);return $queue;
+            }
             $service = DB::table('service_catalog')->where('key', $queue['serviceKey'])->first();
             $requirements = array_values(array_unique(array_filter(array_map('trim', json_decode($service->payload ?? '{}', true)['requirements'] ?? []))));
             abort_unless(in_array($data['requirement'], $requirements, true), 422, 'This requirement is no longer listed for this service. Refresh the checklist.');
@@ -171,6 +211,7 @@ class QueueController extends Controller
             'completedAt' => ['sometimes', 'nullable', 'date'], 'recalledAt' => ['sometimes', 'nullable', 'date'],
             'transferredAt' => ['sometimes', 'nullable', 'date'], 'recallCount' => ['sometimes', 'integer', 'min:0'],
             'closureReason' => ['sometimes', 'string', 'min:5', 'max:500'],
+            'documentPreparation' => ['sometimes', 'boolean'],
         ]);
         if(in_array($data['status'],['Called','Serving']))\App\Support\Availability::requireOpen();
         $queue = DB::transaction(function () use ($id, $data, $actor) {
@@ -183,6 +224,7 @@ class QueueController extends Controller
             if($row->status==='Called'&&$data['status']==='Waiting')abort_unless(isset($data['serviceKey']),409,'Choose a service to transfer this called visit.');
             abort_unless(in_array($data['status'],$transitions[$row->status]??[]),409,'This queue transition is not allowed.');
             $stored=\App\Support\QueueData::read($row->portal_payload);
+            abort_if(!empty($data['documentPreparation'])&&($data['status']!=='Completed'||!empty($stored['pickupTransactionId'])),422,'Document preparation can only be set when completing the original visit.');
             if($row->status==='Unfinished'&&!empty($stored['appointmentId'])){
                 $appointment=DB::table('shared_appointments')->where('id',$stored['appointmentId'])->first();
                 abort_if($appointment&&in_array($appointment->status,['Requested','Booked']),409,'Another visit is already being arranged. Use the appointment to schedule or check in this visitor.');

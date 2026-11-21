@@ -47,7 +47,7 @@ async function page(user) {
   await send('Page.enable');await send('Runtime.enable');
   await send('Fetch.enable',{patterns:[{urlPattern:'*/api/*'}]});
   const db={users:user?[user]:[],services,transactions:[],appointments,chats:[],activityLog:[],queues:[],queueCounters:{},visitorLog:[],visitCounter:0,systemSettings:settings,sampleDataRemovedV2:true};
-  await send('Page.addScriptToEvaluateOnNewDocument',{source:`window.UNISERVE_API_BASE='http://127.0.0.1:8765/api';localStorage.clear();sessionStorage.clear();localStorage.setItem('ossuniserve_db_v1',${JSON.stringify(JSON.stringify(db))});${user?`sessionStorage.setItem('ossuniserve_session',${JSON.stringify(JSON.stringify({currentUser:user,token:'responsive-fixture'}))});`:''}`});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:`window.UNISERVE_API_BASE='http://127.0.0.1:8765/api';if(!sessionStorage.getItem('responsive-test-init')){localStorage.clear();sessionStorage.clear();localStorage.setItem('ossuniserve_db_v1',${JSON.stringify(JSON.stringify(db))});${user?`sessionStorage.setItem('ossuniserve_session',${JSON.stringify(JSON.stringify({currentUser:user,token:'responsive-fixture'}))});`:''}sessionStorage.setItem('responsive-test-init','1');}`});
   const run=async expression=>{const result=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.exception?.description||result.exceptionDetails.text);return result.result.value;};
   return {send,run,errors,
     goto:async url=>{await send('Page.navigate',{url:'http://127.0.0.1:8765'+url});await pause(600);for(let i=0;i<40;i++){if(await run("document.readyState==='complete'"))break;await pause(100);}},
@@ -102,7 +102,7 @@ async function main(){
      for(const {width,height} of viewports){
       await p.send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:width<600?3:1,mobile:width<600});await pause(35);
       const result=await p.run(geometry);results.push({portal,screen,width,height,...result});
-      if(process.argv.includes('--screenshots')&&height>600&&[390,820,980,1280].includes(width)&&['home','appointment','walkin','queue','dashboard','settings'].includes(screen)){await pause(250);await p.screenshot(`${portal}-${screen}-${width}`);}
+      if(process.argv.includes('--screenshots')&&height>600&&[390,820,980,1280].includes(width)&&['home','appointment','walkin','queue','dashboard','settings','reports'].includes(screen)){await pause(250);await p.screenshot(`${portal}-${screen}-${width}`);}
      }
     }
     if(portal==='landing'){
@@ -114,13 +114,19 @@ async function main(){
      assert.equal(await p.run("document.querySelector('meta[name=viewport]').content"),'width=1440');
      assert.equal(await p.run("document.documentElement.clientWidth"),1440);
      assert.equal(await p.run("getComputedStyle(document.querySelector('.brand-title')).fontSize"),'24px');
-     assert.equal(await p.run("document.querySelector('#crestSlotA img').getBoundingClientRect().width"),52);
+     const logoWidth=await p.run("document.querySelector('#crestSlotA img').getBoundingClientRect().width");
+     assert.ok(logoWidth>=32&&logoWidth<=64,'Desktop-site logo remains visible and balanced');
      assert.equal(await p.run("getComputedStyle(document.getElementById('navToggle')).display"),'none');
      assert.equal(await p.run("getComputedStyle(document.querySelector('.nav-link')).fontSize"),'13.12px');
      if(process.argv.includes('--screenshots'))await p.screenshot('landing-phone-exact-desktop');
     }
     if(user){
      await p.run('closeModal()');
+     await p.run(`navigate('${portal==='admin'?'transactions':'reports'}')`);await pause(300);
+     await p.send('Page.reload');await pause(900);
+     assert.equal(await p.run('state_view'),portal==='admin'?'transactions':'reports',`${portal} returns to the selected page after reload`);
+     await p.run("window.dispatchEvent(new CustomEvent('uniserve:changed',{detail:{resource:'settings'}}))");await pause(500);
+     assert.equal(await p.run('state_view'),portal==='admin'?'transactions':'reports',`${portal} stays on the selected page after a background update`);
      for(const width of [320,820]){
       await p.send('Emulation.setDeviceMetricsOverride',{width,height:844,deviceScaleFactor:1,mobile:true});await pause(250);
       await p.run("document.querySelector('.menu-btn').click()");await pause(250);

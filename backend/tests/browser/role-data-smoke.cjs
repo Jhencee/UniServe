@@ -55,7 +55,7 @@ async function page(){
     assert.equal(await p.run('loadDB().feedbackSummary.responses'),2);
     assert.ok(await p.run("document.getElementById('content').textContent.includes('System overview')"));
     assert.ok(await p.run("document.getElementById('content').textContent.includes('Active staff accounts')"));
-    assert.ok(await p.run("document.getElementById('content').textContent.includes('Security and system activity')"));
+    assert.ok(await p.run("document.getElementById('content').textContent.includes('Sign-ins and blocked access')"));
     assert.equal(await p.run("document.getElementById('content').textContent.includes('Recent Comments')"),false);
    }else{
     await p.run("navigate('appointments')");await pause(400);

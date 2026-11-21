@@ -61,7 +61,7 @@ async function page(){
   const db={users:[user],services,transactions:[],appointments:[appointment],chats:[],activityLog:[],queues:[],queueCounters:{},visitorLog:[],visitCounter:0,systemSettings:settings,sampleDataRemovedV2:true};
   await staff.send('Page.addScriptToEvaluateOnNewDocument',{source:'sessionStorage.setItem("ossuniserve_session",'+JSON.stringify(JSON.stringify({currentUser:user,token:'fixture'}))+');localStorage.setItem("ossuniserve_db_v1",'+JSON.stringify(JSON.stringify(db))+');'});
   await staff.goto(base+'/Admin/admin.html');
-  assert.ok(await staff.run('document.getElementById("content").textContent.includes("Service overview")'));
+  assert.ok(await staff.run('document.getElementById("content").textContent.includes("Transaction activity")'));
   await staff.screenshot('dashboard-welcome');
   const notificationCount=await staff.run('document.querySelector("#sidebarNotifications .notification-bell-count").textContent');
   for(const view of ['calendar','appointments','dashboard']){
@@ -124,6 +124,7 @@ async function page(){
   checks.push('Expired unconfirmed requests show rescheduling instructions without blaming the visitor');
   await staff.run('SharedAppointments.request("/appointments").then(SharedAppointments.cache).then(()=>editVisitTask("audit-a",null))');await pause(100);
   await staff.run('document.getElementById("visitTaskAction").value="Contact OSS for an update";document.getElementById("visitTaskDue").value="2099-01-06";document.getElementById("modalBtn1").click()');await pause(200);
+  for(let i=0;i<30;i++){if(await staff.run('!!document.querySelector(".modal-body")?.textContent.includes("Contact OSS for an update")'))break;await pause(100);}
   assert.equal(appointment.followUpTasks.length,2);
   assert.ok(await staff.run('document.querySelector(".modal-body").textContent.includes("Bring the signed original.")&&document.querySelector(".modal-body").textContent.includes("Contact OSS for an update")'));
   await staff.screenshot('process-follow-up-tasks-mobile');
@@ -131,7 +132,7 @@ async function page(){
   appointment={...appointment,status:'Booked',date:'2099-01-01',time:'15:00'};
   await staff.run('SharedAppointments.request("/appointments").then(SharedAppointments.cache).then(()=>adminCheckInAppointment("audit-a"))');
   assert.ok(await staff.run('document.getElementById("arrivalOverrideReason")!==null'));
-  await staff.run('document.getElementById("arrivalOverrideReason").value="Assisted arrival reviewed at counter";document.getElementById("modalBtn1").click()');await pause(200);
+  await staff.run('document.getElementById("arrivalOverrideReason").value="Office instructed a different arrival time";document.getElementById("modalBtn1").click()');await pause(200);
   assert.ok(requests.some(r=>r.path.endsWith('/check-in')&&r.method==='POST'));
   checks.push('Staff see the arrival-window override modal before submitting an early check-in');
   await staff.run('openAssistedIntake()');

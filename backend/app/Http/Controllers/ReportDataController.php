@@ -25,7 +25,7 @@ class ReportDataController extends Controller
             if($kind==='transaction'&&$row->id!==$id)continue;
             if($kind==='service'&&($t['service']??'')!==($d['serviceKey']??''))continue;
             if($private&&$include&&$kind==='transaction')abort_unless($this->canPrint($u,$row->id),403,'View and Print approval and an active print unlock are required.');
-            if($private&&!$include)$t=array_intersect_key($t,array_flip(['id','code','service','status','caseStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];
+            if($private&&!$include)$t=array_intersect_key($t,array_flip(['id','code','service','status','caseStatus','pickupStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];
             if(isset($t['attachments']))$t['attachments']=array_map(fn($f)=>array_intersect_key($f,array_flip(['name','size','type'])),$t['attachments']);
             $transactions[]=$t;
         }
@@ -34,6 +34,7 @@ class ReportDataController extends Controller
         if($kind==='logbook')foreach(DB::table('shared_visitor_log')->get() as $row){
             $l=json_decode(Crypt::decryptString($row->payload),true);$case=$caseByQueue[$row->queue_id]??null;
             $q=DB::table('queues')->where('id',$row->queue_id)->first();$queue=$q?QueueData::read($q->portal_payload):[];
+            if(!empty($queue['checkedInAt']))$l['timeIn']=$queue['checkedInAt'];
             $private=$case||ServicePrivacy::confidential($queue['serviceKey']??'');
             if($private&&$include)abort_unless(($u->confidential_approver??false)&&($headReport||($case&&$this->canPrint($u,$case))),403,'Unlock confidential Visitor Log printing first.');
             if($private&&!$include)$l=array_intersect_key($l,array_flip(['id','timeIn','timeOut','source','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];
@@ -69,6 +70,19 @@ class ReportDataController extends Controller
                 $fields=array_merge($fields,['appointmentId','assignedAdminName','requirementChecks','requirementReadiness','serviceHistory','notes','details','closeReason']);
             }
             $queues[]=array_intersect_key($q,array_flip($fields));
+        }
+        if($kind==='transaction' && !empty($transactions[0]) && empty($transactions[0]['restricted'])) {
+            $record=$transactions[0];
+            $first=DB::table('queues')->where('id',$record['queueId']??'')->first();
+            $original=$first?QueueData::read($first->portal_payload):[];
+            $pickupRow=!empty($original['pickupQueueId'])?DB::table('queues')->where('id',$original['pickupQueueId'])->first():null;
+            $pickup=$pickupRow?QueueData::read($pickupRow->portal_payload):[];
+            if($pickupRow && ($pickup['pickupTransactionId']??null)===($record['id']??null) && ($pickup['pickupOfVisitId']??null)===($original['visitId']??null)) {
+                $progress=array_intersect_key($pickup,array_flip(['visitId','number','checkedInAt','createdAt','calledAt','servingAt','completedAt']));
+                $progress['status']=$pickupRow->status;
+                if(empty($progress['completedAt'])&&!empty($pickupRow->completed_at))$progress['completedAt']=\Illuminate\Support\Carbon::parse($pickupRow->completed_at,'UTC')->toIso8601String();
+                $transactions[0]['pickupVisit']=$progress;
+            }
         }
         SystemAudit::record($u,'Data','Authorized report output',$kind,[['field'=>'Confidential details','from'=>'','to'=>$include?'Included':'Redacted']]);
         return response()->json(['transactions'=>$transactions,'visitorLog'=>$logs,'appointments'=>$appointments,'queues'=>$queues,'confidentialIncluded'=>$include]);

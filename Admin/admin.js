@@ -89,8 +89,9 @@ function uid(p) {
   return p + c;
 }
 const pad2 = n => String(n).padStart(2, '0');
-const fmtDate = d => { d = new Date(d); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-const fmtTime = d => { d = new Date(d); let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${pad2(d.getMinutes())} ${ap}`; };
+const officeTimeParts = d => { if(d==null||d==='')return null;const date=new Date(d);if(!Number.isFinite(date.getTime()))return null;return Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value])); };
+const fmtDate = d => { const p=officeTimeParts(d);return p?`${p.year}-${p.month}-${p.day}`:'—'; };
+const fmtTime = d => { const p=officeTimeParts(d);if(!p)return '—';const h=Number(p.hour);return `${h%12||12}:${p.minute} ${h>=12?'PM':'AM'}`; };
 const fmtDateTime = d => `${fmtDate(d)} &middot; ${fmtTime(d)}`;
 const today = () => fmtDate(new Date());
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(0, 0, 0, 0); return d; };
@@ -99,8 +100,8 @@ const slugify = s => String(s).toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').
 function escapeHtml(s) { if (s == null) return ''; return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function fmtFileSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(1) + ' MB'; }
 function fmtMinutes(m) {
- if(m==null)return '&mdash;';
- const seconds=Math.max(0,Math.round(Number(m)*60));
+ if(m==null||!Number.isFinite(Number(m))||Number(m)<0)return '&mdash;';
+ const seconds=Math.round(Number(m)*60);
  const h=Math.floor(seconds/3600),n=Math.floor(seconds%3600/60),sec=seconds%60;
  return [h?h+' '+'hrs':'',n?n+' '+'mins':'',sec?sec+' '+'secs':''].filter(Boolean).join(' ')||'0 secs';
 }
@@ -339,19 +340,19 @@ function feedbackReadoutHtml(q) {
   return `<div class="kv"><span>Visitor Feedback</span><span class="fb-readout"><span class="stars">${STARS(q.feedback.rating)}</span>${q.feedback.comment ? ` &mdash; "${escapeHtml(q.feedback.comment)}"` : ''}</span></div>`;
 }
 
-function timelineBlockHtml(q, appt) {
+function timelineBlockHtml(q, appt, showHeading = true) {
   const rows = [];
   if (appt && appt.date) rows.push(['Scheduled for', apptScheduledDate(appt)]);
-  rows.push(['Checked in', q.checkedInAt || q.createdAt], ['Called', q.calledAt], ['Service started', q.servingAt], ['Completed', q.completedAt]);
+  rows.push(['Checked in', q.checkedInAt], ['Called', q.calledAt], ['Service started', q.servingAt], ['Completed', q.completedAt]);
   if (q.skippedAt) rows.push(['Skipped', q.skippedAt]);
   if (q.cancelledAt) rows.push(['Cancelled', q.cancelledAt]);
-  return `<div class="divider"></div><h5 class="record-subheading">Visit timeline</h5>` +
+  return (showHeading ? `<div class="divider"></div><h5 class="record-subheading">Visit timeline</h5>` : '') +
     rows.map(([l, t]) => `<div class="kv"><span>${l}</span><span class="mono">${t ? fmtDateTime(t) : '&mdash;'}</span></div>`).join('');
 }
 function timelinePrintRows(q, appt) {
   const rows = [];
   if (appt && appt.date) rows.push(['Scheduled For', apptScheduledDate(appt)]);
-  rows.push(['Called', q.calledAt], ['Service Started', q.servingAt]);
+  rows.push(['Checked In', q.checkedInAt], ['Called', q.calledAt], ['Service Started', q.servingAt]);
   return rows.filter(r => r[1]).map(([l, t]) => `<tr><th>${l}</th><td>${fmtDateTime(t)}</td></tr>`).join('');
 }
 function feedbackStats(db) {
@@ -460,12 +461,12 @@ function downloadCSV(filename, rows) {
 }
 function reportLetterhead() {
   return `<div class="report-header">
-      <span class="report-logo-left"><img src="pup.jpg" alt="PUP Seal"></span>
+      <span class="report-logo-left"><img src="../shared/pup.jpg" alt="PUP Seal"></span>
       <div class="report-org-text"><div class="org-country">Republic of the Philippines</div><div class="org-univ">Polytechnic University of the Philippines</div><div class="org-office">Office of the Vice President for Campuses</div><div class="org-campus">Santa Maria Campus</div></div>
-      <span class="report-logo-right"><img src="pilipinas.png" alt="Bagong Pilipinas"></span></div>`;
+      <span class="report-logo-right"><img src="../shared/pilipinas.png" alt="Bagong Pilipinas"></span></div>`;
 }
 function reportFooter() {
-  return `<div class="print-footer"><div class="pf-text"><div class="pf-addr">Km. 38, Pulong Buhangin, Santa Maria, Bulacan, 3022</div><div class="pf-addr">Website: www.pup.edu.ph | Email: stamaria@pup.edu.ph</div><div class="pf-tag">A Leading Comprehensive Polytechnic University in Asia</div></div><img class="pf-badges" src="badge.png" alt=""></div>`;
+  return `<div class="print-footer"><div class="pf-text"><div class="pf-addr">Km. 38, Pulong Buhangin, Santa Maria, Bulacan, 3022</div><div class="pf-addr">Website: www.pup.edu.ph | Email: stamaria@pup.edu.ph</div><div class="pf-tag">A Leading Comprehensive Polytechnic University in Asia</div></div><img class="pf-badges" src="../shared/badge.png" alt=""></div>`;
 }
 function reportSignatureBlock(role1, role2) {
   return `<div class="rpt-signature-block">
@@ -638,7 +639,7 @@ const TITLES = {
   dashboard: ['Dashboard', "Overview of today's activity"],
   queue: ['Queue', "Today's active service line — call, serve and complete visits."],
   appointments: ['Appointments', 'Scheduled visits awaiting check-in — set date and time, then check visitors in'],
-  logbook: ['Visitor Log', 'Record of who visited the office and when — Time In and Time Out'],
+  logbook: ['Visitor Log', 'Visitors and their check-in and check-out times'],
   transactions: ['Transactions', 'Service history and records — including Incident Reports and Scholarship Transactions'],
   messages: ['Messages', 'Chat conversations with students and guests'],
   feedback: ['Feedback', 'Ratings and comments left by visitors after their visit'],
@@ -711,7 +712,7 @@ function navigate(key) {
   if (!TITLES[key] || (key === 'services' && !currentUser.confidentialApprover)) key = 'dashboard';
   if (key !== 'queue') stopAdminQueuePolling();
   if (key !== 'messages') { stopMessagesPolling(); activeStaffChatId = null; }
-  state_view = key; txnServiceFilter = staffViewMemory[key]?.txnServiceFilter;
+  state_view = key; sessionStorage.setItem('uniserve_admin_view:'+currentUser.id,key); txnServiceFilter = staffViewMemory[key]?.txnServiceFilter;
   document.getElementById('pageTitle').textContent = TITLES[key][0];
   document.getElementById('pageSub').innerHTML = TITLES[key][1];
   renderSidebar();
@@ -775,6 +776,7 @@ function staffNotificationItems(db=loadDB()) {
     if(a.status!=='Cancelled')(a.followUpTasks||(a.followUpTask?[a.followUpTask]:[])).filter(t=>!t.completed&&t.dueDate<todayDate).forEach(t=>notifications.push({category:'followups',title:'Follow-up overdue',detail:detail+' · Due '+t.dueDate+(t.ownerName?' · '+t.ownerName:''),id:a.id,action:'View task',kind:'appointment'}));
   });
   (db.transactions||[]).filter(t=>t.caseStatus&&t.caseStatus!=='Resolved').forEach(t=>notifications.push({category:'followups',title:'Case needs follow-up',detail:[t.code||t.id,t.caseStatus].filter(Boolean).join(' ? '),id:t.id,action:'View case',kind:'case'}));
+  (db.transactions||[]).filter(t=>t.pickupStatus==='Preparing').forEach(t=>notifications.push({category:'followups',title:'Document needs preparation',detail:t.code||'Service record',id:t.id,action:'View pending',kind:'document'}));
   return notifications;
 }
 function refreshSidebarNotificationCount() {
@@ -795,12 +797,11 @@ function renderNotifications() {
   const notifications=staffNotificationItems(db);
   refreshSidebarNotificationCount();
   const categoryLabels={requests:'Request',waitlist:'Earlier appointment',followups:'Follow-up'};
-  const categoryIcons={requests:'calendar',waitlist:'clock',followups:'ticket'};
   const preferences=notificationPreferences();
   const rows=notifications.map(n=>{
     const key=notificationPreferenceKey(n),pref=notificationPreference(n,preferences);
-    const action=n.kind==='important'?'openImportantNotification(this.dataset.id)':n.kind==='approval'?'openApprovedAccessRequest(this.dataset.id)':n.kind==='access'?'openHeadAccessRequest(this.dataset.id)':n.kind==='case'?'openTxnDetail(this.dataset.id)':'openApptDetail(this.dataset.id,true)';
-    return '<article class="notification-entry" data-key="'+escapeHtml(key)+'" data-read="'+!!pref.read+'" data-archived="'+!!pref.archived+'" data-category="'+n.category+'"><div class="notification-entry-copy"><small class="notification-entry-label">'+categoryLabels[n.category]+' &middot; '+(pref.read?'Read':'Unread')+'</small><p>'+escapeHtml(n.title)+'</p><span>'+escapeHtml(n.detail.replace(/ \? /g,' ? '))+'</span></div><div class="notification-entry-controls"><button type="button" class="notification-entry-action" data-id="'+escapeHtml(String(n.id))+'" onclick="markNotificationOpened(this);'+action+'">'+n.action+'</button><div class="notification-state-actions"><button type="button" data-action="'+(pref.read?'unread':'read')+'" onclick="changeNotificationState(this,this.dataset.action)">Mark as '+(pref.read?'unread':'read')+'</button><button type="button" data-action="'+(pref.archived?'restore':'archive')+'" onclick="changeNotificationState(this,this.dataset.action)">'+(pref.archived?'Restore':'Archive')+'</button></div></div></article>';
+    const action=n.kind==='important'?'openImportantNotification(this.dataset.id)':n.kind==='approval'?'openApprovedAccessRequest(this.dataset.id)':n.kind==='access'?'openHeadAccessRequest(this.dataset.id)':n.kind==='document'?'openPendingDocuments()':n.kind==='case'?'openTxnDetail(this.dataset.id)':'openApptDetail(this.dataset.id,true)';
+    return '<article class="notification-entry" data-key="'+escapeHtml(key)+'" data-read="'+!!pref.read+'" data-archived="'+!!pref.archived+'" data-category="'+n.category+'"><span class="notification-unread-dot" aria-hidden="true"></span><div class="notification-entry-copy"><p>'+escapeHtml(n.title)+'</p><span>'+escapeHtml(n.detail.replace(/ \? /g,' ? '))+'</span><small class="notification-entry-label">'+categoryLabels[n.category]+' &middot; '+(pref.read?'Read':'Unread')+'</small></div><div class="notification-entry-controls"><button type="button" class="notification-entry-action" data-id="'+escapeHtml(String(n.id))+'" onclick="markNotificationOpened(this);'+action+'">'+n.action+'</button><div class="notification-state-actions"><button type="button" data-action="'+(pref.read?'unread':'read')+'" onclick="changeNotificationState(this,this.dataset.action)">Mark '+(pref.read?'unread':'read')+'</button><button type="button" data-action="'+(pref.archived?'restore':'archive')+'" onclick="changeNotificationState(this,this.dataset.action)">'+(pref.archived?'Restore':'Archive')+'</button></div></div></article>';
   }).join('');
   content.querySelector('.notifications-page-feed').innerHTML='<div class="dashboard-notifications-items">'+rows+'</div><p class="notification-empty"'+(notifications.length?' hidden':'')+'>No notifications.</p>';
   content.querySelector('.notification-tabs').insertAdjacentHTML('beforebegin','<div class="notification-status-filter"><label for="notificationStatus">Show</label><select id="notificationStatus" onchange="filterNotificationStatus(this.value)"><option value="all">All active</option><option value="unread">Unread</option><option value="read">Read</option><option value="archived">Archived</option></select></div>');
@@ -851,6 +852,8 @@ function renderDashboard() {
   const changes=db.appointments.filter(a=>!a.restricted&&a.status!=='Cancelled'&&(a.rescheduleRequested||a.calendarReview)).length;
   const unfinished=visible.filter(q=>q.status==='Unfinished').length;
   const pending=db.transactions.filter(t=>!t.restricted&&t.status==='Pending').length;
+  const preparingDocuments=db.transactions.filter(t=>!t.restricted&&t.pickupStatus==='Preparing').length;
+  const readyDocuments=db.transactions.filter(t=>!t.restricted&&t.pickupStatus==='Ready').length;
   const dates=adminAnalyticsDates(date);
   const txns=db.transactions.filter(t=>!t.restricted&&t.createdAt&&dates.includes(OfficeCalendar.parts(new Date(t.createdAt)).date));
   const hourly=dates.length===1;
@@ -869,6 +872,8 @@ function renderDashboard() {
     task('Appointment requests',requests,"openDashboardAppointments('Requested')",'Review requests')+
     task('Schedule changes',changes,"openDashboardAppointments('Needs rescheduling')",'Review schedules')+
     task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
+    task('Documents for preparation',preparingDocuments,"openPendingDocuments()",'View documents')+
+    task('Documents ready for pickup',readyDocuments,"openReadyDocuments()",'View documents')+
     task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
     '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
     adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
@@ -913,7 +918,7 @@ function startAdminQueuePolling() {
   stopAdminQueuePolling();
   updateAdminServiceClocks();
   adminServiceClockTimer = setInterval(updateAdminServiceClocks, 1000);
-  adminQueuePollTimer = setInterval(() => { if (state_view === 'queue' && !window.UniServeRealtime?.connected && document.visibilityState !== 'hidden') renderQueueDashboard(); }, 4000);
+  adminQueuePollTimer = setInterval(() => { if (state_view === 'queue' && !window.UniServeRealtime?.connected && document.visibilityState !== 'hidden') renderQueueDashboard(true); }, 4000);
 }
 function stopAdminQueuePolling() {
   if (adminQueuePollTimer) { clearInterval(adminQueuePollTimer); adminQueuePollTimer = null; }
@@ -937,7 +942,8 @@ function closeUnservedVisit(id){
     {label:'Close visit',cls:'btn-danger-o',action:async()=>{try{const choice=document.getElementById('unservedReasonChoice').value;const reason=choice==='Other'?document.getElementById('unservedReason').value.trim():choice;if(!reason||reason.length<5){toast(choice==='Other'?'Enter at least 5 characters for the other reason.':'Select a reason.','err');document.getElementById(choice==='Other'?'unservedReason':'unservedReasonChoice').focus();return;}await UniServeUX.request('/queue/'+id,'PATCH',{status:'Cancelled',closureReason:reason});closeModal();await renderQueueDashboard();toast('Visit closed as not served.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}}
   ]);
 }
-async function renderQueueDashboard() {
+let lastQueueSnapshot='';
+async function renderQueueDashboard(background=false) {
   if (sharedQueueLoading) return;
   sharedQueueLoading = true;
   let queueError = '';
@@ -946,6 +952,9 @@ async function renderQueueDashboard() {
   finally { sharedQueueLoading = false; }
   if (state_view !== 'queue' || document.querySelector('.ux-secondary-actions[open]')) return;
   const db = loadDB(), stats = queueStats(db), mine = myQueueEntries(db, currentUser.id), waiting = waitingQueueSorted(db), nextUp = stats.next;
+  const snapshot=JSON.stringify([stats,mine,waiting,queueError]);
+  if(background&&(snapshot===lastQueueSnapshot||document.activeElement?.matches('#content input, #content select, #content textarea')||document.querySelector('#activeModal')))return;
+  const scrollX=window.scrollX,scrollY=window.scrollY;
   document.getElementById('content').innerHTML = `
     ${queueError ? '<div class="err-box">' + queueError + '<button class="btn btn-ghost btn-sm" onclick="renderQueueDashboard()">Retry</button></div>' : ''}
     <div class="stat-grid">
@@ -978,9 +987,22 @@ async function renderQueueDashboard() {
             </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Queue is empty.</td></tr>`}</tbody></table></div>
       </div>
     </div>`;
+  lastQueueSnapshot=snapshot;
+  if(background)window.scrollTo(scrollX,scrollY);
   startAdminQueuePolling();
 }
 const queueRequirementSaving = new Set();
+const pickupIdentityDrafts = new Map();
+function documentPreparationSelected(id) { return sessionStorage.getItem('uniserve_document_preparation:'+id)==='1'; }
+function setDocumentPreparation(input) {
+  const id=input.dataset.queueId;
+  if(input.checked)sessionStorage.setItem('uniserve_document_preparation:'+id,'1');else sessionStorage.removeItem('uniserve_document_preparation:'+id);
+}
+function rememberPickupIdentity(select) {
+  const id=select.closest('.queue-requirements')?.dataset.queueId;if(!id)return;
+  pickupIdentityDrafts.set(id,select.value);
+  document.querySelectorAll('.queue-requirements').forEach(host=>{if(host.dataset.queueId===id){const other=host.querySelector('#pickupQueueIdType');if(other&&other!==select)other.value=select.value;}});
+}
 function queueRequirementState(db,q) {
   if(q.requirementReadiness)return q.requirementReadiness;
   const labels=[...new Set((findService(db,q.serviceKey)?.requirements||[]).map(r=>String(r).trim()).filter(Boolean))];
@@ -991,7 +1013,7 @@ function queueRequirementState(db,q) {
   return {items,checked,required:items.length,ready:checked===items.length};
 }
 function queueRequirementsBadge(db,q) {
-  if(q.restricted)return '<span class="muted">Restricted</span>';
+  if(q.restricted)return '<span class="muted">&mdash;</span>';
   const state=queueRequirementState(db,q);
   return '<span class="queue-requirements-table" data-queue-id="'+escapeHtml(q.id)+'">'+readinessPillHtml({status:state.ready?'READY':'INCOMPLETE',label:state.ready?'Requirements complete':'Incomplete requirements'},true)+(state.required?'<small>'+state.checked+' of '+state.required+' checked</small>':'')+'</span>';
 }
@@ -1004,21 +1026,24 @@ function queueRequirementsHtml(db, q) {
   if(q.restricted)return '';
   const state=queueRequirementState(db,q),editable=q.status==='Serving'&&q.assignedAdminId===currentUser.id,saving=queueRequirementSaving.has(q.id);
   return '<section class="queue-requirements" data-queue-id="'+escapeHtml(q.id)+'" aria-label="Visit requirements"><div class="queue-requirements-head"><h4>Requirements</h4><span>'+state.checked+' of '+state.required+' checked</span></div>'+
-    (state.required?state.items.map((item,index)=>'<label class="queue-requirement-row"><input type="checkbox" data-index="'+index+'" data-upload="'+(item.source==='upload')+'" data-service-key="'+escapeHtml(q.serviceKey)+'" data-requirement="'+escapeHtml(item.label)+'" '+(item.checked?'checked ':'')+(!editable||saving||item.source==='upload'?'disabled ':'')+'onchange="saveQueueRequirement(this)"><span>'+escapeHtml(item.label)+(item.source==='upload'?'<small>Accepted upload</small>':'')+'</span></label>').join(''):'<p class="field-hint">No requirements listed for this service.</p>')+
+    (state.required?state.items.map((item,index)=>{const row='<label class="queue-requirement-row"><input type="checkbox" data-index="'+index+'" data-upload="'+(item.source==='upload')+'" data-service-key="'+escapeHtml(q.serviceKey)+'" data-requirement="'+escapeHtml(item.label)+'" '+(item.checked?'checked ':'')+(!editable||saving||item.source==='upload'||(q.pickupClaimed&&item.checked)?'disabled ':'')+'onchange="saveQueueRequirement(this)"><span>'+escapeHtml(item.label)+(item.source==='upload'?'<small>Accepted upload</small>':'')+'</span></label>';return q.pickupTransactionId&&item.label==='Identity verified'?'<div class="queue-pickup-identity">'+row+(item.checked?'<div class="field"><label for="pickupQueueIdType">ID checked</label><select id="pickupQueueIdType" onchange="rememberPickupIdentity(this)" '+(!editable||saving||q.pickupClaimed?'disabled':'')+'><option value="">Select ID checked</option>'+['Student ID checked','Government-issued ID checked','Authorized representative ID and authorization checked'].map(value=>'<option '+((q.pickupIdentityCheck||pickupIdentityDrafts.get(q.id))===value?'selected':'')+'>'+escapeHtml(value)+'</option>').join('')+'</select></div>':'')+'</div>':row;}).join(''):'<p class="field-hint">No requirements listed for this service.</p>')+
     '<p class="queue-requirement-status field-hint" role="status" aria-live="polite">'+(saving?'Saving...':state.required?(editable?(state.ready?'All requirements checked.':'Check the remaining requirements before completing service.') :q.status==='Called'?'Start service to check remaining requirements.':'Saved checklist ? read only.'):'')+'</p>'+(q.appointmentId?'<p class="field-hint queue-upload-note">Accepted uploads cover the requirements matched during document review. Check any remaining items at the counter.</p>':'')+'</section>';
 }
 async function saveQueueRequirement(input) {
   const host=input.closest('.queue-requirements'),id=host.dataset.queueId,q=loadDB().queues.find(q=>q.id===id);
   if(!q||queueRequirementSaving.has(id))return;
-  const checked=input.checked,index=input.dataset.index;
+  const checked=input.checked,index=input.dataset.index,identityCheck=host.querySelector('#pickupQueueIdType')?.value;
+  if(input.dataset.requirement==='Document claimed'&&checked&&!identityCheck){input.checked=false;toast(q.pickupIdentityVerified?'Select the ID checked.':'Verify the visitor’s identity first.','err');return;}
   queueRequirementSaving.add(id);syncQueueRequirementControls(id);
   const hosts=()=>[...document.querySelectorAll('.queue-requirements')].filter(el=>el.dataset.queueId===id);
   for(const el of hosts()){el.querySelectorAll('input').forEach(field=>field.disabled=true);el.querySelector('[role="status"]').textContent='Saving...';}
   try {
-    const result=await UniServeUX.request('/queue/'+encodeURIComponent(id)+'/requirements','PATCH',{serviceKey:input.dataset.serviceKey,requirement:input.dataset.requirement,checked});
+    const result=await UniServeUX.request('/queue/'+encodeURIComponent(id)+'/requirements','PATCH',{serviceKey:input.dataset.serviceKey,requirement:input.dataset.requirement,checked,identityCheck});
+    if(result.queue.pickupClaimed)pickupIdentityDrafts.delete(id);
     SharedAppointments.cache(result);
     queueRequirementSaving.delete(id);
     for(const el of hosts())el.outerHTML=queueRequirementsHtml(loadDB(),result.queue);
+    if(identityCheck&&!result.queue.pickupClaimed)for(const el of hosts()){const select=el.querySelector('#pickupQueueIdType');if(select)select.value=identityCheck;}
     for(const el of hosts())el.querySelector('[role="status"]').textContent='Checklist saved.';
     const focus=hosts().find(el=>el.closest('#activeModal'))||hosts()[0];
     focus?.querySelector('input[data-index="'+index+'"]')?.focus({preventScroll:true});
@@ -1029,7 +1054,7 @@ async function saveQueueRequirement(input) {
   } finally {
     queueRequirementSaving.delete(id);
     const latest=loadDB().queues.find(row=>row.id===id);
-    for(const el of hosts())el.querySelectorAll('input').forEach(field=>field.disabled=field.dataset.upload==='true'||!latest||latest.restricted||latest.status!=='Serving'||latest.assignedAdminId!==currentUser.id);
+    for(const el of hosts())el.querySelectorAll('input').forEach(field=>field.disabled=field.dataset.upload==='true'||!latest||latest.restricted||latest.status!=='Serving'||latest.assignedAdminId!==currentUser.id||(latest.pickupClaimed&&field.checked));
     syncQueueRequirementControls(id);
   }
 }
@@ -1044,6 +1069,7 @@ function renderMyQueueCard(db, q) {
         ${!called && q.servingAt ? `<div class="qd-service-clock" data-serving-since="${new Date(q.servingAt).getTime()}" aria-label="Service time elapsed">0:00</div>` : ''}</div>
     </div>
     ${queueRequirementsHtml(db,q)}
+    ${!called&&!q.pickupTransactionId&&!q.restricted?`<div class="queue-preparation-option"><label class="queue-requirement-row"><input type="checkbox" data-queue-id="${escapeHtml(q.id)}" onchange="setDocumentPreparation(this)" ${documentPreparationSelected(q.id)?'checked':''}><span>Document needs preparation for pickup</span></label></div>`:''}
     <div class="qd-serving-actions">
       <button class="btn btn-ghost btn-sm" onclick="openQueueVisitDetail('${q.id}')">View visit</button>
       ${called ? `<button class="btn btn-primary btn-sm" onclick="handleBeginServing('${q.id}')">Start service</button>
@@ -1098,7 +1124,7 @@ function openQueueVisitDetail(id) {
     ${q.idNumber ? `<div class="kv"><span>${q.idType ? escapeHtml(q.idType) : 'ID Number'}</span><span>${escapeHtml(q.idNumber)}</span></div>` : (q.idType ? `<div class="kv"><span>ID Type</span><span>${escapeHtml(q.idType)}</span></div>` : '')}
     ${q.contact ? `<div class="kv"><span>Contact</span><span>${escapeHtml(q.contact)}</span></div>` : ''}
     ${q.email ? `<div class="kv"><span>Gmail</span><span>${escapeHtml(q.email)}</span></div>` : ''}
-    </section><section class="staff-detail-section"><h4>Service details</h4><div class="kv"><span>Service</span><span>${escapeHtml(serviceQueueLabel(db, q))}</span></div>
+    </section><section class="staff-detail-section"><h4>Service details</h4><div class="kv"><span>Service</span><span>${escapeHtml(serviceQueueLabel(db, q))}</span></div>${q.pickupTransactionId?`<div class="kv"><span>Original visit</span><span>${escapeHtml(q.pickupOfVisitId)} <button type="button" class="btn btn-ghost btn-sm" data-pickup-record="${escapeHtml(q.pickupTransactionId)}" onclick="openPickupTransaction(this.dataset.pickupRecord)">Open record</button></span></div>`:''}
     <div class="kv"><span>Entry Method</span><span>${q.source === 'Appointment' ? 'Scheduled Appointment' : 'Walk-In'}</span></div>
     ${q.scheduledAt ? `<div class="kv"><span>Scheduled For</span><span>${fmtDateTime(q.scheduledAt)} ${dueTagHtml(q)}</span></div>` : ''}
 
@@ -1247,9 +1273,9 @@ function renderApptTable() {
     const attentionClass=r.restricted?'':r.status==='Requested'?'appointment-awaiting-review':r.status==='Booked'&&readiness.status!=='READY'?'appointment-requirements-attention':'';
     return `<tr${attentionClass ? ' class="'+attentionClass+'"' : ''}><td class="row-num">${i + 1}</td>
     <td class="mono">${escapeHtml(r.visitId || '—')}${r.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${r.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${r.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}<div class="muted" style="font-size:.68rem;">${escapeHtml(r.code)}</div></td>
-    <td>${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div></td>
+    <td>${r.restricted?'&mdash;':`${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div>`}</td>
     <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(UniServeUX.timeLabel(r.time)) : '&mdash;'}</td>
-    <td>${readinessPillHtml(readiness, true)}</td>
+    <td>${r.restricted?'&mdash;':readinessPillHtml(readiness, true)}</td>
     <td><div class="appointment-status-list">${statusPill(r.status)} ${arrivalStatusPill(r)} ${r.earlierSlotOptIn?'<span class="appointment-status-note">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</div></td>
     <td class="act-cell appointment-action-cell">${appointmentActionsHtml(r)}</td></tr>`;
   }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
@@ -1482,9 +1508,9 @@ function renderLogbookTable() {
   let rows = logbookRows(db, false);
   if (q) rows = rows.filter(r => r.name.toLowerCase().includes(q) || logIdentity(db, r).toLowerCase().includes(q) || logEmail(db, r).toLowerCase().includes(q));
   document.getElementById('logBody').innerHTML = rows.length ? rows.map((r, i) => `<tr><td class="row-num">${i + 1}</td>
-    <td>${escapeHtml(r.name)}${r.restricted?'<div class="log-restricted-action">'+(r.confidentialCaseId?'<button type="button" class="log-unlock-link" data-case-id="'+escapeHtml(r.confidentialCaseId)+'" onclick="unlockVisitorLogEntry(this.dataset.caseId)">'+(currentUser.confidentialApprover?'Unlock':'Request access')+'</button>':'')+'</div>':''}${r.visitId ? `<div class="muted mono" style="font-size:.68rem;">${escapeHtml(r.visitId)}</div>` : ''}</td><td>${escapeHtml(r.type)}</td>
-    <td>${r.source === 'Appointment' ? '<span class="pill pill-info">Scheduled</span>' : '<span class="pill pill-gold">Walk-in</span>'}</td>
-    <td class="mono">${r.type === 'Student' && r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td>${r.type !== 'Student' && logIdentity(db, r) ? escapeHtml(logIdentity(db, r)) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td>${r.purpose ? escapeHtml(r.purpose) : '&mdash;'}</td>
+    <td>${r.restricted?(r.confidentialCaseId?'<button type="button" class="log-unlock-link" data-case-id="'+escapeHtml(r.confidentialCaseId)+'" onclick="unlockVisitorLogEntry(this.dataset.caseId)">'+(currentUser.confidentialApprover?'Unlock':'Request access')+'</button>':'&mdash;'):escapeHtml(r.name)}${r.visitId ? `<div class="muted mono" style="font-size:.68rem;">${escapeHtml(r.visitId)}</div>` : ''}</td><td>${r.restricted?'&mdash;':escapeHtml(r.type)}</td>
+    <td>${r.restricted?'&mdash;':r.source === 'Appointment' ? '<span class="pill pill-info">Scheduled</span>' : '<span class="pill pill-gold">Walk-in</span>'}</td>
+    <td class="mono">${r.type === 'Student' && r.idNumber ? escapeHtml(r.idNumber) : '&mdash;'}</td><td>${r.type !== 'Student' && logIdentity(db, r) ? escapeHtml(logIdentity(db, r)) : '&mdash;'}</td><td class="mono">${logContact(db, r) ? escapeHtml(logContact(db, r)) : '&mdash;'}</td><td class="mono" style="overflow-wrap:anywhere;">${logEmail(db, r) ? escapeHtml(logEmail(db, r)) : '&mdash;'}</td><td>${r.purpose ? (r.purpose.startsWith('Document pickup · ') ? `<span title="${escapeHtml(r.purpose)}">Document pickup</span>` : escapeHtml(r.purpose)) : '&mdash;'}</td>
     <td class="mono log-timestamp">${fmtDate(r.timeIn)}</td><td class="mono log-timestamp">${fmtTime(r.timeIn)}</td><td class="mono log-timestamp">${r.timeOut ? fmtTime(r.timeOut) : '&mdash;'}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="12">${db.visitorLog.length?'No visitor entries match these filters.':'No visitor entries logged yet.'}</td></tr>`;
 }
 function downloadLogbook() {
@@ -1525,7 +1551,7 @@ function printVisitorLogSnapshot(includeConf=false) {
 let activeStaffChatId = null, pendingStaffAttachments = [], messagesPollTimer = null;
 function renderMessages() {
   document.getElementById('content').innerHTML = `<div class="staff-messages">
-    <div class="chat-shell"><div class="chat-thread-list" id="chatThreadList"><div class="thread-list-head"><span class="lbl">Chats</span></div><div class="thread-search"><input id="chatCodeSearch" aria-label="Search conversations by name" placeholder="Search chats" autocomplete="off" oninput="renderChatThreadList()"></div><div id="chatThreadBody"></div></div><div class="chat-panel" id="chatPanel">${emptyChatPanel()}</div></div></div>`;
+    <div class="chat-shell"><div class="chat-thread-list" id="chatThreadList"><div class="thread-list-head"><span class="lbl">Conversations</span></div><div class="thread-search"><input id="chatCodeSearch" aria-label="Search conversations by name" placeholder="Search conversations" autocomplete="off" oninput="renderChatThreadList()"></div><div id="chatThreadBody"></div></div><div class="chat-panel" id="chatPanel">${emptyChatPanel()}</div></div></div>`;
   renderChatThreadList();
   startMessagesPolling();
 }
@@ -1576,8 +1602,8 @@ function openStaffChat(id) {
     <div id="staffAttachPreview" style="padding:${closed ? '0' : '10px 18px 0'};"></div>
     <div class="chat-input-row">
       <input type="file" id="staffAttachInput" multiple style="display:none" onchange="handleStaffFileSelect(this)" ${closed ? 'disabled' : ''}>
-      <button class="icon-btn" title="Attach files" onclick="document.getElementById('staffAttachInput').click()" ${closed ? 'disabled' : ''}>${icon('paperclip', 16)}</button>
-      <textarea id="staffReplyBox" aria-label="Message" rows="1" placeholder="${closed ? 'Conversation is closed' : 'Aa'}" ${closed ? 'disabled' : ''}></textarea>
+      <button class="icon-btn" aria-label="Attach files" title="Attach files" onclick="document.getElementById('staffAttachInput').click()" ${closed ? 'disabled' : ''}>${icon('paperclip', 16)}</button>
+      <textarea id="staffReplyBox" aria-label="Message" rows="1" placeholder="${closed ? 'Conversation is closed' : 'Write a message'}" ${closed ? 'disabled' : ''}></textarea>
       <button type="button" class="staff-chat-send" aria-label="Send message" title="Send message" onclick="sendStaffReply('${c.id}')" ${closed ? 'disabled' : ''}><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3.8a.8.8 0 0 1 1.1-.7l17 8.2a.8.8 0 0 1 0 1.4l-17 8.2a.8.8 0 0 1-1.1-.7l1.5-6.7L14 12l-9.5-1.5Z"/></svg></button></div>`;
   const area = document.getElementById('chatMsgArea');
   if (area) area.scrollTop = area.scrollHeight;
@@ -1650,11 +1676,16 @@ function serviceSelectOptions(db) {
   db.transactions.forEach(t => { counts[t.service] = (counts[t.service] || 0) + 1; });
   return `<option value="">All Transactions (${db.transactions.length})</option>` + db.services.map(s => `<option value="${s.key}" ${txnServiceFilter === s.key ? 'selected' : ''}>${escapeHtml(s.label)} (${counts[s.key] || 0})</option>`).join('');
 }
+function pickupEmailLabel(status) {
+  return ({pending:'Email queued',sending:'Email sending',sent:'Email sent',retrying:'Email retrying',failed:'Email failed',paused:'Email paused',cancelled:'Email cancelled',superseded:'Email no longer needed'})[status]||'';
+}
+function documentPickupLabel(status) { return ({Preparing:'For preparation',Ready:'Ready for pickup',Claimed:'Claimed'})[status]||'—'; }
+function documentPickupCounts(records) { return ['Preparing','Ready','Claimed'].map(status=>[documentPickupLabel(status),records.filter(record=>record.pickupStatus===status).length]); }
 function renderTransactions() { txnFilter = staffViewMemory.transactions?.txnFilter || 'all'; renderTxnCard(false); }
 function renderTxnCard(keepSearch) {
   const db = loadDB(), prev = keepSearch ? (document.getElementById('txnSearch')?.value || '') : '';
   const svc = txnServiceFilter ? findService(db, txnServiceFilter) : null, scope = txnScope(db);
-  const tabs = [['all', 'All', scope.length], ...TXN_STATUSES.map(s => [s, s, scope.filter(t => t.status === s).length])];
+  const tabs = [['all', 'All', scope.length], ['preparing','Pending documents',scope.filter(t=>t.pickupStatus==='Preparing').length], ['ready','Ready for pickup',scope.filter(t=>t.pickupStatus==='Ready').length], ...TXN_STATUSES.map(s => [s, s, scope.filter(t => t.status === s).length])];
   const title = txnServiceFilter ? serviceLabel(db, txnServiceFilter) : 'All Transactions';
   document.getElementById('content').innerHTML = `
     <div class="card"><div class="card-head"><div><h3>${escapeHtml(title)}</h3><div class="desc">${svc && svc.desc ? escapeHtml(svc.desc) : 'Every service record logged by the office, newest first.'}</div></div>
@@ -1662,32 +1693,35 @@ function renderTxnCard(keepSearch) {
       <div class="filter-bar">${dateRangeHtml('txn')}<select id="txnSvcSelect" class="filter-select" aria-label="Service" onchange="setTxnService(this.value || null)">${serviceSelectOptions(db)}</select>
         <div class="search-box">${icon('search', 15)}<input id="txnSearch" placeholder="Name, code or visit ID" value="${escapeHtml(prev)}" oninput="renderTxnTable()"></div></div>
       <div class="subnav tab-row" id="txnStatusNav">${tabs.map(([f, label, n]) => `<button data-f="${f}" class="${txnFilter === f ? 'active' : ''}" onclick="setTxnFilter('${f}')">${label}<span class="cnt">${n}</span></button>`).join('')}</div>
-      <div class="table-wrap"><table><thead><tr><th>#</th><th>Code</th><th>Requestor</th>${txnServiceFilter ? '' : '<th>Service</th>'}<th>Visit</th><th>Files</th><th>Status</th><th>Logged</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="txnBody"></tbody></table></div></div>`;
+      <div class="table-wrap"><table><thead><tr><th>#</th><th>Code</th><th>Requestor</th><th>ID number</th>${txnServiceFilter ? '' : '<th>Service</th>'}<th>Visit</th><th>Files</th><th>Status</th><th>Document</th><th>Logged</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="txnBody"></tbody></table></div></div>`;
   organizeStaffToolbar('txnSearch');
   renderTxnTable();
 }
 function setTxnService(key) { txnServiceFilter = key || undefined; txnFilter = 'all'; renderTxnCard(true); }
 function setTxnFilter(f) { txnFilter = f; document.querySelectorAll('#txnStatusNav button').forEach(b => b.classList.toggle('active', b.dataset.f === f)); renderTxnTable(); }
+async function openPendingDocuments() { navigate('transactions'); RANGES.txn={from:'',to:''};txnServiceFilter=undefined;staffViewMemory.transactions={fields:{},txnFilter:'preparing',txnServiceFilter:undefined};await renderTransactions();setTxnFilter('preparing'); }
+async function openReadyDocuments() { navigate('transactions'); RANGES.txn={from:'',to:''};txnServiceFilter=undefined;staffViewMemory.transactions={fields:{},txnFilter:'ready',txnServiceFilter:undefined};await renderTransactions();setTxnFilter('ready'); }
 function renderTxnTable() {
   const body = document.getElementById('txnBody');
   if (!body) return;
   const db = loadDB(), q = (document.getElementById('txnSearch')?.value || '').toLowerCase(), showService = !txnServiceFilter;
   let rows = [...txnScope(db)].sort((a, b) => b.createdAt - a.createdAt);
-  if (txnFilter !== 'all') rows = rows.filter(r => r.status === txnFilter);
+  if (txnFilter !== 'all') rows = rows.filter(r => txnFilter==='preparing'?r.pickupStatus==='Preparing':txnFilter==='ready'?r.pickupStatus==='Ready':r.status === txnFilter);
   if (q) rows = rows.filter(r => isTxnLocked(r) ? r.code.toLowerCase().includes(q) : (r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || (r.visitId || '').toLowerCase().includes(q)));
   body.innerHTML = rows.length ? rows.map((r, i) => {
     const locked = isTxnLocked(r), files = txnRequirements(db, r);
     return `<tr><td class="row-num">${i + 1}</td>
-    <td class="mono">${r.code}${isConfidentialTxn(r) ? ` <span class="tag-lock">${icon('lock', 10)}</span>` : ''}</td>
-    <td>${locked ? `${escapeHtml(maskName(r.name))}<div class="muted" style="font-size:.72rem;">Confidential</div>` : `${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.idNumber || '')} ${r.section ? '&middot; ' + escapeHtml(r.section) : ''}</div>`}</td>
+    <td class="mono">${r.code}</td>
+    <td class="transaction-requestor">${locked ? '&mdash;' : escapeHtml(r.name)}</td>
+    <td class="mono">${locked||!r.idNumber?'&mdash;':escapeHtml(r.idNumber)}</td>
     ${showService ? `<td>${serviceLabel(db, r.service)}</td>` : ''}
-    <td>${locked ? '<span class="muted" style="font-size:.76rem;">Hidden</span>' : (r.visitId ? `<span class="mono" style="font-size:.72rem;">${escapeHtml(r.visitId)}</span>${r.queueNumber ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.queueNumber)} &middot; ${escapeHtml(r.entryMethod || '')}</div>` : (r.entryMethod ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.entryMethod)}</div>` : '')}` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
-    <td>${locked ? '<span class="muted" style="font-size:.76rem;">&bull;&bull;</span>' : (files.length ? `<span class="pill pill-gold">${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
-    <td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td class="muted">${fmtDateTime(r.createdAt)}</td>
+    <td>${locked ? '<span class="muted">&mdash;</span>' : (r.visitId ? `<span class="mono" style="font-size:.72rem;">${escapeHtml(r.visitId)}</span>${r.queueNumber ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.queueNumber)} &middot; ${escapeHtml(r.entryMethod || '')}</div>` : (r.entryMethod ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(r.entryMethod)}</div>` : '')}` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
+    <td>${locked ? '<span class="muted">&mdash;</span>' : (files.length ? `<span class="pill pill-gold">${files.length}</span>` : '<span class="muted" style="font-size:.76rem;">&mdash;</span>')}</td>
+    <td>${statusPill(r.status)} ${escalationPill(r.escalation)}</td><td>${r.pickupStatus==='Preparing'?'<span class="pill pill-warn">For preparation</span>':r.pickupStatus==='Ready'?'<span class="pill pill-info">Ready for pickup</span>':r.pickupStatus==='Claimed'?'<span class="pill pill-ok">Claimed</span>':'&mdash;'}</td><td class="muted">${fmtDateTime(r.createdAt)}</td>
     <td class="act-cell appointment-action-cell">${locked ? `<button type="button" class="icon-btn kebab-btn" title="Request or unlock confidential access" aria-label="Request or unlock confidential access" data-record-id="${escapeHtml(r.id)}" onclick="openTxnDetail(this.dataset.recordId)">${icon('lock',16)}</button>` : `<button class="icon-btn kebab-btn" title="Actions" aria-haspopup="true" onclick="toggleKebab(event,'${r.id}')">${icon('dots', 16)}</button>
       <div class="kebab-menu" id="kebab_${r.id}" hidden>
-        <button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button><button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button></div>`}</td></tr>`;
-  }).join('') : `<tr class="empty-row"><td colspan="${showService ? 9 : 8}">${db.transactions.length?'No transactions match these filters.':'No transactions yet.'}</td></tr>`;
+        <button class="kebab-item" onclick="closeKebabs();openTxnDetail('${r.id}')">${icon('eye',14)} View</button>${r.shared && r.status==='Completed' && r.permissions?.editCase===true && !r.pickupStatus ? `<button class="kebab-item" data-pickup-id="${escapeHtml(r.id)}" onclick="closeKebabs();pickupRecordAction(this.dataset.pickupId,'Preparing')">${icon('clock',14)} For preparation</button>` : ''}${r.shared && r.status==='Completed' && r.permissions?.editCase===true && r.pickupStatus!=='Ready' && r.pickupStatus!=='Claimed' ? `<button class="kebab-item" data-pickup-id="${escapeHtml(r.id)}" onclick="closeKebabs();pickupRecordAction(this.dataset.pickupId,'Ready')">${icon('checkin',14)} Mark ready</button>` : ''}<button class="kebab-item" onclick="closeKebabs();printTransaction('${r.id}')">${icon('print',14)} Print report</button></div>`}</td></tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="${showService ? 11 : 10}">${db.transactions.length?'No transactions match these filters.':'No transactions yet.'}</td></tr>`;
 }
 function closeKebabs() { document.querySelectorAll('.kebab-menu').forEach(m => { m.hidden = true; }); }
 function toggleKebab(ev, id) {
@@ -1720,9 +1754,9 @@ function openTxnDetail(id) {
       if(r2.shared){try{await SharedAppointments.request('/service-records/'+encodeURIComponent(id),'PATCH',{escalation:esc,ownerId:document.getElementById('caseOwner').value,dueDate:document.getElementById('caseDue').value,nextAction:document.getElementById('caseAction').value,notes:document.getElementById('caseNotes').value,revision:r.caseRevision||0});await SharedAppointments.reloadRecords();}catch(e){toast(escapeHtml(e.message),'err');return;}}else {toast('Migrate this legacy record before editing.','err');return;}
       closeModal();renderTxnTable();toast('Record updated.','ok');
     } }] : [])];
-  openModal(`${r.code}${sensitive ? ` ${icon('lock', 13)}` : ''}`, `
+  openModal(`${r.code}`, `
     <div class="transaction-detail"><div class="staff-record-context"><strong>${escapeHtml(r.name || 'Visitor')}</strong><span class="mono">${escapeHtml(r.visitId || r.code || r.id)}</span><span>${statusPill(r.status)}</span></div>
-    ${sensitive ? `<p class="field-hint" style="margin-bottom:12px;">${icon('lock', 11)} This record is confidential &mdash; visible only to admins with Confidential access. It locks again automatically after 5 minutes.</p>` : ''}
+    ${sensitive ? `<p class="field-hint" style="margin-bottom:12px;">Access expires automatically after 5 minutes.</p>` : ''}
     ${r.possibleDuplicate ? `<div class="dup-warn">${icon('alert', 13)} This visit was originally flagged as a possible duplicate active visit.</div>` : ''}
     ${r.caseStatus?`<div class="kv"><span>Case status</span><span>${escapeHtml(r.caseStatus)}</span></div>`:''}
     ${linkedQueue&&linkedQueue.status!==r.status?`<div class="kv"><span>Visit status</span><span>${queueStatusPill(linkedQueue.status)}</span></div>`:''}
@@ -1731,6 +1765,8 @@ function openTxnDetail(id) {
     ${r.idNumber ? `<div class="kv"><span>ID Number</span><span>${escapeHtml(r.idNumber)}</span></div>` : ''}
     ${r.section ? `<div class="kv"><span>Section / Org</span><span>${escapeHtml(r.section)}</span></div>` : ''}
     <h4 class="staff-detail-heading">Service details</h4><div class="kv"><span>Service</span><span>${serviceLabel(db, r.service)}</span></div>
+    ${r.pickupStatus ? `<div class="kv"><span>Document pickup</span><span>${escapeHtml(r.pickupStatus==='Preparing'?'For preparation':r.pickupStatus==='Ready'?'Ready for pickup':'Claimed')}</span></div>` : ''}
+    ${r.pickupStatus==='Ready' ? `<div class="kv"><span>Pickup notification</span><span>${escapeHtml(pickupEmailLabel(r.pickupEmailStatus)||(r.email?'Email not queued':'No email address'))}</span></div>` : ''}
     ${!isVisit && r.details ? `<div class="kv"><span>Details</span><span style="max-width:260px; text-align:right;">${escapeHtml(r.details)}</span></div>` : ''}
 
 
@@ -1747,13 +1783,26 @@ function openTxnDetail(id) {
     <h4 class="staff-detail-heading">History</h4>
     ${typeof flowServiceHistory==='function'?flowServiceHistory(r.serviceHistory):''}
     ${feedbackReadoutHtml(linkedQueue)}
-    ${linkedQueue ? timelineBlockHtml(linkedQueue, linkedAppt) : ''}
+    ${r.firstVisit ? `<h5 class="record-subheading">First visit</h5>${timelineBlockHtml(r.firstVisit,linkedAppt,false)}` : linkedQueue ? timelineBlockHtml(linkedQueue, linkedAppt) : ''}
+    ${r.pickupStatus?`<h5 class="record-subheading">Pickup visit</h5>${r.pickupVisit?`<div class="kv"><span>Visit ID</span><span class="mono">${escapeHtml(r.pickupVisit.visitId||'—')}</span></div><div class="kv"><span>Queue number</span><span class="mono">${escapeHtml(r.pickupVisit.number||'—')}</span></div><div class="kv"><span>Visit status</span><span>${escapeHtml(r.pickupVisit.status||'—')}</span></div>${timelineBlockHtml(r.pickupVisit,null,false)}${r.pickupStatus==='Claimed'&&r.pickupClaimedBy?`<div class="kv"><span>Released by</span><span>${escapeHtml(r.pickupClaimedBy)}</span></div>`:''}${r.pickupStatus==='Claimed'&&r.pickupIdentityCheck?`<div class="kv"><span>ID checked</span><span>${escapeHtml(r.pickupIdentityCheck)}</span></div>`:''}`:'<p class="field-hint">No pickup visit recorded.</p>'}`:''}
     ${r.waitingTimeMin != null || r.serviceTimeMin != null || r.totalTimeMin != null ? timeMetricsGrid(r.waitingTimeMin, r.serviceTimeMin, r.totalTimeMin) : ''}
 
     ${caseWorkflowHtml(r,canEscalate)}
     ${canEscalate ? `<div class="field"><label>Escalation</label><select id="mTxEscalation">${['Normal', 'For Review', 'Escalated', 'Resolved'].map(s => `<option value="${s}" ${(r.escalation || 'Normal') === s ? 'selected' : ''}>${s}</option>`).join('')}</select><div class="field-hint">Manually flag this incident/concern for review or escalation. Never set automatically.</div></div>` : ''}</div>`, buttons);
   if(canEscalate)loadVisitOwners('caseOwner',r.caseOwnerId||currentUser.id);
   if (sensitive) { const m = document.getElementById('activeModal'); if (m) m.dataset.conf = id; }
+}
+function pickupRecordAction(id,status) {
+  const record=loadDB().transactions.find(t=>t.id===id);if(!record)return;
+  if(!['Preparing','Ready'].includes(status))return;
+  openModal(status==='Preparing'?'For preparation':'Ready for pickup',status==='Preparing'?'<p class="field-hint">Add this document to pending documents. Mark it ready when it can be collected.</p>':'<p class="field-hint">Confirm the document is ready. The visitor will be notified by email if an address is available.</p>',[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:status==='Preparing'?'Add to pending':'Mark ready',cls:'btn-primary',action:async()=>{try{const result=await SharedAppointments.request('/service-records/'+encodeURIComponent(id)+'/pickup','PATCH',{status});await SharedAppointments.reloadRecords();closeModal();if(state_view==='transactions')renderTxnCard(true);const message=status==='Preparing'?'Document added to preparation.':(result.emailQueued?'Document ready. Notification email queued.':result.emailAvailable?'Document ready. No new email was queued.':'Document ready. No email address is available; notify the visitor another way.');toast(message,status==='Ready'&&!result.emailAvailable?'warn':'ok');}catch(e){toast(escapeHtml(e.message),'err');}}}
+  ]);
+}
+async function openPickupTransaction(id) {
+  try { await SharedAppointments.reloadRecords(); if(!loadDB().transactions.some(t=>t.id===id))throw Error('The original record is unavailable.'); closeModal(); openTxnDetail(id); }
+  catch(e) { toast(escapeHtml(e.message),'err'); }
 }
 function printTransaction(id) {
   if (!reportOutputActive) return authorizedReportOutput({kind:'transaction',id,includeConf:isConfidentialTxn(loadDB().transactions.find(t=>t.id===id))},()=>printTransactionSnapshot(id));
@@ -1777,6 +1826,7 @@ function printTransactionSnapshot(id) {
       <tr><th>Service</th><td>${escapeHtml(serviceLabel(db, r.service))}</td></tr>
       ${!isVisit && r.details ? `<tr><th>Details</th><td>${escapeHtml(r.details)}</td></tr>` : ''}
       <tr><th>Status</th><td>${escapeHtml(r.status)}</td></tr>
+      ${r.pickupStatus?`<tr><th>Document pickup</th><td>${escapeHtml(documentPickupLabel(r.pickupStatus))}</td></tr>${r.pickupUpdatedAt?`<tr><th>Document status updated</th><td>${fmtDateTime(r.pickupUpdatedAt)}</td></tr>`:''}${r.pickupStatus==='Claimed'&&r.pickupClaimedBy?`<tr><th>Released by</th><td>${escapeHtml(r.pickupClaimedBy)}</td></tr>`:''}${r.pickupStatus==='Claimed'&&r.pickupIdentityCheck?`<tr><th>Identity check</th><td>${escapeHtml(r.pickupIdentityCheck)}</td></tr>`:''}`:''}
       ${r.visitId ? `<tr><th>Visit ID</th><td>${escapeHtml(r.visitId)}</td></tr>` : ''}
       ${linkedQueue ? `<tr><th>Entry</th><td>${linkedQueue.number ? escapeHtml(linkedQueue.number) + ' ' : ''}(${escapeHtml(entryMethodLabel(linkedQueue))})</td></tr>` : ''}
       ${linkedAppt ? `<tr><th>Appointment</th><td>${escapeHtml(linkedAppt.code)}${linkedAppt.date ? ` &middot; ${linkedAppt.date} ${escapeHtml(UniServeUX.timeLabel(linkedAppt.time))}` : ''}</td></tr>` : ''}
@@ -1786,6 +1836,7 @@ function printTransactionSnapshot(id) {
       ${r.waitingTimeMin != null ? `<tr><th>Waiting Time</th><td>${fmtMinutes(r.waitingTimeMin)}</td></tr>` : ''}
       ${r.serviceTimeMin != null ? `<tr><th>Service Time</th><td>${fmtMinutes(r.serviceTimeMin)}</td></tr>` : ''}
       ${r.totalTimeMin != null ? `<tr><th>Total Visit Time</th><td>${fmtMinutes(r.totalTimeMin)}</td></tr>` : ''}</table>
+    ${r.pickupStatus?`<table class="doc-form-table"><caption>Pickup visit</caption>${cg}${r.pickupVisit?`<tr><th>Visit ID</th><td>${escapeHtml(r.pickupVisit.visitId||'—')}</td></tr><tr><th>Queue number</th><td>${escapeHtml(r.pickupVisit.number||'—')}</td></tr><tr><th>Visit status</th><td>${escapeHtml(r.pickupVisit.status||'—')}</td></tr>${[['Checked in',r.pickupVisit.checkedInAt],['Called',r.pickupVisit.calledAt],['Service started',r.pickupVisit.servingAt],['Completed',r.pickupVisit.completedAt]].map(([label,time])=>`<tr><th>${label}</th><td>${time?fmtDateTime(time):'—'}</td></tr>`).join('')}`:'<tr><th>Pickup visit</th><td>No pickup visit recorded.</td></tr>'}</table>`:''}
     <table class="doc-form-table"><caption>III. Uploaded Requirements</caption>${cg}
       ${files.length ? files.map((f, i) => `<tr><th>File ${i + 1}</th><td>${escapeHtml(f.name)} &mdash; ${fmtFileSize(f.size)}</td></tr>`).join('') : `<tr><th>Files</th><td><em>No files were uploaded with this visit.</em></td></tr>`}</table>
     ${completedVisitPrintDetails(db,linkedQueue,r)}
@@ -1820,7 +1871,7 @@ function printTxnReport(serviceKey, which, includeConf) {
   const walkIns = all.filter(t => t.entryMethod && t.entryMethod !== 'Scheduled').length, sched = all.filter(t => t.entryMethod === 'Scheduled').length;
   const avgOf = k => averageReportMetric(all,k);
   const byService = db.services.map(s => ({ label: s.label, count: all.filter(t => t.service === s.key).length })).filter(r => r.count).sort((a, b) => b.count - a.count);
-  const cg = '<colgroup><col style="width:3%"><col style="width:10%"><col style="width:11%"><col style="width:7%"><col style="width:10%"><col style="width:10%"><col style="width:6%"><col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:7%"></colgroup>';
+  const cg = '<colgroup>'+Array.from({length:13},()=>'<col>').join('')+'</colgroup>';
   printInjected(`${reportLetterhead()}
     <div class="report-title-block"><h2>Transaction Report &mdash; ${escapeHtml(title)}</h2><div class="report-meta"><span>Period: ${period}</span><span>Generated: ${fmtDateTime(new Date())} by ${escapeHtml(currentUser.fullName)}</span></div></div>
     ${all.some(isConfidentialTxn)?'<p class="doc-footnote"><strong>Confidential access: '+(listAll?'Unlocked for this authorized report.':'Locked. Private details are excluded; confidential records are counted only.')+'</strong></p>':''}
@@ -1843,11 +1894,12 @@ function printTxnReport(serviceKey, which, includeConf) {
         <tbody>${ORDER.map(s => `<tr><td>${s}</td><td>${sc[s]}</td><td>${pct(sc[s])}%</td></tr>`).join('')}<tr class="rpt-total-row"><td>Total</td><td>${total}</td><td>${total ? '100%' : '0%'}</td></tr></tbody></table></div>
       ${!svc ? `<div class="rpt-table-wrap"><h3 class="rpt-h">By Service</h3><table class="rpt-table"><colgroup><col style="width:64%"><col style="width:18%"><col style="width:18%"></colgroup><thead><tr><th>Service</th><th>Count</th><th>%</th></tr></thead>
         <tbody>${byService.length ? byService.map(r => `<tr><td>${escapeHtml(r.label)}</td><td>${r.count}</td><td>${pct(r.count)}%</td></tr>`).join('') : '<tr class="empty-row"><td colspan="3">No transactions.</td></tr>'}</tbody></table></div>` : '<div></div>'}</div>
+    <div class="rpt-section"><h3 class="rpt-h">Document pickup</h3><p class="rpt-desc">Current document status for transactions logged in this period.</p><div class="rpt-table-wrap"><table class="rpt-table"><thead><tr><th>Status</th><th>Documents</th></tr></thead><tbody>${documentPickupCounts(all).map(([label,count])=>`<tr><td>${escapeHtml(label)}</td><td>${count}</td></tr>`).join('')}</tbody></table></div></div>
     <div class="rpt-section"><h3 class="rpt-h">Detailed Transaction Log</h3>
       <div class="rpt-desc">${rows.length} record${rows.length === 1 ? '' : 's'} itemized &mdash; ${period}, sorted by date logged${confCount ? ` &mdash; ${confCount} record${confCount === 1 ? '' : 's'} counted in the totals above but not listed` : ''}</div>
       <div class="rpt-table-wrap"><table class="rpt-table">${cg}
-        <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Type</th><th>ID Number</th><th>Visit ID</th><th>Queue No.</th><th>Entry</th><th>Status</th><th>Served By</th><th>Logged</th><th>Total Time</th></tr></thead>
-        <tbody>${rows.length ? rows.map((t, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(t.code)}</td><td>${escapeHtml(t.name)}</td><td class="nw">${escapeHtml(t.type || '—')}</td><td class="mono">${escapeHtml(t.idNumber || '—')}${t.section ? `<br>${escapeHtml(t.section)}` : ''}</td><td class="mono">${escapeHtml(t.visitId || '—')}</td><td class="mono nw">${escapeHtml(t.queueNumber || '—')}</td><td class="nw">${escapeHtml(t.entryMethod || '—')}</td><td class="nw">${escapeHtml(t.status)}</td><td>${escapeHtml(t.servedBy || '—')}</td><td class="mono">${fmtDate(t.createdAt)}<br>${fmtTime(t.createdAt)}</td><td>${fmtMinutes(t.totalTimeMin)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="12">${confCount ? 'The records in this period are not listed.' : 'No transactions recorded for this period.'}</td></tr>`}</tbody></table></div></div>
+        <thead><tr><th>#</th><th>Code</th><th>Name</th><th>Type</th><th>ID Number</th><th>Visit ID</th><th>Queue No.</th><th>Entry</th><th>Status</th><th>Document</th><th>Served By</th><th>Logged</th><th>Total Time</th></tr></thead>
+        <tbody>${rows.length ? rows.map((t, i) => `<tr><td class="mono">${i + 1}</td><td class="mono">${escapeHtml(t.code)}</td><td>${escapeHtml(t.name)}</td><td class="nw">${escapeHtml(t.type || '—')}</td><td class="mono">${escapeHtml(t.idNumber || '—')}${t.section ? `<br>${escapeHtml(t.section)}` : ''}</td><td class="mono">${escapeHtml(t.visitId || '—')}</td><td class="mono nw">${escapeHtml(t.queueNumber || '—')}</td><td class="nw">${escapeHtml(t.entryMethod || '—')}</td><td class="nw">${escapeHtml(t.status)}</td><td>${escapeHtml(documentPickupLabel(t.pickupStatus))}</td><td>${escapeHtml(t.servedBy || '—')}</td><td class="mono">${fmtDate(t.createdAt)}<br>${fmtTime(t.createdAt)}</td><td>${fmtMinutes(t.totalTimeMin)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="13">${confCount ? 'The records in this period are not listed.' : 'No transactions recorded for this period.'}</td></tr>`}</tbody></table></div></div>
     ${reportSignatureBlock()}
     <p class="doc-footnote">This report was generated by the OSS UniServe system.</p>`);
   logActivity(db, currentUser, `Printed transaction report &mdash; ${escapeHtml(title)} (${total} record${total === 1 ? '' : 's'}${includeConf ? ', confidential records listed by name' : ''})`, { category: 'Transactions' });
@@ -1964,9 +2016,8 @@ async function renderReports() {
   try { await loadSharedQueue(); } catch (_) { reportRefreshFailed = true; }
   if (state_view !== 'reports') return;
   document.getElementById('content').innerHTML = `
-    <section class="card card-pad reports-controls no-print"><div class="reports-heading"><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div>
-      <div class="subnav" aria-label="Report period">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map(p => `<button class="${p===reportPeriod?'active':''}" aria-pressed="${p===reportPeriod}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div><p id="reportRange" class="field-hint"></p></section>
-    <div id="reportOverview" class="reports-overview"></div>
+    <div class="card reports-page"><section class="reports-controls no-print"><div class="reports-filter"><span class="reports-filter-label">Report period</span><div class="subnav" aria-label="Report period">${['Daily', 'Weekly', 'Monthly', 'Quarterly'].map(p => `<button class="${p===reportPeriod?'active':''}" aria-pressed="${p===reportPeriod}" onclick="setReportPeriod('${p}',this)">${p}</button>`).join('')}</div><p id="reportRange" class="field-hint"></p></div><div class="reports-heading"><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print', 14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download', 14)} Download Excel</button></div></div></section>
+    <div id="reportOverview" class="reports-overview"></div></div>
     <div id="reportSheet" hidden aria-hidden="true">${reportLetterhead()}
       <div class="report-title-block"><h2 id="repTitle">Daily Transaction Report</h2><div class="report-meta"><span id="repPeriodLbl"></span><span id="repGenLbl"></span></div></div>
       <div id="repBody"></div></div>`;
@@ -1992,9 +2043,10 @@ function renderReportOverview() {
   for(const key of new Set(records.map(t=>t.service)))if(!db.services.some(s=>s.key===key))services.push({label:serviceLabel(db,key),count:records.filter(t=>t.service===key).length});
   services.sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label));
   document.getElementById('reportRange').textContent=fmtDate(start)+' to '+today();
-  document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</section><p class="reports-summary-note">Completion rate uses transactions logged in this period. Confidential records are included in totals.</p>
-    <div class="reports-columns"><section class="card"><div class="card-head"><div><h3>Service totals</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th class="reports-count">Transactions</th></tr></thead><tbody>${services.map(s=>`<tr><td>${escapeHtml(s.label)}</td><td class="reports-count">${s.count}</td></tr>`).join('')||'<tr><td colspan="2">No services configured.</td></tr>'}</tbody></table></div></section>
-    <div class="reports-side"><section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl></section>${reportAppointmentSummary(db,fmtDate(start),today())}</div></div>`;
+  document.getElementById('reportOverview').innerHTML=`<section class="card reports-summary-card"><div class="card-head"><div><h3>Transaction overview</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="reports-summary" aria-label="Transaction summary">${[['Transactions',records.length],['Completed',completed],['Pending / processing',pending],['Completion rate',records.length?Math.round(completed/records.length*100)+'%':'—']].map(([label,value])=>`<div><span>${label}</span><strong>${value}</strong></div>`).join('')}</div><p class="reports-summary-note">Completion rate uses transactions logged in this period. Confidential records are included in totals.</p></section>
+    <div class="reports-columns"><section class="card"><div class="card-head"><div><h3>Document pickup</h3><div class="desc">Current status for transactions in this period</div></div></div><dl class="reports-timing reports-appointments">${documentPickupCounts(records).map(([label,count])=>`<div><dt>${escapeHtml(label)}</dt><dd>${count}</dd></div>`).join('')}</dl></section>
+    <section class="card"><div class="card-head"><div><h3>Visit timing</h3><div class="desc">Recorded times for transactions in this period</div></div></div><dl class="reports-timing">${[['Average wait','waitingTimeMin'],['Average service','serviceTimeMin'],['Average total visit','totalTimeMin']].map(([label,key])=>{const samples=records.filter(t=>typeof t[key]==='number'&&Number.isFinite(t[key])&&t[key]>=0);return `<div><dt>${label}<small>${samples.length} timed record${samples.length===1?'':'s'}</small></dt><dd>${reportDuration(averageReportMetric(records,key))}</dd></div>`;}).join('')}</dl></section>
+    ${reportAppointmentSummary(db,fmtDate(start),today())}<section class="card reports-services"><div class="card-head"><div><h3>Service totals</h3><div class="desc">Transactions logged in the selected period</div></div></div><div class="table-wrap"><table><thead><tr><th>Service</th><th class="reports-count">Transactions</th></tr></thead><tbody>${services.map(s=>`<tr><td>${escapeHtml(s.label)}</td><td class="reports-count">${s.count}</td></tr>`).join('')||'<tr><td colspan="2">No services configured.</td></tr>'}</tbody></table></div></section></div>`;
 }
 let reportIncludeConf = false;
 function printReport(includeConf) {
@@ -2036,26 +2088,28 @@ function buildReport() {
     ])+'<p class="doc-footnote">Completion rate uses transactions logged in this period. Timing averages use valid recorded durations for each metric.'+(hidden?' '+hidden+' confidential record(s) included in totals; identities excluded.':'')+'</p>'+
     table('Service totals',['Service','Transactions'],servicesRows)+
     table('Transaction status',['Status','Transactions'],statusRows)+
+    table('Document pickup — current status of transactions logged in this period',['Status','Documents'],documentPickupCounts(records))+
     table('Appointments scheduled in this period',['Status','Appointments'],[['Awaiting approval','Requested'],['Confirmed','Booked'],['Checked in','Checked-in'],['Completed','Completed'],['Cancelled','Cancelled'],['No-shows','No-show']].map(([label,status])=>[label,scheduled.filter(a=>a.status===status).length]))+
-    table('Transaction records',['Reference','Visitor','Service','Status','Logged','Completed','Handled by'],visible.length?visible.map(t=>[t.code,t.name,serviceLabel(db,t.service),t.status,String(fmtDateTime(t.createdAt)).replace(/&middot;/g,' / '),t.completedAt?String(fmtDateTime(t.completedAt)).replace(/&middot;/g,' / '):'?',t.servedBy||'Not recorded']):[['No accessible transaction records in this period.','','','','','','']])+
+    table('Transaction records',['Reference','Visitor','Service','Visit status','Document','Logged','Completed','Handled by'],visible.length?visible.map(t=>[t.code,t.name,serviceLabel(db,t.service),t.status,documentPickupLabel(t.pickupStatus),String(fmtDateTime(t.createdAt)).replace(/&middot;/g,' / '),t.completedAt?String(fmtDateTime(t.completedAt)).replace(/&middot;/g,' / '):'?',t.servedBy||'Not recorded']):[['No accessible transaction records in this period.','','','','','','','']])+
     reportSignatureBlock()+'</div>';
 }
 function downloadReportExcel() {
   if (!reportOutputActive) return authorizedReportOutput({kind:'combined',includeConf:false},downloadReportExcel);
-  const db = loadDB(), start = periodStart(reportPeriod), txns = db.transactions.filter(t => t.createdAt >= start), counts = {};
+  const db = loadDB(), start = periodStart(reportPeriod), end = new Date(), txns = db.transactions.filter(t => new Date(t.createdAt) >= start && new Date(t.createdAt) <= end), counts = {};
   db.services.forEach(s => counts[s.key] = 0);
   txns.forEach(t => { counts[t.service] = (counts[t.service] || 0) + 1; });
   const rows = [
     ['Polytechnic University of the Philippines - Santa Maria Campus'], ['Office of Student Services'], [`${reportPeriod} Transaction Report`], [`Period: ${fmtDate(start)} to ${today()}`],
     [`Generated: ${fmtDateTime(new Date()).replace('&middot;', '-')} by ${currentUser.fullName}`], [],
     ['Summary'], ['Total Transactions', txns.length], ['Completed', txns.filter(t => t.status === 'Completed').length], ['Pending', txns.filter(t => t.status === 'Pending').length],
-    ['Records not listed (count only)', txns.filter(isConfidentialTxn).length], ['Chat Conversations Started', db.chats.filter(c => c.createdAt >= start).length], [],
+    ['Records not listed (count only)', txns.filter(isConfidentialTxn).length], ['Chat Conversations Started', db.chats.filter(c => new Date(c.createdAt) >= start && new Date(c.createdAt) <= end).length], [],
     ['Breakdown by Service'], ['Service', 'Count'], ...db.services.map(s => [s.label, counts[s.key] || 0]), [],
-    ['Detailed Transaction Log'], ['Code','Name','Visitor type','ID number','Visit ID','Queue number','Service','Status','Logged'],
-    ...txns.filter(t=>!isConfidentialTxn(t)).map(t=>[t.code,t.name,t.type||'',t.idNumber||'',t.visitId||'',t.queueNumber||'',serviceLabel(db,t.service),t.status,fmtDateTime(t.createdAt)]),
+    ['Document pickup — current status of transactions logged in this period'], ['Status','Documents'], ...documentPickupCounts(txns), [],
+    ['Detailed Transaction Log'], ['Code','Name','Visitor type','ID number','Visit ID','Queue number','Service','Visit status','Document','Logged'],
+    ...txns.filter(t=>!isConfidentialTxn(t)).map(t=>[t.code,t.name,t.type||'',t.idNumber||'',t.visitId||'',t.queueNumber||'',serviceLabel(db,t.service),t.status,documentPickupLabel(t.pickupStatus),fmtDateTime(t.createdAt)]),
   ];
-  const headings=new Set(['Summary','Breakdown by Service','Service','Detailed Transaction Log','Code']);
-  SpreadsheetExport.download(`OSS_${reportPeriod}_Report_${today()}.xlsx`,rows,[24,28,20,26,24,20,36,20,28],{sheetName:'Admin Report',filter:false,headingRows:rows.flatMap((row,index)=>index===0||headings.has(row[0])?[index]:[])});
+  const headings=new Set(['Summary','Breakdown by Service','Service','Document pickup — current status of transactions logged in this period','Detailed Transaction Log','Code']);
+  SpreadsheetExport.download(`OSS_${reportPeriod}_Report_${today()}.xlsx`,rows,[24,28,20,26,24,20,36,20,22,28],{sheetName:'Admin Report',filter:false,headingRows:rows.flatMap((row,index)=>index===0||headings.has(row[0])?[index]:[])});
   logActivity(db, currentUser, `Downloaded ${reportPeriod} report`); saveDB(db);
   toast('Report downloaded.', 'ok');
 }
@@ -2102,7 +2156,7 @@ async function saveProfile() {
 }
 
 renderSidebar();
-navigate('dashboard');
+navigate(sessionStorage.getItem('uniserve_admin_view:'+currentUser.id)||'dashboard');
 
 
 function toggleIntakeTime() {

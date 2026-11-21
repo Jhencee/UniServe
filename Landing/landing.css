@@ -2830,6 +2830,22 @@ html[data-theme="dark"] .status-lbl {
     color: #B0B0B0;
 }
 
+/* Office status uses the same alignment for each value. */
+#landing .status-bar { grid-template-columns:repeat(4,minmax(0,1fr)); }
+#landing .status-cell, #landing .status-cell:first-child, #landing .status-cell:nth-child(2) { min-width:0; padding:20px 22px; }
+#landing .status-main { grid-column:auto; align-items:center; border-bottom:0; }
+#landing .status-main .status-title { margin-top:4px; }
+#landing .status-title, #landing .status-num { font-family:var(--font-body); font-size:1.2rem; font-weight:600; line-height:1.3; white-space:normal; overflow-wrap:anywhere; }
+#landing .status-num.long { font-size:1rem; }
+@media(max-width:700px) {
+ #landing .status-bar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ #landing .status-cell, #landing .status-cell:first-child, #landing .status-cell:nth-child(2) { padding:16px; border-left:0; }
+ #landing .status-cell:nth-child(even) { border-left:1px solid var(--border); }
+ #landing .status-cell:nth-child(-n+2) { border-bottom:1px solid var(--border); }
+ #landing .status-title, #landing .status-num { font-size:1rem; }
+ #landing .status-num.long { font-size:.9rem; }
+}
+
 html[data-theme="dark"] .status-dot.closed {
     background: #EF4444;
     box-shadow: 0 0 0 5px rgba(239, 68, 68, .18);
@@ -3208,9 +3224,26 @@ body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name .brand-title { f
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name small { margin:0; padding:0; font-size:var(--brand-subtitle-size); line-height:var(--brand-subtitle-line); letter-spacing:normal; text-transform:none; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) { position:relative; align-self:stretch; flex-shrink:0; width:var(--brand-logo-width); height:auto; line-height:0; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) img { position:absolute; top:50%; left:50%; width:135%; height:135%; max-width:none; object-fit:contain; transform:translate(-50%,-50%); }
+@media(min-width:1400px) {
+ body .landing-nav { --brand-heading-size:1.3rem; --brand-subtitle-size:.75rem; }
+}
+@media(min-width:961px) {
+ body .landing-nav .brandline { min-height:40px; }
+ body .landing-nav .brandline .name { min-height:40px; }
+ body .landing-nav #navActions { align-items:center; }
+ body .landing-nav #navActions .nav-link { display:inline-flex; align-items:center; justify-content:center; min-height:40px; box-sizing:border-box; }
+}
 @media(min-width:961px) and (max-width:1399px) {
  body :is(.landing-nav, #publicDisplay .pd-top) { --brand-heading-size:1.25rem; --brand-subtitle-size:.62rem; --brand-gap:8px; }
 }
 @media(max-width:600px) {
  body :is(.landing-nav, #publicDisplay .pd-top) { --brand-logo-width:36px; --brand-heading-size:1.2rem; --brand-heading-line:1.2; --brand-subtitle-size:.65rem; --brand-subtitle-line:1.4; --brand-gap:9px; }
+ body #landing .landing-nav { --brand-logo-width:40px; --brand-heading-size:20px; --brand-heading-line:22px; --brand-subtitle-size:12px; --brand-subtitle-line:14px; --brand-gap:8px; }
+ body #landing .landing-nav .brandline .name { height:40px; gap:0; }
+ body .landing-nav .brandline #crestSlotA { height:40px; align-self:center; }
+ body :is(.landing-nav, #publicDisplay .pd-top) .brandline #crestSlotA img { width:120%; height:120%; }
+ body #landing .landing-nav > .nav-menu-btn { width:40px; height:40px; font-size:28px; }
+ body .landing-nav .brandline .name .brand-title { font-size:1.15rem; line-height:1.1; }
+ body .landing-nav .brandline .name small { display:block; font-size:.7rem; line-height:1.15; }
+ body .landing-nav .brand-campus, body .landing-nav .brand-separator { display:none; }
 }

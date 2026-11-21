@@ -8,6 +8,7 @@ function preview(){
  c.superBubbleChart=(rows,label)=>'<div class="super-bubble-chart">'+label+'</div>';
  c.superOpposingBars=()=>'<div>Account changes</div>';
  c.dashboardBarChart=(rows,label)=>(charts.push({rows,type:'bars',label}),'<div class="dashboard-bars"></div>');
+ c.document.addEventListener=()=>{};
  c.document.querySelector=()=>layoutNode;
  c.document.querySelectorAll=()=>[];
  c.document.createElement=()=>layoutNode;
@@ -40,4 +41,4 @@ test('dashboard includes security outcomes, category analysis and configuration 
 
 test('dashboard uses distinct charts for distributions, comparisons and permissions',()=>{const {charts}=preview();assert.equal(charts.find(c=>c.label==='Staff accounts by role').type,'stacked');assert.equal(charts.find(c=>c.label==='Successful sign-ins, failed sign-ins and denied access').type,'bars');assert.equal(charts.find(c=>c.label==='Active service administrators by confidential access').type,'donut');});
 
-test('security line graph omits the fill while overall activity keeps its area',()=>{const c={escapeHtml:String};vm.createContext(c);vm.runInContext(fs.readFileSync(require('node:path').resolve(__dirname,'../../../shared/dashboard-analytics.js'),'utf8'),c);vm.runInContext(source.slice(source.indexOf('function svgLineChart('),source.indexOf('function svgBarChart(')),c);const trend={labels:['Day 1','Day 2'],values:[1,2]};assert.ok(c.svgLineChart(trend,'Activity','events').includes('class="cl-area"'));assert.ok(!c.svgLineChart(trend,'Security','events',{area:false}).includes('class="cl-area"'));});
+test('security line graph omits the fill while overall activity keeps its area',()=>{const c={escapeHtml:String,document:{addEventListener(){}}};vm.createContext(c);vm.runInContext(fs.readFileSync(require('node:path').resolve(__dirname,'../../../shared/dashboard-analytics.js'),'utf8'),c);vm.runInContext(source.slice(source.indexOf('function svgLineChart('),source.indexOf('function svgBarChart(')),c);const trend={labels:['Day 1','Day 2'],values:[1,2]};assert.ok(c.svgLineChart(trend,'Activity','events').includes('class="cl-area"'));assert.ok(!c.svgLineChart(trend,'Security','events',{area:false}).includes('class="cl-area"'));});

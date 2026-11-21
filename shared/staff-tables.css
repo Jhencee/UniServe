@@ -107,7 +107,6 @@
     white-space: nowrap;
   }
 }
-
 @page staff-table-report {
   size: 13in 8.5in;
   margin: 14mm 14mm 6mm;
@@ -195,4 +194,20 @@
 @media screen and (max-width:600px) {
  #content .card:has(.staff-table-toolbar) > .card-head,
  #content .staff-table-toolbar { padding-left:12px; padding-right:12px; }
+}
+
+/* Match Visitor Log's compact table typography and cell spacing. */
+@media screen {
+ body #content .table-wrap > table { width:100%; }
+ body :is(#content .table-wrap > table, #activeModal .modal table) :is(th,td) {
+  box-sizing:border-box; min-width:0; padding:10px 6px !important;
+  font-size:11px !important; line-height:1.5; white-space:normal;
+  overflow-wrap:anywhere; word-break:normal;
+ }
+ body :is(#content .table-wrap > table, #activeModal .modal table) :is(th,td) * { font-size:11px !important; line-height:1.5; }
+ body :is(#content .table-wrap > table, #activeModal .modal table) thead th { background:var(--surface-2); color:var(--text-soft); border-bottom:1px solid var(--border); }
+ body :is(#content .table-wrap > table, #activeModal .modal table) td { border-bottom:1px solid var(--border); vertical-align:middle; }
+ body :is(#content .table-wrap > table, #activeModal .modal table) tbody tr:last-child td { border-bottom:0; }
+ body #content .table-wrap > table :is(th.appointment-action-heading,td.appointment-action-cell) { width:64px; min-width:64px; text-align:center; }
+ body #content .table-wrap > table td.transaction-requestor { white-space:nowrap; overflow-wrap:normal; }
 }

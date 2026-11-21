@@ -110,21 +110,23 @@ async function page(){
   await visitor.run("setTheme('dark')");await pause(220);await visitor.screenshot('landing-login-dark');
   await visitor.run("showScreen('landing');setTheme('light')");
  }
- for(let attempt=0;attempt<30;attempt++){if(await visitor.run("window.UniServeRealtime?.connected===true"))break;await pause(200);}
- assert.equal(await visitor.run("window.UniServeRealtime?.connected"),true,'Live public WebSocket subscription failed');
- checks.push('Live landing frontend connects to the configured public realtime channel');
+ if(!process.argv.includes('--offline')){
+  for(let attempt=0;attempt<30;attempt++){if(await visitor.run("window.UniServeRealtime?.connected===true"))break;await pause(200);}
+  assert.equal(await visitor.run("window.UniServeRealtime?.connected"),true,'Live public WebSocket subscription failed');
+  checks.push('Live landing frontend connects to the configured public realtime channel');
+ } else checks.push('Live WebSocket check skipped (offline fixture mode)');
  const errors=visitor.events.filter(e=>e.method==='Runtime.exceptionThrown');assert.deepEqual(errors.map(e=>e.params.exceptionDetails.text),[]);
  for(const width of [320,390,1280]){
   await visitor.send('Emulation.setDeviceMetricsOverride',{width,height:width===320?640:844,deviceScaleFactor:1,mobile:width<600});
   await visitor.goto(base+'/Landing/landing.html');
   await visitor.run(`window.turnstile={render:(selector,options)=>{window.loginWidgetSize=options.size;const node=document.querySelector(selector);node.style.width=options.size==='compact'?'150px':'100%';node.style.minWidth=options.size==='compact'?'150px':'300px';node.style.height=options.size==='compact'?'140px':'65px';options.callback('fixture-token');return 'fixture-widget';},reset:()=>{}};showScreen('loginScreen');setTheme('light');LoginTurnstile.init()`);
   assert.ok(await visitor.run('document.documentElement.scrollWidth<=window.innerWidth+1'),'Login overflows at '+width);
-  assert.equal(await visitor.run('window.loginWidgetSize'),width===320?'compact':'flexible');
+  assert.equal(await visitor.run('window.loginWidgetSize'),'flexible');
   assert.ok(await visitor.run('document.querySelector("#loginScreen .auth-card").getBoundingClientRect().width<=380'));
   if(width<600)assert.ok(await visitor.run('document.getElementById("loginUser").getBoundingClientRect().height>=44'));
   await pause(350);await visitor.screenshot('login-compact-'+width);
  }
- checks.push('Compact login fits 320px, 390px and desktop with mobile touch targets and correctly sized verification');
+ checks.push('Login fits 320px, 390px and desktop with mobile touch targets and flexible verification');
  await visitor.close();
  for(const role of ['ADMIN','HEAD_ADMIN','SUPER_ADMIN']){
   const p=await page();const user={id:'flow-fixture',username:'fixture',fullName:'Flow Test Admin',role:role==='HEAD_ADMIN'?'ADMIN':role,active:true,confidentialAccess:role==='HEAD_ADMIN',confidentialApprover:role==='HEAD_ADMIN'};

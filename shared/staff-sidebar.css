@@ -1,5 +1,11 @@
 /* Shared Admin and Super Admin sidebar presentation. */
 .sidebar { z-index:40; }
+/* Keep the page title and header controls aligned without increasing header height. */
+.topbar > div:first-child { min-width:0; }
+.topbar h1 { margin:0; font-size:1rem; line-height:1.25; font-weight:600; }
+.topbar .sub { margin-top:2px; font-size:.72rem; line-height:1.4; }
+.topbar-right { gap:12px; }
+.topbar .clock { font-family:var(--font-body); font-size:.75rem; line-height:1.4; }
 .sidebar-brand .crest img { width:28px; height:28px; }
 .sidebar .nav-item.active { font-weight:500; }
 /* Keep navigation grouped with consistent spacing. */

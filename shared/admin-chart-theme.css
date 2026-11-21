@@ -78,14 +78,12 @@ body #content .admin-service-dashboard .admin-insight-card .analytics-footer { l
 .admin-satisfaction-heading { display:flex; align-items:baseline; gap:10px; }
 .admin-satisfaction-heading strong { font-size:1.3rem; font-weight:500; }
 .admin-satisfaction-heading span, .admin-satisfaction p, .admin-satisfaction-average { font-size:.74rem; color:var(--text-soft); }
-.satisfaction-figures { display:flex; gap:10px; margin:22px 0 14px; }
-.satisfaction-person { position:relative; display:block; color:var(--border); }
-.satisfaction-person-fill { position:absolute; inset:0; color:var(--dashboard-chart-1); }
-body #content .admin-service-dashboard .satisfaction-person svg { display:block; width:18px; height:30px; fill:currentColor; }
+.feedback-distribution { display:grid; gap:10px; margin:18px 0 14px; }
+.feedback-distribution-row { display:grid; grid-template-columns:48px minmax(0,1fr) 24px; align-items:center; gap:10px; font-size:.72rem; color:var(--text-soft); }
+.feedback-distribution-track { height:6px; overflow:hidden; border-radius:999px; background:var(--border); }
+.feedback-distribution-track > div { height:100%; border-radius:inherit; background:var(--accent); }
+.feedback-distribution-count { text-align:right; font-variant-numeric:tabular-nums; }
 .admin-satisfaction p { margin:0 0 18px; line-height:1.6; }
-.admin-satisfaction-average { display:flex; gap:12px; align-items:baseline; }
-.admin-satisfaction-average strong { color:var(--text); font-weight:500; }
-@media(max-width:400px) { .satisfaction-figures { gap:6px; } }
 .admin-insight-note { margin:0 20px; padding:10px 0 14px; border-top:1px solid var(--border); font-size:.7rem; line-height:1.6; color:var(--text-soft); }
 .admin-timing-columns { width:100%; max-width:420px; margin:0 auto; }
 .admin-timing-columns svg { width:100%; height:auto; display:block; }

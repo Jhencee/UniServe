@@ -33,8 +33,9 @@ function uid(p) {
   return p + c;
 }
 const pad2 = n => String(n).padStart(2, '0');
-const fmtDate = d => { d = new Date(d); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-const fmtTime = d => { d = new Date(d); let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${pad2(d.getMinutes())} ${ap}`; };
+const officeTimeParts = d => { if(d==null||d==='')return null;const date=new Date(d);if(!Number.isFinite(date.getTime()))return null;return Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value])); };
+const fmtDate = d => { const p=officeTimeParts(d);return p?`${p.year}-${p.month}-${p.day}`:'—'; };
+const fmtTime = d => { const p=officeTimeParts(d);if(!p)return '—';const h=Number(p.hour);return `${h%12||12}:${p.minute} ${h>=12?'PM':'AM'}`; };
 const today = () => fmtDate(new Date());
 const genTempPassword = () => {
   const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -585,13 +586,13 @@ function renderOfficeStatus() {
   const estimate = window.UniServeWalkInCapacity?.waitEstimates?.[waitingAll[0]?.id];
   const waitTxt = callable === 0 ? 'No wait' : Number.isFinite(estimate) ? fmtWaitDuration(estimate) : 'Unavailable';
   const serving = servingQueueEntries(db);
-  const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : '—';
+  const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : 'None';
   const title = open ? 'Open now' : 'Closed';
   el.dataset.officeOpen = String(open);
   const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? '' : OfficeCalendar.status().lunch ? escapeHtml(OfficeCalendar.status().message) : 'Next opening: <span class="status-next-opening">' + escapeHtml(OfficeCalendar.status().nextLabel) + '</span>');
   el.innerHTML = `
     <div class="status-cell status-main">
-      <div><div class="status-title">${title}</div>${sub ? `<div class="status-sub">${sub}</div>` : ''}</div>
+      <div><div class="status-lbl">Office status</div><div class="status-title">${title}</div>${sub ? `<div class="status-sub">${sub}</div>` : ''}</div>
     </div>
     <div class="status-cell"><div class="status-num">${waitingAll.length}</div><div class="status-lbl">Waiting now</div></div>
     <div class="status-cell"><div class="status-num">${waitTxt}</div><div class="status-lbl">Estimated wait</div></div>

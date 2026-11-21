@@ -39,8 +39,8 @@ function adminOfficeInsights(db,dates) {
     hours[hour].count++;
     const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',weekday:'short'}).format(new Date(q.checkedInAt));
     arrivalMatrix[weekdays.indexOf(weekday)].counts[hour]++;
-    const key=q.serviceKey||q.serviceLabel||'Unspecified service';
-    const current=services.get(key)||{label:(db.services||[]).find(s=>s.key===key)?.label||q.serviceLabel||key,count:0};
+    const key=q.pickupTransactionId?'__document_pickup__':(q.serviceKey||q.serviceLabel||'Unspecified service');
+    const current=services.get(key)||{label:key==='__document_pickup__'?'Document pickup':((db.services||[]).find(s=>s.key===key)?.label||q.serviceLabel||key),count:0};
     current.count++;services.set(key,current);
   });
   const minutes=(a,b)=>{const duration=(new Date(b)-new Date(a))/60000;return a&&b&&Number.isFinite(duration)&&duration>=0?duration:null;};
@@ -67,10 +67,10 @@ function adminOfficeInsightsHtml(db,dates) {
   return '<section class="admin-office-insights" aria-labelledby="officeInsightsTitle"><div class="admin-insights-heading"><div><h2 id="officeInsightsTitle">Office performance</h2><p>'+dates[0]+' to '+dates[dates.length-1]+' &middot; Accessible records only</p></div></div><div class="admin-insights-grid">'+
     card('Visit outcomes',data.arrivals+' visits checked in during this period',data.arrivals?dashboardChart(data.outcomes,'donut','Current outcomes of checked-in visits',['#00a86b','#007bff','#e84d96','#f5b700','#f47721']):emptyChart('No recorded check-ins in this period.'),'Each checked-in visit is counted once by its current status. Still active includes waiting, called, serving and skipped visits. Bookings without check-in are excluded.')+
     card('Wait and service time','Single-service visits completed in this period',timing,'Wait: arrival to service start. Service: start to completion. Valid single-service visits only.')+
-    card('Service demand','All services &middot; Checked-in visits',data.services.length?dashboardBarChart(data.services):emptyChart('No services available.'),'Counts visits, including services with zero arrivals in this period. A transferred visit uses its current service.')+
+    card('Service demand','Checked-in visits by purpose',data.services.length?dashboardBarChart(data.services):emptyChart('No services available.'),'Pickup visits are counted separately from service requests. Transferred visits use their current service.')+
     card('Arrival patterns','Weekday and hour',adminArrivalMatrix(data),'Counts actual check-ins in the selected period, grouped by weekday and hour. Hover over a dot for its count. Empty dots mean no recorded arrivals, not that the office was closed.')+
     card('Appointment outcomes',data.appointments+' appointments scheduled in this period',outcomes,'Shows current status. Awaiting visits are not counted as no-shows; attended includes checked-in, completed and unfinished visits.')+
-    card('Visitor feedback','Visits completed in this period',adminSatisfactionPictogram(data),'Optional responses; this does not represent every visitor. Ratings belong to visits completed in the selected period, not necessarily feedback submitted during that period.')+
+    card('Visitor feedback','Visits completed in this period',adminSatisfactionChart(data),'Optional responses; this does not represent every visitor. Ratings belong to visits completed in the selected period, not necessarily feedback submitted during that period.')+
     '</div></section>';
 }
 
@@ -95,10 +95,8 @@ function adminTimingColumns(data) {
   return '<div class="admin-timing-columns"><svg viewBox="0 0 440 240" role="img" aria-label="Average waiting time '+duration(data.wait)+', '+data.waitSamples+' samples; average service time '+duration(data.service)+', '+data.serviceSamples+' samples. Vertical axis in minutes, starting at zero."><text x="12" y="20">Minutes</text>'+ticks+columns+'</svg></div>';
 }
 
-function adminSatisfactionPictogram(data) {
+function adminSatisfactionChart(data) {
   if(!data.feedback)return emptyChart('No feedback on completed visits in this period.');
-  const percent=data.satisfied/data.feedback*100;
-  const person='<svg viewBox="0 0 16 28" aria-hidden="true" focusable="false"><circle cx="8" cy="4" r="3"/><path d="M4 8h8a2 2 0 0 1 2 2v8h-3v10H8.5V18h-1v10H5V18H2v-8a2 2 0 0 1 2-2Z"/></svg>';
-  const figures=Array.from({length:10},(_,i)=>{const fill=Math.max(0,Math.min(100,(percent-i*10)*10));return '<span class="satisfaction-person">'+person+'<span class="satisfaction-person-fill" style="clip-path:inset(0 '+(100-fill)+'% 0 0)">'+person+'</span></span>';}).join('');
-  return '<div class="admin-satisfaction"><div class="admin-satisfaction-heading"><strong>'+Math.round(percent)+'%</strong><span>Satisfied respondents</span></div><div class="satisfaction-figures" role="img" aria-label="'+data.satisfied+' of '+data.feedback+' respondents rated 4 or 5 stars. Each figure represents 10 percentage points.">'+figures+'</div><p>'+data.satisfied+' of '+data.feedback+' respondents rated 4&ndash;5 stars</p><div class="admin-satisfaction-average">Average rating <strong>'+data.rating+' / 5</strong></div></div>';
+  const rows=(data.ratings||[]).map(row=>'<div class="feedback-distribution-row"><span>'+escapeHtml(row.label)+'</span><div class="feedback-distribution-track" aria-hidden="true"><div style="width:'+Math.max(0,Math.min(100,row.count/data.feedback*100))+'%"></div></div><span class="feedback-distribution-count">'+row.count+'</span></div>').join('');
+  return '<div class="admin-satisfaction"><div class="admin-satisfaction-heading"><strong>'+data.rating+' / 5</strong><span>Average rating &middot; '+data.feedback+' response'+(data.feedback===1?'':'s')+'</span></div><div class="feedback-distribution" role="img" aria-label="'+data.ratings.map(row=>row.label+': '+row.count).join(', ')+'">'+rows+'</div><p>'+data.satisfied+' of '+data.feedback+' respondents rated 4&ndash;5 stars</p></div>';
 }

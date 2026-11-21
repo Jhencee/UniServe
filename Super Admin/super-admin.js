@@ -63,8 +63,9 @@ function uid(p) {
   return p + c;
 }
 const pad2 = n => String(n).padStart(2, '0');
-const fmtDate = d => { d = new Date(d); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-const fmtTime = d => { d = new Date(d); let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${pad2(d.getMinutes())} ${ap}`; };
+const officeTimeParts = d => { if(d==null||d==='')return null;const date=new Date(d);if(!Number.isFinite(date.getTime()))return null;return Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value])); };
+const fmtDate = d => { const p=officeTimeParts(d);return p?`${p.year}-${p.month}-${p.day}`:'—'; };
+const fmtTime = d => { const p=officeTimeParts(d);if(!p)return '—';const h=Number(p.hour);return `${h%12||12}:${p.minute} ${h>=12?'PM':'AM'}`; };
 const fmtDateTime = d => `${fmtDate(d)} &middot; ${fmtTime(d)}`;
 const today = () => fmtDate(new Date());
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(0, 0, 0, 0); return d; };
@@ -292,12 +293,12 @@ function auditIntegrity(db) {
 
 function reportLetterhead() {
   return `<div class="report-header">
-      <span class="report-logo-left"><img src="pup.jpg" alt="PUP Seal"></span>
+      <span class="report-logo-left"><img src="../shared/pup.jpg" alt="PUP Seal"></span>
       <div class="report-org-text"><div class="org-country">Republic of the Philippines</div><div class="org-univ">Polytechnic University of the Philippines</div><div class="org-office">Office of the Vice President for Campuses</div><div class="org-campus">Santa Maria Campus</div></div>
-      <span class="report-logo-right"><img src="pilipinas.png" alt="Bagong Pilipinas"></span></div>`;
+      <span class="report-logo-right"><img src="../shared/pilipinas.png" alt="Bagong Pilipinas"></span></div>`;
 }
 function reportFooter() {
-  return `<div class="print-footer"><div class="pf-text"><div class="pf-addr">Km. 38, Pulong Buhangin, Santa Maria, Bulacan, 3022</div><div class="pf-addr">Website: www.pup.edu.ph | Email: stamaria@pup.edu.ph</div><div class="pf-tag">A Leading Comprehensive Polytechnic University in Asia</div></div><img class="pf-badges" src="badge.png" alt=""></div>`;
+  return `<div class="print-footer"><div class="pf-text"><div class="pf-addr">Km. 38, Pulong Buhangin, Santa Maria, Bulacan, 3022</div><div class="pf-addr">Website: www.pup.edu.ph | Email: stamaria@pup.edu.ph</div><div class="pf-tag">A Leading Comprehensive Polytechnic University in Asia</div></div><img class="pf-badges" src="../shared/badge.png" alt=""></div>`;
 }
 function reportSignatureBlock() {
   return `<div class="rpt-signature-block">
@@ -487,6 +488,7 @@ function navigate(key) {
   if (key === 'accessreview') key = 'users';
   if (!TITLES[key]) key = 'dashboard';
   state_view = key;
+  sessionStorage.setItem('uniserve_super_view:'+currentUser.id,key);
   document.getElementById('pageTitle').textContent = TITLES[key][0];
   document.getElementById('pageSub').innerHTML = TITLES[key][1];
   renderSidebar();
@@ -650,19 +652,19 @@ function systemReportModel(db){
  return {title:SYSTEM_REPORT_TYPES[systemReportType],period:!systemReportRange.from&&!systemReportRange.to?'All recorded dates':`${systemReportRange.from||'Start'} to ${systemReportRange.to||'Today'}`,sections};
 }
 function renderReports(){
- document.getElementById('content').innerHTML=`<section class="card system-report-controls no-print"><div class="card-head"><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print',14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download',14)} Download Excel</button></div></div><div class="filter-bar"><select class="filter-select" aria-label="Report type" onchange="selectSystemReport(this.value)">${Object.entries(SYSTEM_REPORT_TYPES).map(([key,label])=>`<option value="${key}" ${key===systemReportType?'selected':''}>${label}</option>`).join('')}</select><div class="date-range" role="group" aria-label="Report dates"><span class="dr-ic">${icon('calendar',15)}</span><label class="dr-field">From<input class="date-in" type="date" aria-label="Report start date" value="${systemReportRange.from}" onchange="setSystemReportDate('from',this.value)"></label><span class="dr-sep">–</span><label class="dr-field">To<input class="date-in" type="date" aria-label="Report end date" value="${systemReportRange.to}" onchange="setSystemReportDate('to',this.value)"></label><span class="dr-actions"><button class="dr-btn" onclick="setSystemReportDate('today')">Today</button><button class="dr-btn" onclick="setSystemReportDate('all')">All dates</button></span></div></div></section><div id="systemReportOverview" class="system-report-overview"></div><div id="reportSheet" hidden aria-hidden="true"></div>`;
+ document.getElementById('content').innerHTML=`<div class="card system-report-page"><section class="system-report-controls no-print"><div class="card-head"><div class="toolbar"><button class="btn btn-primary btn-sm" onclick="printReport()">${icon('print',14)} Print report</button><button class="btn btn-ghost btn-sm" onclick="downloadReportExcel()">${icon('download',14)} Download Excel</button></div></div><div class="filter-bar"><select class="filter-select" aria-label="Report type" onchange="selectSystemReport(this.value)">${Object.entries(SYSTEM_REPORT_TYPES).map(([key,label])=>`<option value="${key}" ${key===systemReportType?'selected':''}>${label}</option>`).join('')}</select><div class="date-range" role="group" aria-label="Report dates"><span class="dr-ic">${icon('calendar',15)}</span><label class="dr-field">From<input class="date-in" type="date" aria-label="Report start date" value="${systemReportRange.from}" onchange="setSystemReportDate('from',this.value)"></label><span class="dr-sep">–</span><label class="dr-field">To<input class="date-in" type="date" aria-label="Report end date" value="${systemReportRange.to}" onchange="setSystemReportDate('to',this.value)"></label><span class="dr-actions"><button class="dr-btn" onclick="setSystemReportDate('today')">Today</button><button class="dr-btn" onclick="setSystemReportDate('all')">All dates</button></span></div></div></section><div id="systemReportOverview" class="system-report-overview"></div></div><div id="reportSheet" hidden aria-hidden="true"></div>`;
  renderSystemReportOverview();
 }
 function renderSystemReportOverview(){
  const model=systemReportModel(loadDB());
- const card=section=>'<section class="card'+(section.headers.length>3?' system-report-wide':'')+'"><div class="card-head"><div><h3>'+escapeHtml(section.title)+'</h3>'+(section.note?'<p class="desc">'+escapeHtml(section.note)+'</p>':'')+'</div></div><div class="table-wrap"><table><thead><tr>'+section.headers.map(h=>'<th>'+escapeHtml(h)+'</th>').join('')+'</tr></thead><tbody>'+(section.rows.length?section.rows.map(row=>'<tr>'+row.map(value=>'<td>'+escapeHtml(value)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+section.headers.length+'">No recorded activity for these dates.</td></tr>')+'</tbody></table></div></section>';
+ const card=section=>'<section class="card'+(section.headers.length>3?' system-report-wide':'')+'"><div class="card-head"><div><h3>'+escapeHtml(section.title)+'</h3>'+(section.note?'<p class="desc">'+escapeHtml(section.note)+'</p>':'')+'</div></div><div class="table-wrap"><table><thead><tr>'+section.headers.map(h=>'<th>'+escapeHtml(h)+'</th>').join('')+'</tr></thead><tbody>'+(section.rows.length?section.rows.map(row=>'<tr>'+row.map(value=>'<td>'+escapeHtml(value)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+section.headers.length+'">No records to show.</td></tr>')+'</tbody></table></div></section>';
  const summary=systemReportType==='overview'?model.sections[0]:null;
  const metrics=summary?'<section class="card system-report-metrics" aria-label="Period summary">'+summary.rows.map(([label,value])=>'<div><span>'+escapeHtml(label)+'</span><strong>'+escapeHtml(value)+'</strong></div>').join('')+'</section>':'';
  document.getElementById('systemReportOverview').innerHTML='<p class="system-report-period">'+escapeHtml(model.period)+'</p>'+metrics+'<div class="system-report-grid">'+model.sections.filter(section=>section!==summary).map(card).join('')+'</div>';
 }
 function buildReport(){
  const model=systemReportModel(loadDB());
- document.getElementById('reportSheet').innerHTML=reportLetterhead()+`<div class="report-title-block"><h2>${escapeHtml(model.title)}</h2><div class="report-meta"><span>Period: ${escapeHtml(model.period)}</span><span>Generated: ${escapeHtml(actionText(fmtDateTime(new Date())))} by ${escapeHtml(currentUser.fullName)}</span></div></div>`+model.sections.map(s=>`<section class="rpt-section"><div class="rpt-table-wrap"><table class="rpt-table system-print-table"><caption><strong>${escapeHtml(s.title)}</strong>${s.note?`<span>${escapeHtml(s.note)}</span>`:''}</caption><thead><tr>${s.headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${s.rows.length?s.rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${s.headers.length}">No recorded activity for these dates.</td></tr>`}</tbody></table></div></section>`).join('')+reportSignatureBlock();
+ document.getElementById('reportSheet').innerHTML=reportLetterhead()+`<div class="report-title-block"><h2>${escapeHtml(model.title)}</h2><div class="report-meta"><span>Period: ${escapeHtml(model.period)}</span><span>Generated: ${escapeHtml(actionText(fmtDateTime(new Date())))} by ${escapeHtml(currentUser.fullName)}</span></div></div><div class="compact-office-report">`+model.sections.map(s=>`<table class="rpt-table compact-report-table"><caption>${escapeHtml(s.title)}</caption><thead><tr>${s.headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${s.rows.length?s.rows.map(row=>`<tr>${row.map(value=>`<td>${escapeHtml(value)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${s.headers.length}">No records to show.</td></tr>`}</tbody></table>${s.note?`<p class="doc-footnote">${escapeHtml(s.note)}</p>`:''}`).join('')+reportSignatureBlock()+'</div>';
 }
 function printReport(){
  const sheet=document.getElementById('reportSheet');if(!sheet)return;
@@ -956,4 +958,4 @@ async function saveProfile() {
 }
 
 renderSidebar();
-navigate('dashboard');
+navigate(sessionStorage.getItem('uniserve_super_view:'+currentUser.id)||'dashboard');

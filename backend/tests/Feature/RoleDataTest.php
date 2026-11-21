@@ -236,6 +236,15 @@ it('authorizes fresh report snapshots independently of client flags and view unl
  Cache::forget('report-print:head:rpt:all');
  $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
 });
+it('includes confidential document status in redacted report totals without personal details',function(){
+ roleAuditAppointment();
+ $row=DB::table('shared_transactions')->where('id','private-case')->first();
+ $record=json_decode(Illuminate\Support\Facades\Crypt::decryptString($row->payload),true);
+ $record['pickupStatus']='Ready';$record['pickupIdentityCheck']='PRIVATE ID';
+ DB::table('shared_transactions')->where('id','private-case')->update(['payload'=>Illuminate\Support\Facades\Crypt::encryptString(json_encode($record))]);
+ $snapshot=$this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>false],roleDataHeaders('head'))->assertOk()->json();
+ expect($snapshot['transactions'][0]['pickupStatus'])->toBe('Ready')->and(json_encode($snapshot))->not->toContain('Private Visitor','owner@gmail.com','PRIVATE ID');
+});
 
 it('does not expose unrelated transactions in logbook or appointment report snapshots',function(){
  roleAuditAppointment();

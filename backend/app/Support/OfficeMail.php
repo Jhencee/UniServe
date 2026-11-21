@@ -24,6 +24,8 @@ class OfficeMail
             $rules=explode("\n",$match[1]);$closing=str_replace($match[0],'',$closing);
         }
         $intro=preg_replace('/\n{3,}/',"\n\n",$intro);
-        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'details'=>$details,'rules'=>$rules])->render();
+        $pickup=$title==='Document ready for pickup';
+        if($pickup)$closing='';
+        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'details'=>$details,'rules'=>$rules,'pickup'=>$pickup])->render();
     }
 }

@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const source=fs.readFileSync(path.resolve(__dirname,'../../../shared/dashboard-analytics.js'),'utf8');
-function setup(){const c={Intl,Date};vm.createContext(c);vm.runInContext(source,c);return c;}
+function setup(){const c={Intl,Date,document:{addEventListener(){}}};vm.createContext(c);vm.runInContext(source,c);return c;}
 test('operational analytics use schedule dates, Manila hours and valid timing samples',()=>{
  const c=setup(),start=new Date('2026-10-13T00:00:00+08:00'),end=new Date('2026-10-26T23:00:00+08:00');
  const db={appointments:[{date:'2026-10-13',status:'Completed'},{date:'2026-10-26',status:'No-show'},{date:'2026-10-12',status:'Completed'}],transactions:[{createdAt:'2026-10-26T10:00:00+08:00',status:'Pending'},{createdAt:'2026-10-15T10:00:00+08:00',status:'Processing'},{createdAt:'2026-10-10',status:'Completed'}],queues:[{createdAt:'2026-10-26T08:00:00+08:00',checkedInAt:'2026-10-26T08:00:00+08:00',calledAt:'2026-10-26T08:10:00+08:00',servingAt:'2026-10-26T08:12:00+08:00',completedAt:'2026-10-26T08:32:00+08:00',status:'Completed'},{createdAt:'invalid',status:'Completed',completedAt:'invalid'}]};

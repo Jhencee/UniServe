@@ -22,11 +22,11 @@ test('timing columns use a zero-based minutes axis and readable duration labels'
  const missing=c.adminTimingColumns({wait:null,service:0,waitSamples:0,serviceSamples:1});assert.match(missing,/No data/);assert.match(missing,/0 min 00 sec/);
 });
 
-test('satisfaction pictogram labels the actual respondents and uses partial figures',()=>{
- const html=c.adminSatisfactionPictogram({satisfied:2,feedback:3,rating:4});
- assert.match(html,/67%/);assert.match(html,/2 of 3 respondents/);assert.equal((html.match(/class="satisfaction-person"/g)||[]).length,10);assert.match(html,/clip-path:inset/);assert.ok(html.includes('4 / 5'));
- c.emptyChart=text=>text;assert.match(c.adminSatisfactionPictogram({feedback:0}),/No feedback/);
- const zero=c.adminSatisfactionPictogram({satisfied:0,feedback:2,rating:1});assert.match(zero,/0%/);
+test('feedback chart shows rating counts and response totals',()=>{
+ c.escapeHtml=String;const ratings=[{label:'5 stars',count:2},{label:'4 stars',count:0},{label:'3 stars',count:1}];
+ const html=c.adminSatisfactionChart({satisfied:2,feedback:3,rating:4,ratings});
+ assert.match(html,/2 of 3 respondents/);assert.match(html,/5 stars: 2/);assert.match(html,/4 \/ 5/);assert.match(html,/width:66\.66/);
+ c.emptyChart=text=>text;assert.match(c.adminSatisfactionChart({feedback:0}),/No feedback/);
 });
 
 test('arrival matrix groups Philippine weekdays and hours and ignores booking submission time',()=>{
@@ -47,6 +47,15 @@ test('analytics periods use Philippine calendar dates through today',()=>{
 test('service demand includes all catalogue services even with no arrivals',()=>{
  const data=c.adminOfficeInsights({services:Array.from({length:7},(_,i)=>({key:'s'+i,label:'Service '+i})),queues:[]},['2026-11-19']);
  assert.equal(data.services.length,7);assert.ok(data.services.every(s=>s.count===0));
+});
+test('pickup visits count as arrivals but do not inflate service requests',()=>{
+ const data=c.adminOfficeInsights({services:[{key:'moral',label:'Good Moral'}],queues:[
+  {serviceKey:'moral',status:'Completed',checkedInAt:'2026-11-18T01:00:00Z'},
+  {serviceKey:'moral',pickupTransactionId:'transaction-1',status:'Completed',checkedInAt:'2026-11-18T02:00:00Z'}
+ ]},dates);
+ assert.equal(data.arrivals,2);
+ assert.equal(data.services.find(s=>s.label==='Good Moral').count,1);
+ assert.equal(data.services.find(s=>s.label==='Document pickup').count,1);
 });
 
 test('visit outcomes count each checked-in visit once and exclude unarrived bookings',()=>{

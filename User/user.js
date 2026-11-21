@@ -75,8 +75,9 @@ function uid(p) {
   return p + c;
 }
 const pad2 = n => String(n).padStart(2, '0');
-const fmtDate = d => { d = new Date(d); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
-const fmtTime = d => { d = new Date(d); let h = d.getHours(); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${pad2(d.getMinutes())} ${ap}`; };
+const officeTimeParts = d => { if(d==null||d==='')return null;const date=new Date(d);if(!Number.isFinite(date.getTime()))return null;return Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date).map(part=>[part.type,part.value])); };
+const fmtDate = d => { const p=officeTimeParts(d);return p?`${p.year}-${p.month}-${p.day}`:'—'; };
+const fmtTime = d => { const p=officeTimeParts(d);if(!p)return '—';const h=Number(p.hour);return `${h%12||12}:${p.minute} ${h>=12?'PM':'AM'}`; };
 const fmtDateTime = d => `${fmtDate(d)} &middot; ${fmtTime(d)}`;
 const today = () => fmtDate(new Date());
 const randCode = prefix => {
@@ -1114,7 +1115,7 @@ function requirementsBlockHtml(db, appt) {
 function timelineStepsHtml(q, appointment = null) {
   const steps = [
     ...(appointment ? [{ lbl: 'Requested', ic: 'calendar', ts: appointment.createdAt }, ...(appointment.scheduledConfirmedAt ? [{ lbl: 'Schedule Confirmed', ic: 'calendar', ts: appointment.scheduledConfirmedAt }] : [])] : []),
-    { lbl: 'Checked In', ic: 'checkin', ts: q.checkedInAt || q.createdAt },
+    { lbl: 'Checked In', ic: 'checkin', ts: q.checkedInAt },
     { lbl: 'Called', ic: 'megaphone', ts: q.calledAt },
     { lbl: 'Service Started', ic: 'clock', ts: q.servingAt },
     { lbl: 'Completed', ic: 'check', ts: q.completedAt, completed: q.status === 'Completed' },
@@ -1128,6 +1129,25 @@ function timelineStepsHtml(q, appointment = null) {
       <div class="vjt-v-dotcol"><div class="vjt-v-dot">${icon(done ? 'check' : s.ic, 15)}</div>${i < steps.length - 1 ? '<div class="vjt-v-line"></div>' : ''}</div>
       <div class="vjt-v-body"><div class="vjt-v-lbl">${s.lbl}</div><div class="vjt-v-ts">${s.ts ? fmtDateTime(s.ts) : s.completed ? 'Completed' : 'Pending'}</div></div></div>`;
   }).join('')}</div>`;
+}
+function visitProgressHtml(q, appointment = null) {
+  const progress=q.pickupProgress;
+  if(!progress) return timelineStepsHtml(q,appointment);
+  const labels={Preparing:'Being prepared',Ready:'Ready for pickup',Claimed:'Claimed'};
+  const documentStatus=labels[progress.documentStatus]||'Pending';
+  return '<section class="pickup-progress-group"><h4>First visit</h4>'+timelineStepsHtml(progress.original,appointment)+'</section>'+
+    '<section class="pickup-progress-group"><h4>Document pickup</h4><p class="pickup-progress-status">'+escapeHtml(documentStatus)+'</p>'+
+    (progress.pickup?timelineStepsHtml(progress.pickup):'<p class="pickup-progress-note">'+(progress.documentStatus==='Preparing'?'Your document is being prepared.':progress.documentStatus==='Ready'?'Join the pickup queue when you are ready.':'No pickup visit recorded.')+'</p>')+'</section>';
+}
+function hasActivePickup(q) {
+  return ['Waiting','Called','Serving','Skipped'].includes(q.pickupProgress?.pickup?.status);
+}
+function pickupSummaryHtml(q) {
+  const status=q.pickupStatus||q.pickupProgress?.documentStatus;
+  const label={Preparing:'Being prepared',Ready:'Ready for pickup',Claimed:'Claimed'}[status];
+  if(!label)return '';
+  const action=!q.pickupOfVisitId&&q.status==='Completed'&&status==='Ready'?'<button type="button" class="btn btn-ghost btn-sm pickup-summary-action" onclick="joinDocumentPickup()">'+(hasActivePickup(q)?'View pickup queue':'Join pickup queue')+'</button>':'';
+  return '<div class="visit-document-status"><span class="visit-status-caption">Document pickup</span><h4>'+escapeHtml(label)+'</h4>'+action+'</div>';
 }
 function feedbackSectionHtml(q) {
   if (q.status !== 'Completed') return '';
@@ -1154,7 +1174,8 @@ function submitVisitFeedback(queueId) {
 }
 let sharedTicketLoading = false;
 let lastTicketRender = {id:null,status:null};
-async function renderQueueTicket(queueAlreadyRefreshed = false) {
+let lastTicketSnapshot = '';
+async function renderQueueTicket(queueAlreadyRefreshed = false, background = false) {
   if (sharedTicketLoading) return;
   const selectedQueueId=myActiveQueueId,navigation=typeof visitorNavigationVersion==='undefined'?0:visitorNavigationVersion;
   const local = loadDB().queues.find(q => q.id === selectedQueueId);
@@ -1177,6 +1198,10 @@ async function renderQueueTicket(queueAlreadyRefreshed = false) {
   if(myActiveQueueId!==selectedQueueId||(typeof visitorNavigationVersion!=='undefined'&&visitorNavigationVersion!==navigation)||(typeof visitorHubOpen!=='undefined'&&visitorHubOpen))return;
   const db = loadDB(), q = db.queues.find(x => x.id === selectedQueueId);
   if (!q) { resetVisit(); return; }
+  const snapshot=JSON.stringify([q,window.UniServeWalkInCapacity]);
+  if(background && (snapshot===lastTicketSnapshot || document.activeElement?.matches('#visitorContent input, #visitorContent textarea, #visitorContent select') || document.querySelector('#activeModal')))return;
+  const scrollX=window.scrollX,scrollY=window.scrollY;
+  const feedbackDraft=document.getElementById('fbComment')?.value;
   const isAppt = q.source === 'Appointment';
   const due = isDue(q);
   const ahead = q.status === 'Waiting' ? (window.UniServeWalkInCapacity?.peopleAhead?.[q.id] ?? null) : 0;
@@ -1213,9 +1238,12 @@ async function renderQueueTicket(queueAlreadyRefreshed = false) {
   const reqSection = linkedAppt ? `<div class="card card-pad"><label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:6px; color:var(--text-soft);">Your uploaded requirements</label>${attachListHtml(linkedAppt.attachments, 'No files were uploaded with this booking.')}${documentReviewHtml(linkedAppt)}${visitExtrasHtml({...linkedAppt,followUpTask:Object.prototype.hasOwnProperty.call(q,'followUpTask')?q.followUpTask:linkedAppt.followUpTask})}</div>` : (q.followUpTask?`<div class="card card-pad">${visitExtrasHtml(q)}</div>`:'');
   const another = `<button class="btn btn-primary" onclick="resetVisit()">Start another visit</button>`;
   const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;
-  const nextStep = isDone ? 'Your visit is complete. Share feedback about your service below.' : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
+  const pickupStatus=q.pickupStatus||q.pickupProgress?.documentStatus;
+  const activePickup=hasActivePickup(q);
+  const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':'Your visit is complete. Share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
+  const progressOpen=lastTicketRender.id===q.id ? (document.querySelector('.queue-visit-journey')?.open ?? !isDone) : !isDone;
   document.getElementById('visitorContent').innerHTML = `
-    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p><section class="visit-status-summary" aria-label="Current visit status"><span class="visit-status-caption">Current status</span><h4>${escapeHtml(q.status)}</h4><p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
+    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
       ${waitBanner}
       <div class="qt-layout">
         <div class="qt-main ${isDone ? 'qt-main-complete' : ''}">
@@ -1241,7 +1269,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false) {
                   <div class="ticket-v2-grid">
                     <div class="ticket-v2-field">${firstField}</div>
                     <div class="ticket-v2-field"><span class="tvf-lbl">${icon('folder', 13)} Service</span><span class="tvf-val">${escapeHtml(serviceQueueLabel(db, q))}</span></div>
-                    <div class="ticket-v2-field"><span class="tvf-lbl">${icon('checkin', 13)} Checked-in</span><span class="tvf-val">${fmtTime(q.checkedInAt || q.createdAt)}</span></div>
+                    <div class="ticket-v2-field"><span class="tvf-lbl">${icon('checkin', 13)} Checked-in</span><span class="tvf-val">${q.checkedInAt ? fmtTime(q.checkedInAt) : '&mdash;'}</span></div>
                     <div class="ticket-v2-field"><span class="tvf-lbl">${icon(isAppt ? 'calendar' : 'ticket', 13)} Entry Method</span><span class="tvf-val">${isAppt ? 'Scheduled' : 'Walk-in'}</span></div>
                   </div>
                   <p class="ticket-v2-fine-print">${isDone ? 'This visit is complete &mdash; this pass has been used and is no longer valid.' : (isAppt ? "This pass is valid for your scheduled visit only and is non-transferable. You are called when your scheduled time arrives." : "This pass is valid for today's visit only and is non-transferable. Please present it at the counter when your number is called.")}</p>
@@ -1253,7 +1281,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false) {
         </div>
         <div class="qt-side">
           ${feedbackSectionHtml(q)}
-          <details class="visit-journey queue-visit-journey" ${isDone?'':'open'}><summary><span class="visit-journey-title">Visit progress</span><span class="visit-journey-status">${escapeHtml(q.status)}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></summary><div class="queue-journey-body">${timelineStepsHtml(q, q.appointmentProgress || linkedAppt)}</div></details>
+          <details class="visit-journey queue-visit-journey" ${progressOpen?'open':''}><summary><span class="visit-journey-title">Visit progress</span><span class="visit-journey-status">${escapeHtml(q.status)}</span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m6 9 6 6 6-6"/></svg></summary><div class="queue-journey-body">${visitProgressHtml(q, q.appointmentProgress || linkedAppt)}</div></details>
           ${isDone ? '' : nowServing}
           ${q.caseStatus?`<div class="card card-pad"><h3>Case follow-up</h3><p>Visit: Completed &middot; Case: ${escapeHtml(q.caseStatus)}</p><p class="field-hint">${q.caseStatus==='Resolved'?'Your concern has been resolved.':'Your visit is complete. Your concern remains under review.'}</p></div>`:''}
         </div>
@@ -1267,8 +1295,18 @@ async function renderQueueTicket(queueAlreadyRefreshed = false) {
       </div>
     </div></div></div>`;
   lastTicketRender={id:q.id,status:q.status};
+  lastTicketSnapshot=snapshot;
+  if(feedbackDraft!==undefined && document.getElementById('fbComment'))document.getElementById('fbComment').value=feedbackDraft;
+  if(background)window.scrollTo(scrollX,scrollY);
   if(justCompleted)document.querySelector('.queue-record')?.scrollIntoView({block:'start',behavior:'smooth'});
-  if (finished) stopTicketPolling(); else startTicketPolling();
+  if (finished && !['Preparing', 'Ready'].includes(pickupStatus)) stopTicketPolling(); else startTicketPolling();
+}
+function joinDocumentPickup() {
+  const queue=loadDB().queues.find(q=>q.id===myActiveQueueId);if(!queue?.visitId)return;
+  openModal('Join pickup queue','<p class="field-hint">Join the walk-in queue when you are at OSS and ready to collect your document. Bring your Visit ID and a valid ID for the identity check.</p>',[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:'Join pickup queue',cls:'btn-primary',action:async()=>{try{closeModal();const result=await SharedAppointments.visitorRequest('/visits/'+encodeURIComponent(queue.visitId)+'/pickup','POST',{});if(!result)return;if(result.visitToken)sessionStorage.setItem('visit-token:'+result.queue.visitId,result.visitToken);myActiveQueueId=result.queue.id;persistSession();renderQueueTicket();}catch(e){toast(escapeHtml(e.message),'err');}}}
+  ]);
 }
 function confirmCancelQueuePrompt() {
   const db = loadDB(), q = db.queues.find(x => x.id === myActiveQueueId);
@@ -1304,7 +1342,7 @@ function startTicketPolling() {
 function stopTicketPolling() { if (ticketPollTimer) { clearInterval(ticketPollTimer); ticketPollTimer = null; } }
 function refreshActiveVisitorTicket() {
   if (document.visibilityState === 'hidden') return;
-  if ((visitorView === 'visit' || visitorView === 'checkvisit') && myActiveQueueId && !visitorHubOpen) renderQueueTicket();
+  if ((visitorView === 'visit' || visitorView === 'checkvisit') && myActiveQueueId && !visitorHubOpen) renderQueueTicket(false,true);
 }
 document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
 window.addEventListener('pageshow', refreshActiveVisitorTicket);

@@ -16,7 +16,7 @@
       delete record.documentVersions;
       record.attachments=(record.attachments||[]).map(({dataUrl,...metadata})=>metadata);
     }
-    const safeFields=new Set(['id','code','service','status','caseStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']);
+    const safeFields=new Set(['id','code','service','status','caseStatus','pickupStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']);
     for(const record of copy.transactions||[]) {
       const confidential=copy.services?.find(service=>service.key===record.service)?.confidential ?? ['incident_report','concern','scholarship_txn','excuse_letter'].includes(record.service);
       if(!record.shared||!confidential)continue;
@@ -246,7 +246,9 @@
         await loadSharedQueue();
         const db=loadDB(),q=db.queues.find(q=>q.id===id);
         if(q&&typeof queueRequirementState==='function'&&!queueRequirementState(db,q).ready){toast('Check all requirements before completing this visit.','warn');return;}
-        cache(await request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Completed'}));closeModal();await records();await renderQueueDashboard();renderSidebar();toast('Visit completed and logged.','ok');}catch(e){toast(escapeHtml(e.message),'err');}
+        const complete=async(documentPreparation=false)=>{try{cache(await request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Completed',documentPreparation}));sessionStorage.removeItem('uniserve_document_preparation:'+id);closeModal();await records();await renderQueueDashboard();renderSidebar();toast(documentPreparation?'Visit completed. Document added to preparation.':'Visit completed and logged.','ok');}catch(e){toast(escapeHtml(e.message),'err');}};
+        if(q&&!q.pickupTransactionId){const preparation=typeof documentPreparationSelected==='function'&&documentPreparationSelected(id);openModal('Complete service','<p class="field-hint">'+(preparation?'Complete this visit and add the document to pending preparation.':'Complete this visit and save the service record.')+'</p>',[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Complete service',cls:'btn-primary',action:()=>complete(preparation)}]);return;}
+        await complete();}catch(e){toast(escapeHtml(e.message),'err');}
     };
     const original=renderAppointments;
     renderAppointments=async function(keep){try{await Promise.all([request('/appointments').then(cache),typeof loadSharedQueue==='function'?loadSharedQueue():Promise.resolve()]);if(state_view==='appointments')original(keep);}catch(e){if(state_view==='appointments')toast(escapeHtml(e.message),'err');}};

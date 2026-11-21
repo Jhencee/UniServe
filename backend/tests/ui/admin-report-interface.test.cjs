@@ -22,6 +22,20 @@ test('print report uses compact tables, protects confidential identities, and ex
  const elements={repTitle:{},repPeriodLbl:{},repGenLbl:{},repBody:{}};
  const db={services:[{key:'general',label:'General'}],appointments:[],transactions:[{code:'PUBLIC',name:'Visitor',service:'general',status:'Completed',createdAt:new Date('2020-01-02'),servedBy:'Staff'},{code:'PRIVATE',name:'Secret visitor',service:'private',status:'Completed',createdAt:new Date('2020-01-02')},{code:'FUTURE',name:'Future visitor',service:'general',status:'Pending',createdAt:new Date('2099-01-01')}]};
  const c={loadDB:()=>db,periodStart:()=>new Date('2020-01-01'),reportIncludeConf:false,reportPeriod:'Weekly',currentUser:{fullName:'Admin'},document:{getElementById:id=>elements[id]},escapeHtml:String,serviceLabel:()=> 'General',isConfidentialTxn:t=>t.service==='private',fmtDate:()=> '2020-01-01',today:()=> '2020-01-03',fmtDateTime:()=> 'Recorded date',reportDuration:()=> '1 min',averageReportMetric:()=>1,reportSignatureBlock:()=>'<div>Signatures</div>'};
- vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function buildReport()'),source.indexOf('function downloadReportExcel()')),c);c.buildReport();
- const html=elements.repBody.innerHTML;assert.ok(html.includes('PUBLIC'));assert.ok(html.includes('Staff'));assert.ok(html.includes('1 confidential record'));assert.ok(!html.includes('Secret visitor'));assert.ok(!html.includes('FUTURE'));assert.ok(!html.includes('<svg'));assert.ok(!html.includes('rpt-stat-grid'));assert.ok(html.includes('Signatures'));
+ db.transactions[0].pickupStatus='Ready';db.transactions[1].pickupStatus='Preparing';
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function documentPickupLabel('),source.indexOf('function renderTransactions()'))+source.slice(source.indexOf('function buildReport()'),source.indexOf('function downloadReportExcel()')),c);c.buildReport();
+ const html=elements.repBody.innerHTML;assert.ok(html.includes('PUBLIC'));assert.ok(html.includes('Staff'));assert.ok(html.includes('1 confidential record'));assert.ok(!html.includes('Secret visitor'));assert.ok(!html.includes('FUTURE'));assert.ok(!html.includes('<svg'));assert.ok(!html.includes('rpt-stat-grid'));assert.ok(html.includes('Signatures'));assert.match(html,/<td>Ready for pickup<\/td><td>1<\/td>/);assert.match(html,/<td>For preparation<\/td><td>1<\/td>/);
+});
+test('spreadsheet includes pickup status and excludes future records while preserving privacy',()=>{
+ let exported;
+ const db={services:[{key:'general',label:'General'}],chats:[],transactions:[
+  {code:'PUBLIC',name:'Visitor',service:'general',status:'Completed',pickupStatus:'Ready',createdAt:'2020-01-02T00:00:00Z'},
+  {code:'PRIVATE',name:'Secret',service:'private',status:'Completed',pickupStatus:'Claimed',createdAt:'2020-01-02T00:00:00Z'},
+  {code:'FUTURE',name:'Future',service:'general',status:'Completed',pickupStatus:'Ready',createdAt:'2099-01-01T00:00:00Z'}]};
+ const c={Date,loadDB:()=>db,reportOutputActive:true,periodStart:()=>new Date('2020-01-01'),reportPeriod:'Weekly',currentUser:{fullName:'Admin'},fmtDate:()=> '2020-01-01',today:()=> '2020-01-03',fmtDateTime:()=> 'Recorded',isConfidentialTxn:t=>t.service==='private',serviceLabel:()=> 'General',SpreadsheetExport:{download:(_,rows)=>exported=rows},logActivity:()=>{},saveDB:()=>{},toast:()=>{}};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function documentPickupLabel('),source.indexOf('function renderTransactions()'))+source.slice(source.indexOf('function downloadReportExcel()'),source.indexOf('function renderProfile()')),c);c.downloadReportExcel();
+ assert.ok(exported.some(row=>row[0]==='Ready for pickup'&&row[1]===1));
+ assert.ok(exported.some(row=>row[0]==='Claimed'&&row[1]===1));
+ assert.ok(exported.some(row=>row[0]==='PUBLIC'&&row.includes('Ready for pickup')));
+ assert.ok(!JSON.stringify(exported).includes('Secret'));assert.ok(!JSON.stringify(exported).includes('FUTURE'));
 });

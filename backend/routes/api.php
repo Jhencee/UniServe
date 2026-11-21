@@ -37,6 +37,8 @@ Route::put('/services/{key}', [AppointmentController::class,'saveService']);
 Route::delete('/services/{key}', [AppointmentController::class,'deleteService']);
 Route::get('/service-records', [\App\Http\Controllers\ServiceRecordController::class,'index']);
 Route::patch('/service-records/{id}', [\App\Http\Controllers\ServiceRecordController::class,'update'])->middleware('throttle:30,1,api-route-14');
+Route::patch('/service-records/{id}/pickup', [\App\Http\Controllers\PickupController::class,'status'])->middleware('throttle:30,1,pickup-status');
+Route::post('/visits/{visitId}/pickup', [\App\Http\Controllers\PickupController::class,'join'])->middleware('throttle:10,1,pickup-join');
 Route::get('/appointment-offices', [AppointmentController::class,'offices']);
 Route::get('/appointment-slots', [AppointmentController::class,'slots'])->middleware('throttle:60,1,appointment-slots');
 Route::get('/appointments', [AppointmentController::class,'index']);

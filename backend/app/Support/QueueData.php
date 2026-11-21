@@ -3,6 +3,7 @@ namespace App\Support;
 use Illuminate\Support\Facades\{Crypt,Schema};
 class QueueData {
  public static function requirements(array $q):array {
+  if(!empty($q['pickupTransactionId'])){$identity=(bool)($q['pickupIdentityVerified']??false);$claimed=(bool)($q['pickupClaimed']??false);return ['items'=>[['label'=>'Identity verified','checked'=>$identity,'source'=>$identity?'counter':null],['label'=>'Document claimed','checked'=>$claimed,'source'=>$claimed?'counter':null]],'required'=>2,'checked'=>(int)$identity+(int)$claimed,'ready'=>$identity&&$claimed];}
   $payload=Schema::hasTable('service_catalog')?\Illuminate\Support\Facades\DB::table('service_catalog')->where('key',$q['serviceKey']??'')->value('payload'):null;
   $labels=array_values(array_unique(array_filter(array_map('trim',json_decode($payload??'{}',true)['requirements']??[]))));
   $accepted=[];

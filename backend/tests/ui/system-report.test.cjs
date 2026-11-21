@@ -21,5 +21,5 @@ test('reports interface keeps the full document hidden and displays complete sum
  assert.equal(s.elements.reportSheet,undefined);
 });
 test('printed report keeps section titles inside their tables',()=>{
- const s=setup();s.c.buildReport();assert.match(s.elements.reportSheet.innerHTML,/<table class="rpt-table system-print-table"><caption><strong>Period summary/);
+ const s=setup();s.c.buildReport();assert.match(s.elements.reportSheet.innerHTML,/<table class="rpt-table compact-report-table"><caption>Period summary<\/caption>/);
 });

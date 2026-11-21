@@ -49,6 +49,16 @@ body .important-update .btn:hover { background:transparent; text-decoration:unde
 }
 /* Compact table text; card headers and filters use the shared interface scale. */
 @media screen {
+ body :is(#content .table-wrap > table, .modal table) :is(th,td) {
+   box-sizing:border-box;
+   padding:10px 6px;
+   font-size:11px;
+   line-height:1.5;
+ }
+ body :is(#content .table-wrap > table, .modal table) :is(th,td) :is(span,small,strong,b,.mono,.muted,.pill) {
+   font-size:11px;
+   line-height:1.5;
+ }
  body #content .visitor-log-card .visitor-log-table :is(th,td),
  body #content .visitor-log-card .visitor-log-table :is(th,td) * {
    font-size:11px !important;
@@ -143,9 +153,15 @@ body .card-head h3 { font-size:.9rem; }
 body .card-head .desc { font-size:.75rem; line-height:1.5; }
 body .btn { border-radius:6px; box-shadow:none; font-weight:500; }
 body .btn:not(:disabled):not(.is-disabled):hover,
-body .btn:not(:disabled):not(.is-disabled):active { transform:none; box-shadow:none; }
+body .btn:not(:disabled):not(.is-disabled):active { box-shadow:none; }
 body .btn-ghost { background:transparent; }
-body .btn-ghost:hover { background:var(--surface-2); }
+body .btn-primary:hover { background:var(--accent); }
+body .btn-ghost:hover { background:transparent; border-color:var(--border); }
+body .queue-intake-actions .btn:hover { background:var(--surface); border-color:var(--border); color:var(--text); }
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+ body .btn:not(:disabled):not(.is-disabled):not(.system-back-link):not(.back-to-transactions):hover { transform:translateY(-1px); }
+ body .btn:not(:disabled):not(.is-disabled):active { transform:translateY(0); }
+}
 body .field label { font-size:.78rem; font-weight:500; }
 body .field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 body .field select,
@@ -157,11 +173,26 @@ body .field input:focus-visible,
 body .field select:focus-visible,
 body .field textarea:focus-visible,
 body .btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+body .btn.edit-details-button,
+body .btn.edit-details-button:hover,
+body .btn.edit-details-button:focus { border-color:var(--border); box-shadow:none; }
+body .btn.edit-details-button:focus-visible { outline:2px solid var(--control-focus); outline-offset:2px; }
 body .field-hint { font-size:.75rem; line-height:1.6; }
 body .modal { border:1px solid var(--border); border-radius:10px; box-shadow:0 12px 40px rgba(0,0,0,.14); }
 body .modal-head,
 body .modal-foot { background:var(--surface); }
 body .modal-head h3 { font-size:1rem; }
+/* Comfortable, consistent spacing for dialogs across portals. */
+body #activeModal > .modal > .modal-head { padding:12px 20px; }
+body #activeModal > .modal > .modal-body { padding:16px 20px; }
+body #activeModal > .modal > .modal-foot { padding:12px 20px; gap:8px; }
+body #activeModal > .modal > .modal-body > :first-child { margin-top:0; }
+body #activeModal > .modal > .modal-body > :last-child { margin-bottom:0; }
+@media (max-width:520px) {
+ body #activeModal > .modal > .modal-head { padding:10px 16px; }
+ body #activeModal > .modal > .modal-body { padding:14px 16px; }
+ body #activeModal > .modal > .modal-foot { padding:12px 16px; }
+}
 body table th { font-weight:500; letter-spacing:.02em; }
 body .pill,
 body .readiness-pill,
@@ -213,6 +244,7 @@ body #content .analytics-dashboard :is(.card,.stat-card):hover {
 @media(prefers-reduced-motion:reduce) {
  body :is(#visitorApp,#landing,#content) :is(.svc-card,.svc-manage-card,.svc-preview-card,.feat-card,.card,.stat-card,.visitor-hub-nav .nav-item) { transition:none; }
  body .btn, #visitorApp .visitor-hub-nav .nav-item { transition:none; }
+ body .btn:hover, body .btn:active { transform:none; }
 }
 
 /* Match Manage Services on whole-card actions across the portals. */

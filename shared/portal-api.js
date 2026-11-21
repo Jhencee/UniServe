@@ -95,37 +95,43 @@
   if(staff&&typeof renderNotifications==='function'){
     const originalNotifications=renderNotifications;
     let notificationDataRefresh=null;
+    function refreshNotificationData(){
+      if(!notificationDataRefresh)notificationDataRefresh=Promise.all([
+        refreshHeadAccessRequests(),
+        SharedAppointments.request('/appointments').then(SharedAppointments.cache),
+        SharedAppointments.reloadRecords()
+      ]).finally(()=>{notificationDataRefresh=null;});
+      return notificationDataRefresh;
+    }
     renderNotifications=async function(){
       try{
-        if(!notificationDataRefresh)notificationDataRefresh=Promise.all([
-          refreshHeadAccessRequests(),
-          SharedAppointments.request('/appointments').then(SharedAppointments.cache),
-          SharedAppointments.reloadRecords()
-        ]).finally(()=>{notificationDataRefresh=null;});
-        await notificationDataRefresh;
+        await refreshNotificationData();
         if(!sessionEnding&&state_view==='notifications')originalNotifications();
       }catch(e){if(state_view==='notifications')toast(escapeHtml(e.message),'err');}
     };
-    const refresh=async()=>{if(sessionEnding||document.visibilityState==='hidden')return;try{if(state_view==='notifications')await renderNotifications();else await refreshHeadAccessRequests();}catch(_){};};
+    const refresh=async()=>{if(sessionEnding||document.visibilityState==='hidden')return;try{if(state_view==='notifications')await renderNotifications();else await refreshNotificationData();}catch(_){};};
     if(currentUser?.role==='ADMIN'){refresh();setInterval(refresh,15000);}
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')refresh();});
   }
   let realtimeRefreshBusy=false;
   window.addEventListener('uniserve:changed',async event=>{
     if(document.visibilityState==='hidden')return;
     if(event.detail?.resource==='settings'){try{await refreshPortalSettings();}catch(_){return;}}
     if(realtimeRefreshBusy||document.visibilityState==='hidden')return;realtimeRefreshBusy=true;
+    const previousView=staff?state_view:null,scrollX=window.scrollX,scrollY=window.scrollY;
     try{
       if(staff){
         await refreshHeadAccessRequests();
+        if(document.activeElement?.matches('#content input, #content textarea, #content select') && state_view!=='queue')return;
         if(state_view==='notifications'){await renderNotifications();}
         else if(state_view==='messages'){
           await refreshChats();renderChatThreadList();const c=loadDB().chats.find(c=>c.id===activeStaffChatId),area=document.getElementById('chatMsgArea');if(c&&area)area.innerHTML=renderBubbles(c);
-        }else if(state_view==='queue')await renderQueueDashboard();
+        }else if(state_view==='queue')await renderQueueDashboard(true);
         else if(state_view==='dashboard')await renderDashboard();
         else if(state_view==='appointments')await renderAppointments(true);
         else if(state_view==='logbook')await renderVisitorLogbook(true);
         else if(state_view==='feedback'&&typeof renderFeedback==='function')await renderFeedback();
-        else if(state_view==='transactions'){if(document.getElementById('confidentialAccessBody')&&typeof openConfidentialAccess==='function')await openConfidentialAccess();else await renderTransactions();}
+        else if(state_view==='transactions'){if(document.getElementById('confidentialAccessBody')&&typeof openConfidentialAccess==='function')await openConfidentialAccess();else if(typeof renderTxnCard==='function'){await SharedAppointments.reloadRecords();if(state_view==='transactions'&&!document.getElementById('confidentialAccessBody'))renderTxnCard(true);}else await renderTransactions();}
         else if(state_view==='activitylog'&&typeof loadCentralAudit==='function')await loadCentralAudit();
         else if(state_view==='users'&&typeof renderUsers==='function')await renderUsers();
         else if(state_view==='reports'&&typeof renderReports==='function')await renderReports();
@@ -133,15 +139,15 @@
         else if(state_view==='backup'&&typeof renderServerBackups==='function')await renderServerBackups();
       }else if(visitor){
         if(['settings','settings-refreshed'].includes(event.detail?.resource)){
-          if(visitorHubOpen)renderHubOfficeNotice();else if(visitorView==='visit'){captureVisitorDraft();renderVisitScreen();}
+          if(visitorHubOpen)renderHubOfficeNotice();else if(visitorView==='visit'&&!myActiveQueueId){captureVisitorDraft();renderVisitScreen();}
         }
         if(visitorView==='chat'&&currentPublicChatId)await refreshChatIfNeeded(currentPublicChatId);
-        else if(['visit','checkvisit'].includes(visitorView)&&myActiveQueueId)await renderQueueTicket();
+        else if(['visit','checkvisit'].includes(visitorView)&&myActiveQueueId)await renderQueueTicket(false,true);
         else if(['visit','checkvisit'].includes(visitorView)&&sessionStorage.getItem('oss_activeAppointmentId'))await refreshAppointmentPass();
       }else if(typeof renderPublicDisplay==='function'){
         await refreshPublicQueue();if(!document.getElementById('publicDisplay').hidden)await renderPublicDisplay();
       }
-    }catch(_){}finally{realtimeRefreshBusy=false;}
+    }catch(_){}finally{if(staff&&state_view===previousView)window.scrollTo(scrollX,scrollY);realtimeRefreshBusy=false;}
   });
   if(staff)doLogout=function(){openModal('Log Out?','<p class="logout-confirm-copy">Are you sure you want to log out?</p>',[
     {label:'Cancel',cls:'btn-ghost',action:closeModal},

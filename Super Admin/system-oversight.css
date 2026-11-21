@@ -246,6 +246,12 @@ body #centralAudit .audit-date-shortcuts { grid-column:1; grid-row:2; }
 body #centralAudit .filter-bar > .date-range { gap:6px; }
 body #centralAudit .filter-bar .date-range .dr-actions { display:flex; gap:10px; margin-left:2px; padding-left:8px; border-left:1px solid var(--border); }
 body #centralAudit .filter-bar .date-range .dr-btn { min-height:28px; padding:2px 0; font-size:.67rem; white-space:nowrap; }
+body #centralAudit .audit-toolbar { display:flex; flex-wrap:wrap; gap:8px; }
+body #centralAudit .audit-toolbar .btn { box-sizing:border-box; display:inline-flex; align-items:center; justify-content:center; width:150px; min-height:36px; }
+@media(max-width:600px) {
+ body #centralAudit .audit-toolbar { width:100%; }
+ body #centralAudit .audit-toolbar .btn { flex:1 1 120px; width:auto; }
+}
 .health-table-section { border-bottom:1px solid var(--border); }
 .health-status-table { width:100%; table-layout:fixed; }
 .health-status-table thead th:nth-child(1) { width:18%; }
@@ -548,13 +554,39 @@ body #content .system-report-controls .date-range { order:1; margin:0; flex:0 1 
 .system-report-grid td { font-size:.78rem; overflow-wrap:anywhere; }
 .system-report-wide { grid-column:1 / -1; }
 @media(max-width:800px) { .system-report-grid { grid-template-columns:1fr; } .system-report-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:20px; } .system-report-metrics > div:nth-child(even) { border:0; } }
+
+/* Match the Admin report's single surface and aligned sections. */
+@media screen {
+ body #content .system-report-page { overflow:hidden; }
+ body #content .system-report-controls { border-bottom:1px solid var(--border); padding:20px 24px; }
+ body #content .system-report-period { margin:0; padding:16px 24px 0; }
+ body #content .system-report-metrics { margin:0; padding:18px 4px 20px; border:0; border-radius:0; background:transparent; box-shadow:none; }
+ body #content .system-report-metrics > div { min-width:0; padding:0 20px; border:0; }
+ body #content .system-report-metrics strong { color:var(--text); font-variant-numeric:tabular-nums; }
+ body #content .system-report-grid { display:block; }
+ body #content .system-report-grid > .card { min-width:0; margin:0; border:0; border-top:1px solid var(--border); border-radius:0; background:transparent; box-shadow:none; }
+ body #content .system-report-grid .card-head { padding:20px 24px 8px; border:0; }
+ body #content .system-report-grid .card-head h3 { font-size:.85rem; font-weight:600; }
+ body #content .system-report-grid .table-wrap { padding:0 18px 20px; }
+}
+@media(max-width:800px) {
+ body #content .system-report-metrics { row-gap:16px; }
+}
+@media(max-width:600px) {
+ body #content .system-report-controls { padding:16px; }
+ body #content .system-report-period { padding:16px 16px 0; }
+ body #content .system-report-metrics { padding:16px 0 18px; }
+ body #content .system-report-metrics > div { padding:0 16px; }
+ body #content .system-report-grid .card-head { padding:18px 16px 8px; }
+ body #content .system-report-grid .table-wrap { padding:0 10px 16px; }
+}
 @media print {
-  #printArea .system-print-table { table-layout:auto !important; margin-bottom:5mm; }
-  #printArea .system-print-table caption { text-align:left; caption-side:top; padding:3mm 0 2mm; color:#000; break-after:avoid; }
-  #printArea .system-print-table caption strong { display:block; font-size:10pt; }
-  #printArea .system-print-table caption span { display:block; font-size:7.5pt; line-height:1.4; margin-top:1mm; font-weight:normal; }
-  #printArea .system-print-table th, #printArea .system-print-table td { padding:1.7mm 2mm; font-size:8pt; line-height:1.35; }
-  #printArea .system-print-table thead { break-after:avoid; }
+  #printArea .compact-office-report .compact-report-table { margin:0 0 5mm; table-layout:auto !important; }
+  #printArea .compact-report-table caption { text-align:left; font-size:10pt; font-weight:700; color:#000; padding:3mm 0 2mm; caption-side:top; break-after:avoid; }
+  #printArea .compact-report-table thead { break-after:avoid; }
+  #printArea .compact-report-table th { background:#f1f1f1 !important; }
+  #printArea .compact-report-table th, #printArea .compact-report-table td { padding:1.7mm 2mm; font-size:8pt; line-height:1.35; }
+  #printArea .compact-office-report .doc-footnote { margin:2mm 0 4mm; font-size:7.5pt; }
 }
 
 /* Dashboard chart palette: maroon, teal, blue, amber and emerald. */

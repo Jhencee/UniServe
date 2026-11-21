@@ -74,12 +74,15 @@ async function exportCentralAudit(format){
     entries.push(...result.data);
   }while(result.next_page_url);
   const rows=entries.map(e=>[new Date(e.created_at.includes('T')?e.created_at:e.created_at.replace(' ','T')+'Z').toLocaleString('en-PH',{timeZone:'Asia/Manila',hour12:true}),e.actor_name,e.category,auditActionLabel(e.action),e.target&&!/^\/?api\//.test(e.target)?e.target:'',(e.changes||[]).map(c=>`${c.field}: ${c.from?c.from+' → ':''}${c.to}`).join('; ')]);
-  const headers=['Time','Who','Category','Action','Record','Changes'];
   const detailHeaders=['Event ID','Time','Who','Category','Action','Record','Field','Before','After'];
   const value=v=>v===''||v==null?'Not set':String(v);
   const detailRows=entries.flatMap((entry,index)=>(entry.changes?.length?entry.changes:[null]).map(change=>[entry.id??'',...rows[index].slice(0,5),change?.field||'',change?value(change.from):'',change?value(change.to):'']));
   if(format==='xlsx')SpreadsheetExport.download('Audit_Trail.xlsx',[detailHeaders,...detailRows],[12,24,24,18,32,24,26,36,36]);
-  else printInjected(`<h2>Audit Trail</h2><p>${rows.length} matching records</p><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(cell=>`<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
+  else {
+    const filters=[['From',params.get('from')||'All dates'],['To',params.get('to')||'All dates'],['Category',params.get('category')||'All categories'],['Search',params.get('q')||'None']];
+    const cells=values=>values.map(cell=>`<td>${escapeHtml(cell)}</td>`).join('');
+    printInjected(`${reportLetterhead()}<div class="report-title-block"><h2>Audit Trail Report</h2><div class="report-meta"><span>Records: ${entries.length}</span><span>Generated: ${escapeHtml(String(fmtDateTime(new Date())).replace(/&middot;/g,' / '))} by ${escapeHtml(currentUser.fullName)}</span></div></div><div class="compact-office-report"><table class="rpt-table compact-report-table"><caption>Filters applied</caption><thead><tr><th>Filter</th><th>Selection</th></tr></thead><tbody>${filters.map(row=>`<tr>${cells(row)}</tr>`).join('')}</tbody></table><table class="rpt-table compact-report-table"><caption>Audit records</caption><thead><tr>${detailHeaders.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${detailRows.length?detailRows.map(row=>`<tr>${cells(row)}</tr>`).join(''):`<tr><td colspan="${detailHeaders.length}">No records match these filters.</td></tr>`}</tbody></table><p class="doc-footnote">Each changed field is shown on its own row. Records reflect the selected filters and retained server audit history.</p>${reportSignatureBlock()}</div>`);
+  }
   const db=loadDB();logActivity(db,currentUser,format!=='print'?'Downloaded audit trail':'Opened audit trail print report',{category:'Data'});saveDB(db);
  }catch(error){toast(escapeHtml(error.message),'err');}finally{centralAuditExportBusy=false;}
 }

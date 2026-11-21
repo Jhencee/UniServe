@@ -24,6 +24,15 @@ test('Excel export separates fields and keeps false and zero values',async()=>{
  assert.deepEqual(Array.from(result.rows[1].slice(-3)),['Maintenance','false','true']);
  assert.deepEqual(Array.from(result.rows[2].slice(-3)),['Capacity','0','1']);
 });
+test('printed audit report includes filters, every page, and complete field changes',async()=>{
+ const event={...row(1),changes:[{field:'Maintenance',from:false,to:true},{field:'Capacity',from:0,to:1}]};
+ const {c,elements}=setup(async url=>{const page=new URLSearchParams(url.split('?')[1]).get('page');return page==='1'?{data:[event],next_page_url:'next'}:{data:[row(2)],next_page_url:null};});
+ elements.get('centralAuditQ').value='System';elements.get('centralAuditFrom').value='2026-10-01';
+ let html='';c.printInjected=value=>html=value;c.reportLetterhead=()=>'<header>Letterhead</header>';c.reportSignatureBlock=()=>'<footer>Signatures</footer>';c.fmtDateTime=()=> '2026-10-13';c.currentUser.fullName='Staff';
+ await c.exportCentralAudit('print');
+ for(const text of ['Letterhead','Audit Trail Report','Records: 2','System','2026-10-01','Event 1','Event 2','Maintenance','false','true','Capacity','0','1','Signatures'])assert.ok(html.includes(text),text);
+ assert.match(html,/compact-report-table/);
+});
 test('an older audit response cannot replace the current filter results',async()=>{
  const pending=[];const {c,elements}=setup(()=>new Promise(resolve=>pending.push(resolve)));
  const first=c.loadCentralAudit(),second=c.loadCentralAudit();pending[1]({data:[row('new')],current_page:1,last_page:1,total:1});await second;

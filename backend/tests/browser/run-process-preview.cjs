@@ -17,7 +17,9 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
     if(!ready)throw Error('Isolated browser did not start.');
     const checks=process.argv.includes('--oversight')?['system-oversight-smoke.cjs']:process.argv.includes('--all')?['visit-enhancements-smoke.cjs','role-data-smoke.cjs','flow-smoke.cjs']:process.argv.includes('--navigation')?['flow-smoke.cjs']:['visit-enhancements-smoke.cjs'];
     for(const check of checks){
-      const child=spawn(process.execPath,[path.join(__dirname,check)],{windowsHide:true,stdio:'inherit'});
+      const args=[path.join(__dirname,check)];
+      if(check==='flow-smoke.cjs'&&process.argv.includes('--offline'))args.push('--offline');
+      const child=spawn(process.execPath,args,{windowsHide:true,stdio:'inherit'});
       const code=await new Promise((resolve,reject)=>{child.on('exit',resolve);child.on('error',reject);});
       if(code!==0){process.exitCode=code||1;break;}
     }

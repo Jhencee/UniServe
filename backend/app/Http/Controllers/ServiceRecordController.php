@@ -24,18 +24,31 @@ class ServiceRecordController extends Controller {
  }
  public function index(Request $r){$u=StaffAuth::user($r,'ADMIN');
   $transactions=DB::table('shared_transactions')->get()->map(fn($row)=>json_decode(Crypt::decryptString($row->payload),true));
+  $pickupEmails=DB::table('notification_outbox')->where('kind','document-ready')->orderBy('id')->get(['visit_id','status','last_error'])->keyBy('visit_id');
   $restricted=[];
-  $transactions=$transactions->map(function($t)use($u,&$restricted){
+  $transactions=$transactions->map(function($t)use($u,&$restricted,$pickupEmails){
    $confidential=\App\Support\ServicePrivacy::confidential($t['service']);
    $t['permissions']=['editCase'=>!$confidential||\App\Support\CaseAccess::canEdit($u,$t['id'])];
+   if(!empty($t['pickupStatus']) && !empty($t['visitId'])){$notice=$pickupEmails->get($t['visitId']);if($notice)$t['pickupEmailStatus']=$notice->status==='pending'&&$notice->last_error?'retrying':$notice->status;}
    if(!$confidential)return $t;
    if(\App\Support\CaseAccess::canView($u,$t['id'])){
     if(\Illuminate\Support\Facades\Cache::add('audit-case-view:'.$u->id.':'.$t['id'],true,300))\App\Support\SystemAudit::record($u,'Confidential','Confidential record viewed',$t['code']??$t['id']);
     return $t;
    }
    $restricted[]=$t['visitId'];
-   return array_intersect_key($t,array_flip(['id','code','service','status','caseStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']))+['name'=>'Restricted record','type'=>'','attachments'=>[],'restricted'=>true];
+   return array_intersect_key($t,array_flip(['id','code','service','status','caseStatus','pickupStatus','createdAt','completedAt','waitingTimeMin','serviceTimeMin','totalTimeMin','shared']))+['name'=>'Restricted record','type'=>'','attachments'=>[],'restricted'=>true];
   });
-  return response()->json(['transactions'=>$transactions,'visitorLog'=>DB::table('shared_visitor_log')->get()->map(function($row)use($restricted,$u){$l=json_decode(Crypt::decryptString($row->payload),true);$queue=DB::table('queues')->where('id',$row->queue_id)->first();$masked=$queue?\App\Support\QueueData::forStaff(\App\Support\QueueData::read($queue->portal_payload),$u):null;if(in_array($l['visitId'],$restricted)||($masked['restricted']??false))$l=array_intersect_key($l,array_flip(['id','timeIn','timeOut','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];$transaction=DB::table('shared_transactions')->where('queue_id',$row->queue_id)->first();if($transaction){$t=json_decode(Crypt::decryptString($transaction->payload),true);if(\App\Support\ServicePrivacy::confidential($t['service']))$l['confidentialCaseId']=$transaction->id;}return $l;})]);
+  $transactions=$transactions->map(function($t){
+   if(!empty($t['restricted'])||empty($t['pickupStatus'])||empty($t['queueId']))return $t;
+   $first=DB::table('queues')->where('id',$t['queueId'])->first();if(!$first||!$first->portal_payload)return $t;
+   $original=\App\Support\QueueData::read($first->portal_payload);
+   $project=static function($row,$queue){$result=array_intersect_key($queue,array_flip(['visitId','number','checkedInAt','calledAt','servingAt','completedAt']));$result['status']=$row->status;if(empty($result['completedAt'])&&!empty($row->completed_at))$result['completedAt']=\Illuminate\Support\Carbon::parse($row->completed_at,'UTC')->toIso8601String();return $result;};
+   $t['firstVisit']=$project($first,$original);
+   $pickupRow=!empty($original['pickupQueueId'])?DB::table('queues')->where('id',$original['pickupQueueId'])->first():null;
+   $pickup=$pickupRow&&$pickupRow->portal_payload?\App\Support\QueueData::read($pickupRow->portal_payload):[];
+   if($pickupRow&&($pickup['pickupTransactionId']??null)===($t['id']??null)&&($pickup['pickupOfVisitId']??null)===($original['visitId']??null))$t['pickupVisit']=$project($pickupRow,$pickup);
+   return $t;
+  });
+  return response()->json(['transactions'=>$transactions,'visitorLog'=>DB::table('shared_visitor_log')->get()->map(function($row)use($restricted,$u){$l=json_decode(Crypt::decryptString($row->payload),true);$queue=DB::table('queues')->where('id',$row->queue_id)->first();$data=$queue?\App\Support\QueueData::read($queue->portal_payload):[];if(!empty($data['checkedInAt']))$l['timeIn']=$data['checkedInAt'];$masked=$queue?\App\Support\QueueData::forStaff($data,$u):null;if(in_array($l['visitId'],$restricted)||($masked['restricted']??false))$l=array_intersect_key($l,array_flip(['id','timeIn','timeOut','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];$transaction=DB::table('shared_transactions')->where('queue_id',$row->queue_id)->first();if($transaction){$t=json_decode(Crypt::decryptString($transaction->payload),true);if(\App\Support\ServicePrivacy::confidential($t['service']))$l['confidentialCaseId']=$transaction->id;}return $l;})]);
  }
 }
