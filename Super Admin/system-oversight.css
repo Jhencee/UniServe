@@ -604,14 +604,14 @@ body #content .system-report-controls .toolbar > button:last-child { grid-column
   #printArea .compact-office-report .doc-footnote { margin:2mm 0 4mm; font-size:7.5pt; }
 }
 
-/* Dashboard chart palette: maroon, teal, blue, amber and emerald. */
+/* Dashboard chart colors, slightly deepened for contrast. */
 .system-overview {
-  --super-chart-1:#007bff;
-  --super-chart-2:#00b8a9;
-  --super-chart-3:#e84d96;
-  --super-chart-4:#f5b700;
-  --super-chart-5:#f47721;
-  --super-chart-6:#00a86b;
+  --super-chart-1:#0068d9;
+  --super-chart-2:#009d91;
+  --super-chart-3:#ce3c80;
+  --super-chart-4:#d29c00;
+  --super-chart-5:#d86419;
+  --super-chart-6:#008e5a;
   --dashboard-chart-1:var(--super-chart-1);
   --dashboard-chart-2:var(--super-chart-2);
   --dashboard-chart-3:var(--super-chart-3);
@@ -620,8 +620,8 @@ body #content .system-report-controls .toolbar > button:last-child { grid-column
   --dashboard-chart-6:var(--super-chart-6);
   --super-chart-neutral:#94a3b8;
   --super-heat-1:#fffdf8;
-  --super-heat-2:#99d5cb;
-  --super-heat-3:#14b8a6;
+  --super-heat-2:#87c6bb;
+  --super-heat-3:#109b8c;
   --trend-color:var(--super-chart-1);
 }
 .system-overview .cl-line { stroke:var(--super-chart-1); }

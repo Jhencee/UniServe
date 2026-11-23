@@ -184,7 +184,7 @@ body .modal-foot { background:var(--surface); }
 body .modal-head h3 { font-size:1rem; }
 /* Comfortable, consistent spacing for dialogs across portals. */
 body #activeModal > .modal > .modal-head { padding:12px 20px; }
-body #activeModal > .modal > .modal-body { padding:16px 20px; }
+body #activeModal > .modal > .modal-body { padding:14px 20px; }
 body #activeModal > .modal > .modal-foot { padding:12px 20px; gap:8px; }
 body #activeModal > .modal > .modal-body > :first-child { margin-top:0; }
 body #activeModal > .modal > .modal-body > :last-child { margin-bottom:0; }

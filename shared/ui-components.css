@@ -48,7 +48,8 @@
 .ux-audit input,.ux-audit select { min-width:0; }
 @media(max-width:600px) { .hero-actions .btn { flex:1 1 100%; } .modal-foot { flex-wrap:wrap; } .modal-foot .btn { min-height:44px; } .ux-hour-row { grid-template-columns:65px minmax(0,1fr) 28px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; scroll-behavior:auto!important; } }
-.modal { max-width:600px; scrollbar-width:none; }
+.modal { max-width:520px; scrollbar-width:none; }
+.modal:has(.form-row, .table-wrap, .record-detail-clean, .transaction-detail, .appointment-detail-panel, .visitor-terms-content), .modal.office-calendar-modal { max-width:600px; }
 .modal:has(.logout-confirm-copy) { max-width:400px; }
 .modal:has(.logout-confirm-copy) .modal-head { padding:16px 20px; }
 .modal:has(.logout-confirm-copy) .modal-body { padding:12px 20px; }

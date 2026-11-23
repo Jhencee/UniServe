@@ -34,6 +34,16 @@ test('readiness changes explicitly mark a file unsaved and enable its save butto
  c.markDocumentReadinessUnsaved({querySelector:selector=>selector==='.document-save-state'?note:button});assert.equal(note.textContent,'Unsaved changes');assert.equal(note.dataset.state,'unsaved');assert.equal(button.disabled,false);
 });
 
+test('staff review opens PDF data in a viewer instead of creating a download link',()=>{
+ const api=fs.readFileSync(path.resolve(__dirname,'../../../shared/appointment-api.js'),'utf8');let opened,blob,revoked;
+ const file={name:'ID.pdf',type:'application/pdf',size:3,dataUrl:'data:application/pdf;base64,QUJD'};
+ const appointment={id:'a',shared:true,status:'Booked',attachments:[file]};
+ const c={state_view:'appointments',loadDB:()=>({appointments:[appointment],services:[]}),escapeHtml:String,attachChip:()=>'<a download>download</a>',fmtDateTime:String,fmtFileSize:()=> '3 B',icon:()=>'',atob:()=> 'ABC',Blob,Uint8Array,URL:{createObjectURL:b=>{blob=b;return 'blob:pdf';},revokeObjectURL:url=>revoked=url},setTimeout:fn=>fn(),toast:()=>{throw Error('Unexpected error');},open:()=>({opener:{},location:{replace:url=>opened=url}})};c.window=c;
+ vm.createContext(c);vm.runInContext(api.slice(api.indexOf('  const correctionOptions='),api.indexOf('  window.replaceVisitDocument=')),c);
+ const html=c.documentReviewHtml(appointment,true);assert.match(html,/previewRequirementPdf/);assert.doesNotMatch(html,/download/);
+ c.previewRequirementPdf({dataset:{visitId:'a',index:'0'}});assert.equal(opened,'blob:pdf');assert.equal(blob.type,'application/pdf');assert.equal(revoked,'blob:pdf');
+});
+
 test('appointment readiness uses verified counter checks without changing uploaded file decisions',()=>{
  const c={findService:()=>({}),computeReadiness:()=>({status:'FOR_REVIEW'}),queueRequirementState:(db,q)=>q.requirementReadiness};vm.createContext(c);
  vm.runInContext(source.slice(source.indexOf('function appointmentReadiness('),source.indexOf('function readinessPillHtml(')),c);
@@ -46,7 +56,7 @@ test('appointment readiness uses verified counter checks without changing upload
 
 test('completed appointment menu contains only details, email and print in order',()=>{
  const s=setup({status:'Completed',queueId:'q'});const html=s.c.appointmentActionsHtml(s.appointment);
- const labels=[...html.matchAll(/class="kebab-item" onclick="[^"]*">([^<]+)</g)].map(m=>m[1]);
+ const labels=[...html.matchAll(/class="kebab-item" onclick="[^"]*">([^<]+)</g)].map(m=>m[1].trim());
  assert.deepEqual(labels,['View details','Email details','Print']);assert.doesNotMatch(html,/Review requirements|Reschedule|Cancel|View visit/);
 });
 

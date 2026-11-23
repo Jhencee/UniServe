@@ -1273,10 +1273,11 @@ td .pill {
 .sidebar-brand .name {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.15;
   color: #fff;
 }
+body .topbar h1 { font-size: 0.9rem; }
 .sidebar-brand .name small {
   display: block;
   font-family: var(--font-body);

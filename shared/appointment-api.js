@@ -137,6 +137,20 @@
     const next=corrections?'Review correction instructions and follow up with the visitor.':pending?'Review the remaining uploaded documents.':'Uploaded documents are accepted. Check the service requirements before proceeding.';
     return '<div class="document-review-summary"><p><strong>'+accepted+' of '+files.length+' files accepted</strong> &middot; '+pending+' pending &middot; '+corrections+' need correction</p><p class="field-hint">'+next+'</p></div>';
   }
+  window.previewRequirementPdf=function(button){
+    const appointment=loadDB().appointments.find(record=>record.id===button.dataset.visitId);
+    const file=appointment?.attachments?.[Number(button.dataset.index)];
+    const match=typeof file?.dataUrl==='string'&&file.dataUrl.match(/^data:application\/pdf;base64,([A-Za-z0-9+/=]+)$/);
+    if(!match){toast('This PDF is unavailable. Refresh the appointment and try again.','err');return;}
+    try{
+      const bytes=Uint8Array.from(atob(match[1]),character=>character.charCodeAt(0));
+      const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));
+      const viewer=window.open('','_blank');
+      if(!viewer){URL.revokeObjectURL(url);toast('Allow pop-ups for this site to view the PDF.','warn');return;}
+      viewer.opener=null;viewer.location.replace(url);
+      setTimeout(()=>URL.revokeObjectURL(url),300000);
+    }catch(_){toast('Could not open this PDF. Please try again.','err');}
+  };
   window.documentReviewHtml=function(a,editable=false){
     if(!a?.attachments?.length)return '';
     const canEdit=editable&&a.shared&&!a.restricted&&['Requested','Booked'].includes(a.status);
@@ -144,7 +158,8 @@
     return '<section class="document-review"><h4 class="document-review-title">Uploaded requirements</h4>'+(typeof state_view!=='undefined'?documentReviewSummary(a):'')+a.attachments.map((f,i)=>{
       const review=f.review||{},status=review.status||'Pending review';
       const cls=status==='Accepted'?'pill-ok':status==='Needs correction'?'pill-danger':'pill-warn';
-      return '<div class="document-review-item"><div class="document-review-heading"><div class="document-review-file">'+attachChip(f)+'</div>'+(!canEdit?'<span class="pill '+cls+'">'+escapeHtml(status)+'</span>':'')+'</div>'+
+      const fileLink=typeof state_view!=='undefined'&&(f.type==='application/pdf'||/^data:application\/pdf;base64,/.test(f.dataUrl||''))?'<button type="button" class="attach-chip requirement-pdf-preview" data-visit-id="'+escapeHtml(a.id)+'" data-index="'+i+'" onclick="previewRequirementPdf(this)" title="View PDF">'+icon('paperclip',13)+'<span class="fname">'+escapeHtml(f.name)+'</span><span class="fsize">'+fmtFileSize(f.size||0)+'</span></button>':attachChip(f);
+      return '<div class="document-review-item"><div class="document-review-heading"><div class="document-review-file">'+fileLink+'</div>'+(!canEdit?'<span class="pill '+cls+'">'+escapeHtml(status)+'</span>':'')+'</div>'+
         (!canEdit&&review.requirement?'<p class="field-hint">Requirement: '+escapeHtml(review.requirement)+'</p>':'')+
         (!canEdit&&review.reason?'<p class="field-hint">'+escapeHtml(review.reason)+'</p>':'')+
         (!canEdit&&review.reviewedAt?'<p class="field-hint">Reviewed '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))+'</p>':'')+

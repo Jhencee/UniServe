@@ -1,11 +1,11 @@
 /* UniServe chart colors, scoped to the Admin overview. */
 .staff-overview {
-  --dashboard-chart-1:#007bff;
-  --dashboard-chart-2:#00b8a9;
-  --dashboard-chart-3:#e84d96;
-  --dashboard-chart-4:#f5b700;
-  --dashboard-chart-5:#f47721;
-  --dashboard-chart-6:#00a86b;
+  --dashboard-chart-1:#0068d9;
+  --dashboard-chart-2:#009d91;
+  --dashboard-chart-3:#ce3c80;
+  --dashboard-chart-4:#d29c00;
+  --dashboard-chart-5:#d86419;
+  --dashboard-chart-6:#008e5a;
   --trend-color:var(--dashboard-chart-1);
 }
 .staff-overview .cl-line { stroke:var(--dashboard-chart-1) !important; stroke-width:2; stroke-linecap:round; }
@@ -21,7 +21,7 @@
 html[data-theme] .analytics-dashboard.staff-overview { --trend-color:var(--dashboard-chart-1); }
 html[data-theme] .staff-overview .cl-dot { fill:var(--dashboard-chart-1) !important; }
 
-.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#fffdf8; --super-heat-2:#99d5cb; --super-heat-3:#14b8a6; }
+.staff-overview { --super-chart-1:var(--dashboard-chart-1); --super-chart-2:var(--dashboard-chart-2); --super-chart-3:var(--dashboard-chart-3); --super-heat-1:#fffdf8; --super-heat-2:#87c6bb; --super-heat-3:#109b8c; }
 .staff-overview .dashboard-trend-section .trend-chart-scroll { width:100%; min-width:0; }
 body #content .staff-overview .dashboard-trend-section .trend-chart-scroll svg { width:100% !important; height:220px !important; min-width:0 !important; max-height:none !important; }
 .staff-overview .cl-line { animation:none; stroke-dasharray:none; stroke-dashoffset:0; vector-effect:non-scaling-stroke; }
