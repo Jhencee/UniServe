@@ -964,7 +964,7 @@ async function renderQueueDashboard(background=false) {
   try { await loadSharedQueue(); }
   catch (_) { queueError = 'Cannot connect to UniServe. Please retry before changing a visit.'; }
   finally { sharedQueueLoading = false; }
-  if (state_view !== 'queue' || document.querySelector('.ux-secondary-actions[open]')) return;
+  if (state_view !== 'queue' || document.querySelector('.ux-secondary-actions[open], .kebab-menu:not([hidden])')) return;
   const db = loadDB(), stats = queueStats(db), mine = myQueueEntries(db, currentUser.id), waiting = waitingQueueSorted(db), nextUp = stats.next;
   const snapshot=JSON.stringify([stats,mine,waiting,queueError,db.systemSettings?.allowParallelService,db.queues.filter(q=>['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)).length]);
   if(background&&(snapshot===lastQueueSnapshot||document.activeElement?.matches('#content input, #content select, #content textarea')||document.querySelector('#activeModal')))return;
@@ -991,14 +991,14 @@ async function renderQueueDashboard(background=false) {
       </div>
       <div class="card">
         <div class="card-head"><div><h3>Waiting</h3><div class="desc">${waiting.length} in line &mdash; seniors and PWDs, then scheduled visits by time, then walk-ins</div></div><button type="button" class="queue-sound-toggle" onclick="window.UniServeQueueAlerts?.toggle()" aria-pressed="${window.UniServeQueueAlerts?.enabled||false}">Queue sound: ${window.UniServeQueueAlerts?.enabled?'On':'Off'}</button></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Requirements</th><th>Entry</th><th>Action</th></tr></thead>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Requirements</th><th>Entry</th><th class="appointment-action-heading">Actions</th></tr></thead>
           <tbody>${waiting.length ? waiting.map((q, i) => `<tr><td class="row-num">${i + 1}</td>
             <td class="mono">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${UniServeUX.previousDay(q) ? ' <span class="pill pill-warn">Previous day</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}${q.number ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(q.visitId || '')}</div>` : ''}</td>
             <td>${escapeHtml(q.name || '—')}<div class="muted" style="font-size:.72rem;">${escapeHtml(q.visitorType)}</div></td>
             <td>${escapeHtml(serviceQueueLabel(db, q))}</td>
             <td>${queueRequirementsBadge(db,q)}</td>
             <td>${q.source === 'Appointment' ? (dueTagHtml(q) || `<span class="pill pill-info">Scheduled</span>`) : `<span class="muted" style="font-size:.76rem;">Walk-in</span>`}</td>
-            <td>${q.restricted?'&mdash;':`<details class="ux-secondary-actions queue-row-actions"><summary aria-label="Actions for ${escapeHtml(queueRef(q))}">&#8942;</summary><div class="queue-row-menu"><button type="button" data-queue-id="${escapeHtml(q.id)}" onclick="openQueueVisitDetail(this.dataset.queueId)">Review visit</button></div></details>`}</td>
+            <td class="act-cell appointment-action-cell">${q.restricted?`<button type="button" class="icon-btn kebab-btn" disabled aria-label="Confidential visit unavailable" title="Confidential visit unavailable">${icon('lock',16)}</button>`:`<button type="button" class="icon-btn kebab-btn" data-queue-id="${escapeHtml(q.id)}" aria-label="Actions for ${escapeHtml(queueRef(q))}" title="Visit actions" aria-haspopup="true" onclick="toggleKebab(event,'queue_'+this.dataset.queueId)">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_queue_${escapeHtml(q.id)}" hidden><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();openQueueVisitDetail(this.dataset.queueId)">${icon('eye',14)} View details</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();arrangeFollowUp(this.dataset.queueId)">Arrange another visit</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();callWaitingVisit(this.dataset.queueId)">Call Now</button><button type="button" class="kebab-item appointment-cancel-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();closeUnservedVisit(this.dataset.queueId)">Close as not served</button></div>`}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Queue is empty.</td></tr>`}</tbody></table></div>
       </div>
     </div>`;
@@ -1094,6 +1094,7 @@ function renderMyQueueCard(db, q) {
     </div></div>`;
 }
 async function handleCallNext(){try{const result=await UniServeUX.request('/queue/call-next','POST',{});await renderQueueDashboard();toast('Visitor called.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
+async function callWaitingVisit(id){try{await UniServeUX.request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Called'});closeModal();await renderQueueDashboard();toast('Visitor called.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
 async function handleBeginServing(id){try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Serving'});await renderQueueDashboard();toast('Service started.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}
 async function handleSkip(id){try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Skipped'});await renderQueueDashboard();}catch(e){toast(escapeHtml(e.message),'err');}}
 async function handleRecall(id) { const q=loadDB().queues.find(q=>q.id===id);if(!q)return;try{await UniServeUX.request('/queue/'+id,'PATCH',{status:'Called',recallCount:(q.recallCount||0)+1});await renderQueueDashboard();toast('Recalled on the public display.','ok');}catch(e){toast(escapeHtml(e.message),'err');} }
@@ -1120,10 +1121,7 @@ function openQueueVisitDetail(id) {
   }
   if (q.status === 'Skipped') buttons.push({label:'Return to queue',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Waiting'});closeModal();await renderQueueDashboard();toast('Visitor returned to queue.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}});
   if (q.status === 'Waiting') {
-    buttons.push({ label: 'Call Now', cls: 'btn-primary', action: async () => {
-      try {await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Called'});closeModal();await renderQueueDashboard();toast('Visitor called.','ok');}
-      catch(e){toast(escapeHtml(e.message),'err');}
-    } });
+    buttons.push({ label: 'Call Now', cls: 'btn-primary', action: () => callWaitingVisit(q.id) });
   } else if (q.status === 'Called' && mine) buttons.push({ label: 'Start service', cls: 'btn-primary', action: () => { closeModal(); handleBeginServing(q.id); } });
   else if (q.status === 'Serving' && mine) buttons.push({ label: 'Complete service', cls: 'btn-primary queue-complete-action', action: () => handleCompleteQueue(q.id) });
   if(['Waiting','Called','Serving','Skipped'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});

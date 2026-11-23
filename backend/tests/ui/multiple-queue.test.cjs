@@ -11,7 +11,8 @@ test('My Queue renders every active visitor and blocks another call by default',
  assert.ok(!el.innerHTML.includes('aria-label="Queue service guidance"'));
  const callButton=el.innerHTML.match(/<button[^>]*onclick="handleCallNext\(\)"[^>]*>/)[0];assert.ok(callButton.includes('disabled'));
  c.waitingQueueSorted=()=>[{id:'waiting',status:'Waiting',source:'Walk-in'}];c.queueRequirementsBadge=()=>'';
- await c.renderQueueDashboard();assert.ok(el.innerHTML.includes('<th>Action</th>'));assert.ok(el.innerHTML.includes('aria-label="Actions for waiting"'));assert.ok(el.innerHTML.includes('data-queue-id="waiting" onclick="openQueueVisitDetail(this.dataset.queueId)"'));
+ await c.renderQueueDashboard();assert.ok(el.innerHTML.includes('>Actions</th>'));assert.ok(el.innerHTML.includes('aria-label="Actions for waiting"'));assert.ok(el.innerHTML.includes('data-queue-id="waiting" onclick="closeKebabs();openQueueVisitDetail(this.dataset.queueId)"'));
+ for(const action of ['Arrange another visit','Call Now','Close as not served'])assert.ok(el.innerHTML.includes(action));
 });
 test('active visitors have independent begin and complete actions',()=>{
  const c={queueRequirementState:()=>({ready:true}),queueRequirementSaving:new Set(),queueRequirementsHtml:()=>'',visitRequirements:()=>[],isServiceDelayed:()=>false,documentPreparationSelected:()=>false,escapeHtml:String,queueRef:q=>q.id,serviceQueueLabel:()=>'',entryMethodLabel:()=>'',icon:()=>''};vm.createContext(c);

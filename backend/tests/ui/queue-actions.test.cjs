@@ -13,10 +13,9 @@ test('transfer failure never reports success',async()=>{
  s.reject(Error('Server rejected transfer'));await pending;assert.equal(s.messages.length,1);assert.equal(s.messages[0].type,'err');
 });
 test('Call Now awaits the backend and reports its rejection',async()=>{
- const s=context();s.c.q={id:'q'};
- const start=source.indexOf("buttons.push({ label: 'Call Now'");const action=source.indexOf('action: async () => {',start);const end=source.indexOf('    } });',action);
- vm.runInContext('callNow=async()=>{'+source.slice(action+'action: async () => {'.length,end)+'}',s.c);
- const pending=s.c.callNow();assert.equal(s.messages.length,0);assert.equal(s.requests[0][2].status,'Called');
+ const s=context();
+ vm.runInContext(source.slice(source.indexOf('async function callWaitingVisit('),source.indexOf('async function handleBeginServing(')),s.c);
+ const pending=s.c.callWaitingVisit('q');assert.equal(s.messages.length,0);assert.equal(s.requests[0][2].status,'Called');
  s.reject(Error('Already assigned'));await pending;assert.equal(s.messages[0].type,'err');
 });
 test('queue counts distinguish Called from Serving',()=>{
