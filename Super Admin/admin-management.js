@@ -42,12 +42,12 @@ function renderUserTable() {
     <td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Head Admin' : 'Admin') : (ROLES[user.role]?.label || 'Admin')}</td><td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Approver' : user.confidentialAccess ? 'Authorized' : 'No access') : 'Not applicable'}</td>
     <td>${user.active ? 'Active' : 'Disabled'}</td><td class="act-cell super-account-actions">${user.role === 'ADMIN' ? `<button class="icon-btn kebab-btn" title="Account actions" aria-haspopup="true" onclick="toggleKebab(event,'${user.id}')">${icon('dots', 16)}</button>
     <div class="kebab-menu" id="kebab_${user.id}" hidden>
-      <button class="kebab-item" onclick="closeKebabs();openEditUserModal('${user.id}')">Edit Account</button>
-      <button class="kebab-item" onclick="closeKebabs();openConfAccessModal('${user.id}')">Confidential Access</button>
-      <button class="kebab-item" onclick="closeKebabs();openConfApproverModal('${user.id}')">${user.confidentialApprover ? 'Remove' : 'Designate'} Head Admin</button>
-      <button class="kebab-item" onclick="closeKebabs();openResetAdminPassword('${user.id}')">Reset Password</button>
-      <button class="kebab-item" onclick="closeKebabs();toggleUser('${user.id}')">${user.active ? 'Deactivate' : 'Activate'}</button>
-      <button class="kebab-item" onclick="closeKebabs();deleteUser('${user.id}')">Remove</button>
+      <button class="kebab-item" onclick="closeKebabs();openEditUserModal('${user.id}')">${icon('edit',14)} Edit Account</button>
+      <button class="kebab-item" onclick="closeKebabs();openConfAccessModal('${user.id}')">${icon('lock',14)} Confidential Access</button>
+      <button class="kebab-item" onclick="closeKebabs();openConfApproverModal('${user.id}')">${icon('userc',14)} ${user.confidentialApprover ? 'Remove' : 'Designate'} Head Admin</button>
+      <button class="kebab-item" onclick="closeKebabs();openResetAdminPassword('${user.id}')">${icon('lock',14)} Reset Password</button>
+      <button class="kebab-item" onclick="closeKebabs();toggleUser('${user.id}')">${icon(user.active?'x':'check',14)} ${user.active ? 'Deactivate' : 'Activate'}</button>
+      <button class="kebab-item" onclick="closeKebabs();deleteUser('${user.id}')">${icon('trash',14)} Remove</button>
     </div>` : `<button class="icon-btn" title="Manage in My Profile" aria-label="Manage in My Profile" onclick="navigate('profile')">${icon('userc', 16)}</button>`}</td></tr>`).join('');
   const admins = users.filter(user => user.role === 'ADMIN');
   document.getElementById('confSummary').textContent = `${admins.filter(user => user.confidentialAccess).length} of ${admins.length} Admins allowed to handle confidential visits; completed records still require an unlock`;

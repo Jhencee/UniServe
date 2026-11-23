@@ -42,7 +42,7 @@
     if(request?.status==='Pending'&&request.requester_id!==currentUser.id)reviewConfidentialRequest(id);
     else toast('This request is no longer awaiting review.','ok');
   };
-  function accessMenu(id,items){return `<button class="icon-btn kebab-btn" aria-label="Record actions" aria-haspopup="true" onclick="toggleKebab(event,'${id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_${id}" hidden>${items.map(([label,action,disabled])=>`<button class="kebab-item" ${disabled?'disabled title="Valid approval is required; printing also requires View and Print permission."':''} onclick="closeKebabs();${action}">${label}</button>`).join('')}</div>`;}
+  function accessMenu(id,items){const icons={'View request':'eye','Review':'checkin','Revoke access':'x','Unlock':'lock','Print':'print'};return `<button class="icon-btn kebab-btn" aria-label="Record actions" aria-haspopup="true" onclick="toggleKebab(event,'${id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_${id}" hidden>${items.map(([label,action,disabled])=>`<button class="kebab-item" ${disabled?'disabled title="Valid approval is required; printing also requires View and Print permission."':''} onclick="closeKebabs();${action}">${icon(icons[label]||'log',14)} ${label}</button>`).join('')}</div>`;}
   function requestActions(r){
     const approved=r.status==='Approved'&&r.expires_at&&new Date(r.expires_at.replace(' ','T')+'Z')>new Date();
     const items=[];

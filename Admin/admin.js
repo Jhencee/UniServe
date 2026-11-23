@@ -998,7 +998,7 @@ async function renderQueueDashboard(background=false) {
             <td>${escapeHtml(serviceQueueLabel(db, q))}</td>
             <td>${queueRequirementsBadge(db,q)}</td>
             <td>${q.source === 'Appointment' ? (dueTagHtml(q) || `<span class="pill pill-info">Scheduled</span>`) : `<span class="muted" style="font-size:.76rem;">Walk-in</span>`}</td>
-            <td class="act-cell appointment-action-cell">${q.restricted?`<button type="button" class="icon-btn kebab-btn" disabled aria-label="Confidential visit unavailable" title="Confidential visit unavailable">${icon('lock',16)}</button>`:`<button type="button" class="icon-btn kebab-btn" data-queue-id="${escapeHtml(q.id)}" aria-label="Actions for ${escapeHtml(queueRef(q))}" title="Visit actions" aria-haspopup="true" onclick="toggleKebab(event,'queue_'+this.dataset.queueId)">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_queue_${escapeHtml(q.id)}" hidden><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();openQueueVisitDetail(this.dataset.queueId)">${icon('eye',14)} View details</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();arrangeFollowUp(this.dataset.queueId)">Arrange another visit</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();callWaitingVisit(this.dataset.queueId)">Call Now</button><button type="button" class="kebab-item appointment-cancel-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();closeUnservedVisit(this.dataset.queueId)">Close as not served</button></div>`}</td>
+            <td class="act-cell appointment-action-cell">${q.restricted?`<button type="button" class="icon-btn kebab-btn" disabled aria-label="Confidential visit unavailable" title="Confidential visit unavailable">${icon('lock',16)}</button>`:`<button type="button" class="icon-btn kebab-btn" data-queue-id="${escapeHtml(q.id)}" aria-label="Actions for ${escapeHtml(queueRef(q))}" title="Visit actions" aria-haspopup="true" onclick="toggleKebab(event,'queue_'+this.dataset.queueId)">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_queue_${escapeHtml(q.id)}" hidden><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();openQueueVisitDetail(this.dataset.queueId)">${icon('eye',14)} View details</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();arrangeFollowUp(this.dataset.queueId)">${icon('calendar',14)} Arrange another visit</button><button type="button" class="kebab-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();callWaitingVisit(this.dataset.queueId)">${icon('megaphone',14)} Call Now</button><button type="button" class="kebab-item appointment-cancel-item" data-queue-id="${escapeHtml(q.id)}" onclick="closeKebabs();closeUnservedVisit(this.dataset.queueId)">${icon('x',14)} Close as not served</button></div>`}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Queue is empty.</td></tr>`}</tbody></table></div>
       </div>
     </div>`;
@@ -1114,17 +1114,15 @@ function openQueueVisitDetail(id) {
   const reqs = visitRequirements(db, q), mine = q.assignedAdminId === currentUser.id;
   const txn = q.transactionId ? db.transactions.find(t => t.id === q.transactionId) : null;
   const buttons = [];
-  if(['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Arrange another visit',cls:'btn-ghost',action:()=>arrangeFollowUp(q.id)});
+  if(['Called','Serving','Skipped','Unfinished'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Arrange another visit',cls:'btn-ghost',action:()=>arrangeFollowUp(q.id)});
   if(q.status==='Unfinished') {
     buttons.push({label:'Resume today',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Waiting'});closeModal();await renderQueueDashboard();toast('Visitor returned to the queue.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}});
     buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});
   }
   if (q.status === 'Skipped') buttons.push({label:'Return to queue',cls:'btn-primary',action:async()=>{try{await UniServeUX.request('/queue/'+q.id,'PATCH',{status:'Waiting'});closeModal();await renderQueueDashboard();toast('Visitor returned to queue.','ok');}catch(e){toast(escapeHtml(e.message),'err');}}});
-  if (q.status === 'Waiting') {
-    buttons.push({ label: 'Call Now', cls: 'btn-primary', action: () => callWaitingVisit(q.id) });
-  } else if (q.status === 'Called' && mine) buttons.push({ label: 'Start service', cls: 'btn-primary', action: () => { closeModal(); handleBeginServing(q.id); } });
+  if (q.status === 'Called' && mine) buttons.push({ label: 'Start service', cls: 'btn-primary', action: () => { closeModal(); handleBeginServing(q.id); } });
   else if (q.status === 'Serving' && mine) buttons.push({ label: 'Complete service', cls: 'btn-primary queue-complete-action', action: () => handleCompleteQueue(q.id) });
-  if(['Waiting','Called','Serving','Skipped'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});
+  if(['Called','Serving','Skipped'].includes(q.status)&&(!['Called','Serving'].includes(q.status)||mine))buttons.push({label:'Close as not served',cls:'btn-danger-o',action:()=>closeUnservedVisit(q.id)});
 
   openModal(`Visit &mdash; ${escapeHtml(q.visitId || q.number)}`, `
     <div class="record-detail-clean"><div class="staff-record-context"><strong>${escapeHtml(q.name || 'Visitor')}</strong><span class="mono">${escapeHtml(q.visitId || q.number || q.id)}</span><span>${queueStatusPill(q.status)}</span></div>
@@ -1297,9 +1295,9 @@ function appointmentActionsHtml(r){
   if(r.restricted)return `<button type="button" class="icon-btn kebab-btn" aria-label="Confidential access required" title="Confidential access required" data-appointment-id="${escapeHtml(r.id)}" onclick="showAppointmentAccess(this.dataset.appointmentId)">${icon('lock', 16)}</button>`;
   if(r.status==='Completed'){
     const actions=[
-      `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">View details</button>`,
-      `<button class="kebab-item" onclick="closeKebabs(); UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`,
-      `<button class="kebab-item" onclick="closeKebabs(); printAppointmentRecord('${r.id}')">Print</button>`
+      `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">${icon('eye',14)} View details</button>`,
+      `<button class="kebab-item" onclick="closeKebabs(); UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">${icon('chat',14)} Email details</button>`,
+      `<button class="kebab-item" onclick="closeKebabs(); printAppointmentRecord('${r.id}')">${icon('print',14)} Print</button>`
     ];
     return `<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${actions.join('')}</div>`;
   }
@@ -1315,7 +1313,8 @@ function appointmentActionsHtml(r){
   if(r.shared&&editable)buttons.push(`<button class="btn btn-danger-o btn-sm" onclick="cancelSharedAppointment('${r.id}')">Cancel</button>`);
   const mainIndex=buttons.findIndex(button=>button.includes('btn-primary'));
   const main=mainIndex<0?'':buttons.splice(mainIndex,1)[0];
-  const items=buttons.map(button=>button.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); '));
+  const actionIcons={'View details':'eye','Review requirements':'checkin','Review request':'eye','Reschedule':'calendar','Email details':'chat','Cancel':'x'};
+  const items=buttons.map(button=>{const label=button.match(/>([^<]+)<\/button>$/)?.[1],withIcon=button.replace(/>([^<]+)<\/button>$/,`>${icon(actionIcons[label]||'log',14)} $1</button>`);return withIcon.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); ');});
   return `${main}<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
 }
 function showAppointmentAccess(id) {
