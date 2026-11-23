@@ -798,7 +798,7 @@ function renderVisitChoose() {
       <button id="walkInEntryButton" class="svc-card entry-method-card" onclick="startWalkIn()" disabled aria-describedby="walkInEntryStatus">
         <span class="svc-ic">${icon('ticket', 22)}</span><h3>Walk in today</h3>
         <p>Get your Visit Pass and queue number now.</p>
-        <span id="walkInEntryStatus" class="svc-go" role="status">${isOfficeHours()?'Checking availability…':'Only appointment requests are available at this time.'}</span>
+        <span id="walkInEntryStatus" class="svc-go" role="status">${isOfficeHours()?'':'Only appointment requests are available at this time.'}</span>
       </button>
       <button class="svc-card entry-method-card" onclick="startSchedule()">
         <span class="svc-ic">${icon('calendar', 22)}</span><h3>Request an appointment</h3>

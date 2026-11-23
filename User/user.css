@@ -3672,4 +3672,5 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
 @media(max-width:600px) {
  #visitorApp .visit-choose-page .entry-method-card:disabled { grid-template-rows:auto auto auto; grid-template-areas:"ic title arrow" ". desc arrow" ". go go"; }
  #visitorApp .visit-choose-page .entry-method-card:disabled .svc-go { display:block; margin:0; color:var(--text-soft); font-size:.72rem; line-height:1.4; }
+ #visitorApp .visit-choose-page .entry-method-card:disabled .svc-go:empty { display:none; }
 }
