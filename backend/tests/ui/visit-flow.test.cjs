@@ -44,6 +44,16 @@ test('page reload restores an open appointment after the refresh scripts load',(
  assert.equal(open,false);assert.match(content.innerHTML,/Loading your visit status/);listener();assert.equal(refreshed,1);assert.equal(c.visitorView,'checkvisit');
 });
 
+test('manual status refresh shows progress and confirms only a successful update',async()=>{
+ const source=fs.readFileSync(path.resolve(__dirname,'../../../User/visit-flow.js'),'utf8');
+ const button={disabled:false,textContent:'Refresh status',isConnected:true},messages=[];let finish;
+ const c={document:{querySelector:()=>button},renderQueueTicket:()=>new Promise(resolve=>finish=resolve),refreshAppointmentPass:async()=>false,toast:message=>messages.push(message)};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('async function refreshVisitorStatus('),source.indexOf('function refreshAppointmentPass()')),c);
+ const pending=c.refreshVisitorStatus('queue');assert.equal(button.disabled,true);assert.equal(button.textContent,'Refreshing...');finish(true);await pending;
+ assert.equal(button.disabled,false);assert.equal(button.textContent,'Refresh status');assert.deepEqual(messages,['Status refreshed.']);
+ await c.refreshVisitorStatus('appointment');assert.equal(messages.length,1);
+});
+
 test('chat navigation requests verification before changing screens',()=>{const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');let requested=0;const c={window:{openVerifiedVisitorChat:()=>requested++},visitorView:'visit'};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function navigateVisitor('),source.indexOf('function renderVisitorSidebar(')),c);c.navigateVisitor('chat');assert.equal(requested,1);assert.equal(c.visitorView,'visit');});
 
 test('history navigation verifies Gmail before opening records',()=>{const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');let verified=0;const c={window:{openVerifiedVisitorHistory:()=>verified++},visitorView:'visit'};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function navigateVisitor('),source.indexOf('function renderVisitorSidebar(')),c);c.navigateVisitor('history');assert.equal(verified,1);assert.equal(c.visitorView,'visit');});

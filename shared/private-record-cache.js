@@ -29,7 +29,7 @@
   if(typeof visitorView!=='undefined'){
     const originalTicket=renderQueueTicket;
     let ticketRefreshInFlight=false;
-    renderQueueTicket=async function(){if(ticketRefreshInFlight)return;ticketRefreshInFlight=true;try{const selectedId=myActiveQueueId,navigation=visitorNavigationVersion,q=loadDB().queues.find(q=>q.id===selectedId);if(!q?.shared)return await originalTicket();const result=await SharedAppointments.visitorRequest('/visits/'+encodeURIComponent(q.visitId));if(result&&myActiveQueueId===selectedId&&visitorNavigationVersion===navigation&&!visitorHubOpen)await originalTicket(true);}catch(e){toast(escapeHtml(e.message),'err');}finally{ticketRefreshInFlight=false;}};
+    renderQueueTicket=async function(){if(ticketRefreshInFlight)return false;ticketRefreshInFlight=true;try{const selectedId=myActiveQueueId,navigation=visitorNavigationVersion,q=loadDB().queues.find(q=>q.id===selectedId);if(!q?.shared){await originalTicket();return false;}const result=await SharedAppointments.visitorRequest('/visits/'+encodeURIComponent(q.visitId));if(result&&myActiveQueueId===selectedId&&visitorNavigationVersion===navigation&&!visitorHubOpen){await originalTicket(true);return true;}return false;}catch(e){toast(escapeHtml(e.message),'err');return false;}finally{ticketRefreshInFlight=false;}};
     document.querySelector('.sidebar-foot')?.addEventListener('click',event=>{if(event.target.closest('a,button')&&!event.target.closest('.a11y-read-btn')){for(const key of Object.keys(sessionStorage))if(/visitor_token|chat-token:|visit-token:|oss_activeAppointment|oss_visit|ossuniserve_publicChat/i.test(key))sessionStorage.removeItem(key);SecureState.clear();}});
   }
 })();

@@ -1324,7 +1324,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
       ${reqSection}
       ${typeof flowServiceHistory==='function'?flowServiceHistory(q.serviceHistory):''}
       <div class="appointment-pass-actions">
-        <div class="pass-actions-main">${finished?another:'<button type="button" class="btn btn-primary" onclick="renderQueueTicket()">Refresh status</button>'}</div>
+        <div class="pass-actions-main">${finished?another:'<button type="button" class="btn btn-primary" data-refresh-status onclick="refreshVisitorStatus(\'queue\')">Refresh status</button>'}</div>
         <div class="pass-actions-secondary">${download}${q.status==='Unfinished'&&linkedAppt?'<button type="button" class="btn btn-ghost" onclick="showPassModalReadonly(loadDB().appointments.find(a=>a.id===loadDB().queues.find(q=>q.id===myActiveQueueId).appointmentId),true)">View appointment</button>':''}</div>
         ${!finished&&q.status!=='Serving'?'<div class="pass-actions-footer"><button type="button" class="btn btn-danger-ghost" onclick="confirmCancelQueuePrompt()">Cancel visit</button></div>':''}
       </div>
@@ -1454,10 +1454,10 @@ function showPassModalReadonly(apptIn, embedded = false) {
     if(typeof myActiveQueueId!=='undefined'){myActiveQueueId=null;persistSession();}
     closeModal(); sessionStorage.setItem('oss_activeAppointmentId', appt.id);
     window.dispatchEvent(new CustomEvent('uniserve:visit-selected'));
-    visitorPassActions = [...buttons, {label:'Refresh status',cls:canCheckIn || linked || bookingConflict ? 'btn-ghost' : 'btn-primary',action:refreshAppointmentPass}];
+    visitorPassActions = [...buttons, {label:'Refresh status',cls:canCheckIn || linked || bookingConflict ? 'btn-ghost' : 'btn-primary',action:()=>refreshVisitorStatus('appointment')}];
     const primaryAction = visitorPassActions.findIndex(button=>button.cls==='btn-primary');
     const primaryIndex = primaryAction < 0 ? visitorPassActions.length-1 : primaryAction;
-    const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" ${button.disabled ? 'disabled title="Available after OSS approves your schedule"' : ''} onclick="runVisitorPassAction(${i})">${button.label}</button>`;
+    const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" ${button.label==='Refresh status'?'data-refresh-status':''} ${button.disabled ? 'disabled title="Available after OSS approves your schedule"' : ''} onclick="runVisitorPassAction(${i})">${button.label}</button>`;
     const secondaryActions = visitorPassActions.map((button,i)=>i!==primaryIndex&&!button.cls.includes('danger')?actionButton(button,i):'').join('');
     const cancelActions = visitorPassActions.map((button,i)=>button.cls.includes('danger')?actionButton(button,i):'').join('');
     document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Keep your ${appt.visitId ? 'Visit ID' : 'request reference'} to return to this status screen.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" aria-label="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" title="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;

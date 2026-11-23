@@ -27,6 +27,17 @@ document.addEventListener('input', event => { if (/^(q|bk)(First|Last|IdNum|IdTy
 document.addEventListener('change', event => { if (/^(q|bk)(First|Last|IdNum|IdType|Contact|Email|PWD|PreferredDate)$/.test(event.target.id || '')) captureVisitorDraft(); });
 let visitorPassActions = [];
 function runVisitorPassAction(index) { return visitorPassActions[index]?.action(); }
+async function refreshVisitorStatus(kind) {
+  const button=document.querySelector('#visitorContent [data-refresh-status]');
+  if(button?.disabled)return;
+  if(button){button.disabled=true;button.textContent='Refreshing...';}
+  try {
+    const refreshed=await (kind==='queue'?renderQueueTicket():refreshAppointmentPass());
+    if(refreshed)toast('Status refreshed.','ok');
+  } finally {
+    if(button?.isConnected){button.disabled=false;button.textContent='Refresh status';}
+  }
+}
 function refreshAppointmentPass() {
   const id = sessionStorage.getItem('oss_activeAppointmentId'), appt = loadDB().appointments.find(a => a.id === id);
   if (appt) showPassModalReadonly(appt, true); else navigateVisitor('checkvisit');

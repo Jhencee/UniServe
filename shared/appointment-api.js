@@ -284,7 +284,7 @@
       try{
         const result=await visitorRequest('/appointments/visit/'+encodeURIComponent(id));
         if(!stillViewing())return;
-        if(result)showPassModalReadonly(result.appointment,true);
+        if(result){showPassModalReadonly(result.appointment,true);return true;}
       }catch(e){
         if(!stillViewing())return;
         if(!a?.shared&&typeof document!=='undefined'){
