@@ -966,7 +966,7 @@ async function renderQueueDashboard(background=false) {
   finally { sharedQueueLoading = false; }
   if (state_view !== 'queue' || document.querySelector('.ux-secondary-actions[open]')) return;
   const db = loadDB(), stats = queueStats(db), mine = myQueueEntries(db, currentUser.id), waiting = waitingQueueSorted(db), nextUp = stats.next;
-  const snapshot=JSON.stringify([stats,mine,waiting,queueError]);
+  const snapshot=JSON.stringify([stats,mine,waiting,queueError,db.systemSettings?.allowParallelService,db.queues.filter(q=>['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)).length]);
   if(background&&(snapshot===lastQueueSnapshot||document.activeElement?.matches('#content input, #content select, #content textarea')||document.querySelector('#activeModal')))return;
   const scrollX=window.scrollX,scrollY=window.scrollY;
   document.getElementById('content').innerHTML = `
@@ -977,13 +977,13 @@ async function renderQueueDashboard(background=false) {
       <div class="stat-card"><div class="lbl">Completed Today</div><div class="val">${stats.completedToday}</div></div>
       <div class="stat-card"><div class="lbl">Average Wait</div><div class="val">${fmtCompactMinutes(stats.avgWaitMin)}</div></div>
     </div>
-    <section class="queue-service-notice" aria-label="Queue service guidance"><span class="queue-service-notice-icon" aria-hidden="true">${icon('users',20)}</span><div class="queue-service-notice-copy"><h3>${db.systemSettings?.allowParallelService?'Parallel service enabled':'One visitor at a time'}</h3><p>${db.systemSettings?.allowParallelService?'You can handle more than one visit at a time.':'Finish your current visit before calling the next visitor.'}</p></div><button class="btn btn-ghost btn-sm" onclick="reviewRemainingVisits()">Review remaining visits ${db.queues.some(q => ['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)) ? `<span class="dashboard-attention-count">${db.queues.filter(q => ['Waiting','Called','Serving','Skipped','Unfinished'].includes(q.status)).length}</span>` : ''}</button></section>
     ${db.queues.some(q=>q.status==='Skipped')?`<section class="queue-absent" aria-label="Absent visitors"><span class="queue-service-notice-icon" aria-hidden="true">${icon('absent',18)}</span><div class="queue-absent-heading"><h3>Absent visitors</h3><p>When they return, rejoin them at the end of their priority group using their return time.</p></div><div class="queue-absent-list"><button type="button" class="btn btn-ghost queue-absent-action" onclick="reviewRemainingVisits('Skipped')"><span class="queue-absent-label">Review / return</span><span class="queue-absent-number dashboard-attention-count">${db.queues.filter(q=>q.status==='Skipped').length}</span></button></div></section>`:''}
     <div class="admin-queue-layout">
       <div class="card">
         <div class="card-head"><div><h3>My Queue</h3><div class="desc">${escapeHtml(currentUser.fullName)} &mdash; OSS Admin</div></div>
           <div class="toolbar queue-actions"><div class="queue-intake-actions" role="group" aria-label="Walk-in actions"><button type="button" class="btn btn-ghost btn-sm" onclick="openAssistedIntake()">${icon('plus',14)} Assisted walk-in</button>${currentUser.confidentialApprover?'<button type="button" class="btn btn-ghost btn-sm" onclick="manageWalkInIntake()">'+icon('calendar',14)+' Walk-in intake</button>':''}</div><button type="button" class="btn btn-primary btn-sm queue-call-next" onclick="handleCallNext()" ${!nextUp||(!db.systemSettings?.allowParallelService&&mine.length) ? 'disabled' : ''}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg> Call Next</button></div></div>
         <div class="card-pad">
+          ${!db.systemSettings?.allowParallelService&&mine.length?'<p class="queue-call-guidance">Finish your current visit before calling the next visitor.</p>':''}
           ${mine.length ? mine.map(q => renderMyQueueCard(db, q)).join('') : `<div class="helper-empty" style="padding:30px 10px;">${icon('ticket', 30)}<p>${waiting.length && !nextUp ? 'Everyone waiting is scheduled for a later time.' : "You're not currently serving anyone. Click Call Next to bring up the next visit."}</p></div>`}
           ${nextUp ? `<div class="divider"></div><div class="lbl" style="font-size:.72rem; text-transform:uppercase; letter-spacing:.6px; color:var(--text-soft); font-weight:600; margin-bottom:8px;">Next</div>
             <div class="qd-next-row"><span class="pill pill-gold">${escapeHtml(queueRef(nextUp))}</span><span class="muted" style="font-size:.82rem;">${escapeHtml(nextUp.name || nextUp.visitorType)} &middot; ${escapeHtml(serviceQueueLabel(db, nextUp))} &middot; ${escapeHtml(entryMethodLabel(nextUp))}</span>${nextUp.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${nextUp.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${nextUp.possibleDuplicate ? ' <span class="pill pill-warn">Possible Dup.</span>' : ''}</div>` : ''}
@@ -991,14 +991,15 @@ async function renderQueueDashboard(background=false) {
       </div>
       <div class="card">
         <div class="card-head"><div><h3>Waiting</h3><div class="desc">${waiting.length} in line &mdash; seniors and PWDs, then scheduled visits by time, then walk-ins</div></div><button type="button" class="queue-sound-toggle" onclick="window.UniServeQueueAlerts?.toggle()" aria-pressed="${window.UniServeQueueAlerts?.enabled||false}">Queue sound: ${window.UniServeQueueAlerts?.enabled?'On':'Off'}</button></div>
-        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Requirements</th><th>Entry</th></tr></thead>
+        <div class="table-wrap"><table><thead><tr><th>#</th><th>Ticket</th><th>Visitor</th><th>Service</th><th>Requirements</th><th>Entry</th><th>Action</th></tr></thead>
           <tbody>${waiting.length ? waiting.map((q, i) => `<tr><td class="row-num">${i + 1}</td>
             <td class="mono">${escapeHtml(queueRef(q))}${q.isSenior ? ' <span class="pill pill-gold">Senior</span>' : ''}${q.isPWD ? ' <span class="pill pill-gold">PWD</span>' : ''}${UniServeUX.previousDay(q) ? ' <span class="pill pill-warn">Previous day</span>' : ''}${q.possibleDuplicate ? ' <span class="pill pill-warn">Dup?</span>' : ''}${q.number ? `<div class="muted" style="font-size:.68rem;">${escapeHtml(q.visitId || '')}</div>` : ''}</td>
             <td>${escapeHtml(q.name || '—')}<div class="muted" style="font-size:.72rem;">${escapeHtml(q.visitorType)}</div></td>
             <td>${escapeHtml(serviceQueueLabel(db, q))}</td>
             <td>${queueRequirementsBadge(db,q)}</td>
             <td>${q.source === 'Appointment' ? (dueTagHtml(q) || `<span class="pill pill-info">Scheduled</span>`) : `<span class="muted" style="font-size:.76rem;">Walk-in</span>`}</td>
-            </tr>`).join('') : `<tr class="empty-row"><td colspan="6">Queue is empty.</td></tr>`}</tbody></table></div>
+            <td>${q.restricted?'&mdash;':`<details class="ux-secondary-actions queue-row-actions"><summary aria-label="Actions for ${escapeHtml(queueRef(q))}">&#8942;</summary><div class="queue-row-menu"><button type="button" data-queue-id="${escapeHtml(q.id)}" onclick="openQueueVisitDetail(this.dataset.queueId)">Review visit</button></div></details>`}</td>
+            </tr>`).join('') : `<tr class="empty-row"><td colspan="7">Queue is empty.</td></tr>`}</tbody></table></div>
       </div>
     </div>`;
   lastQueueSnapshot=snapshot;

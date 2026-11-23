@@ -6,7 +6,12 @@ test('My Queue renders every active visitor and blocks another call by default',
  c.fmtCompactMinutes=()=>'';
  vm.createContext(c);vm.runInContext(source.slice(source.indexOf('async function renderQueueDashboard('),source.indexOf('function renderMyQueueCard(')),c);
  await c.renderQueueDashboard();assert.ok(el.innerHTML.includes('CARD:first'));assert.ok(el.innerHTML.includes('CARD:second'));
+ assert.ok(el.innerHTML.includes('Finish your current visit before calling the next visitor.'));
+ assert.ok(!el.innerHTML.includes('onclick="reviewRemainingVisits()"'));
+ assert.ok(!el.innerHTML.includes('aria-label="Queue service guidance"'));
  const callButton=el.innerHTML.match(/<button[^>]*onclick="handleCallNext\(\)"[^>]*>/)[0];assert.ok(callButton.includes('disabled'));
+ c.waitingQueueSorted=()=>[{id:'waiting',status:'Waiting',source:'Walk-in'}];c.queueRequirementsBadge=()=>'';
+ await c.renderQueueDashboard();assert.ok(el.innerHTML.includes('<th>Action</th>'));assert.ok(el.innerHTML.includes('aria-label="Actions for waiting"'));assert.ok(el.innerHTML.includes('data-queue-id="waiting" onclick="openQueueVisitDetail(this.dataset.queueId)"'));
 });
 test('active visitors have independent begin and complete actions',()=>{
  const c={queueRequirementState:()=>({ready:true}),queueRequirementSaving:new Set(),queueRequirementsHtml:()=>'',visitRequirements:()=>[],isServiceDelayed:()=>false,documentPreparationSelected:()=>false,escapeHtml:String,queueRef:q=>q.id,serviceQueueLabel:()=>'',entryMethodLabel:()=>'',icon:()=>''};vm.createContext(c);
