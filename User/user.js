@@ -660,6 +660,20 @@ function showVisitorHub() {
   document.getElementById('visitorContent').innerHTML='';
   renderVisitorSidebar();
 }
+async function resumeActiveWalkIn() {
+  const navigation = visitorNavigationVersion;
+  const response = await fetch((globalThis.UniServeConfig?.apiBase || 'http://127.0.0.1:8000/api') + '/visits/active', {headers:{Accept:'application/json'},cache:'no-store'});
+  if (!response.ok) throw new Error('Could not check your existing visits. Please try again.');
+  const result = await response.json();
+  if (visitorNavigationVersion !== navigation || visitorHubOpen || visitorView !== 'visit') return true;
+  if (!result.queue) return false;
+  const db = loadDB();
+  db.queues = db.queues.filter(q => q.id !== result.queue.id).concat(result.queue);
+  saveDB(db);
+  myActiveQueueId = result.queue.id; visitStep = 'ticket'; persistSession();
+  renderQueueTicket();
+  return true;
+}
 function navigateVisitor(key) {
   if(key==='history'&&typeof window!=='undefined'&&!window.visitorHistoryGateEntering){
     if(typeof window.openVerifiedVisitorHistory==='function')window.openVerifiedVisitorHistory();
@@ -687,6 +701,15 @@ function navigateVisitor(key) {
   portalWasOpen = isOfficeHours();
   if (!portalWasOpen && !visitTrackingAvailable()) { renderClosedScreen(); return; }
   hideClosedScreen();
+  if (key === 'visit' && sessionStorage.getItem?.('ossuniserve_visitor_token')) {
+    const navigation = visitorNavigationVersion;
+    resumeActiveWalkIn().then(found => {
+      if (!found && visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
+    }).catch(() => {
+      if (visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
+    });
+    return;
+  }
   ({ visit: renderVisitScreen, checkvisit: renderCheckVisitScreen, history: renderHistoryScreen, chat: renderChatScreen })[key]();
 }
 function renderVisitorSidebar() {
@@ -885,6 +908,8 @@ async function confirmWalkInPrompt() {
   if (!vals) return;
   try { if(!await SharedAppointments.ensureEmail(vals.email,confirmWalkInPrompt)) return; }
   catch(error) { toast(escapeHtml(error.message),'err'); return; }
+  try { if (await resumeActiveWalkIn()) return; }
+  catch(error) { toast(escapeHtml(error.message),'err'); return; }
   const isSenior = isSeniorFromClassification(visitVisitorType, visitGuestClass);
   const name = joinName(vals.first, vals.last);
   const dup = findActiveDuplicate(loadDB(), vals.idNumber, svc.key, vals.email);
@@ -906,7 +931,7 @@ async function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
   if (walkInPending) return;
   if (!isOfficeHours()) { toast(`Walk-in queue numbers can only be issued ${officeHoursLabel()}.`, 'err'); renderClosedScreen(); return; }
   const svc = visitSelectedService, db = loadDB();
-  let entry;
+  let entry, existing = false;
   walkInPending = true;
   try {
     const response = await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/visits', {
@@ -919,15 +944,15 @@ async function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(Object.values(result.errors || {}).flat().join(' ') || result.message || 'Could not start the visit.');
-    entry = result.queue;
+    entry = result.queue; existing = !!result.existing;
   } catch (error) { toast(escapeHtml(error instanceof TypeError ? 'We could not start your visit. Check your connection and try again.' : error.message), 'err'); return; }
   finally { walkInPending = false; }
-  db.queues.push(entry);
-  logActivity(db, VISITOR_ACTOR, `Joined queue ${entry.number} (${entry.visitId}) &mdash; walk-in, ${entry.serviceLabel}`, { category: 'Queue', target: entry.visitId });
+  db.queues = db.queues.filter(q => q.id !== entry.id).concat(entry);
+  if (!existing) logActivity(db, VISITOR_ACTOR, `Joined queue ${entry.number} (${entry.visitId}) &mdash; walk-in, ${entry.serviceLabel}`, { category: 'Queue', target: entry.visitId });
   saveDB(db);
   clearVisitorDraft();
   myActiveQueueId = entry.id; visitStep = 'ticket'; persistSession();
-  toast(`Visit ${entry.visitId} started &mdash; queue number ${entry.number}.`, 'ok');
+  toast(existing ? 'You already have an active walk-in. Showing your existing ticket.' : `Visit ${entry.visitId} started &mdash; queue number ${entry.number}.`, 'ok');
   renderQueueTicket();
 }
 
@@ -1181,12 +1206,14 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   if (sharedTicketLoading) return;
   const selectedQueueId=myActiveQueueId,navigation=typeof visitorNavigationVersion==='undefined'?0:visitorNavigationVersion;
   const local = loadDB().queues.find(q => q.id === selectedQueueId);
+  let publicQueue = null;
   if (local?.shared) {
     sharedTicketLoading = true;
     try {
       const api=globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api';
-      const [response,capacity]=await Promise.all([queueAlreadyRefreshed?Promise.resolve(null):fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)}),fetch(api+'/walk-in-capacity',{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null)]);
+      const [response,capacity,board]=await Promise.all([queueAlreadyRefreshed?Promise.resolve(null):fetch(api+'/visits/'+encodeURIComponent(local.visitId),{headers:{Accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(15000)}),fetch(api+'/walk-in-capacity',{signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null),fetch(api+'/public-queue',{cache:'no-store',signal:AbortSignal.timeout(15000)}).then(r=>r.ok?r.json():null).catch(()=>null)]);
       window.UniServeWalkInCapacity=capacity;
+      if (Array.isArray(board?.queues)) publicQueue=board.queues;
       const result = response?.ok ? await response.json() : null;
       if (result?.queue) {
         const latest = loadDB();
@@ -1200,7 +1227,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   if(myActiveQueueId!==selectedQueueId||(typeof visitorNavigationVersion!=='undefined'&&visitorNavigationVersion!==navigation)||(typeof visitorHubOpen!=='undefined'&&visitorHubOpen))return;
   const db = loadDB(), q = db.queues.find(x => x.id === selectedQueueId);
   if (!q) { resetVisit(); return; }
-  const snapshot=JSON.stringify([q,window.UniServeWalkInCapacity]);
+  const snapshot=JSON.stringify([q,window.UniServeWalkInCapacity,publicQueue]);
   if(background && (snapshot===lastTicketSnapshot || document.activeElement?.matches('#visitorContent input, #visitorContent textarea, #visitorContent select') || document.querySelector('#activeModal')))return;
   const scrollX=window.scrollX,scrollY=window.scrollY;
   const feedbackDraft=document.getElementById('fbComment')?.value;
@@ -1234,9 +1261,9 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const firstField = isAppt
     ? `<span class="tvf-lbl">${icon('calendar', 13)} Scheduled</span><span class="tvf-val">${q.scheduledAt ? escapeHtml((()=>{const slot=OfficeCalendar.parts(new Date(q.scheduledAt));return ticketScheduleLabel(slot.date,slot.time);})()) : '&mdash;'}</span>`
     : `<span class="tvf-lbl">${icon('ticket', 13)} Visit ID</span><span class="tvf-val">${escapeHtml(q.visitId)}</span>`;
-  const serving = servingQueueEntries(db);
+  const serving = publicQueue ? servingQueueEntries({queues:publicQueue}) : [];
   const nowServing = `<div class="qt-nowserving"><div class="qt-nowserving-head"><span class="qt-live-dot"></span><div class="qt-nowserving-lbl">Now Serving</div></div>
-    <div class="qt-nowserving-row">${serving.length ? serving.map(e => `<span class="pill ${e.id === q.id ? 'pill-gold' : 'pill-info'}">${escapeHtml(queueRef(e))}</span>`).join('') : `<span class="qt-empty">No one is being served yet.</span>`}</div></div>`;
+    <div class="qt-nowserving-row">${serving.length ? serving.map(e => `<span class="pill ${e.id === q.id ? 'pill-gold' : 'pill-info'}">${escapeHtml(queueRef(e))}</span>`).join('') : `<span class="qt-empty">${publicQueue ? 'No one has been called yet.' : 'Live queue temporarily unavailable.'}</span>`}</div></div>`;
   const reqSection = linkedAppt ? `<div class="card card-pad"><label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:6px; color:var(--text-soft);">Your uploaded requirements</label>${attachListHtml(linkedAppt.attachments, 'No files were uploaded with this booking.')}${documentReviewHtml(linkedAppt)}${visitExtrasHtml({...linkedAppt,followUpTask:Object.prototype.hasOwnProperty.call(q,'followUpTask')?q.followUpTask:linkedAppt.followUpTask})}</div>` : (q.followUpTask?`<div class="card card-pad">${visitExtrasHtml(q)}</div>`:'');
   const another = `<button class="btn btn-primary" onclick="resetVisit()">Start another visit</button>`;
   const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;

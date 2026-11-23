@@ -75,13 +75,13 @@ it('issues unique shared walkin numbers during open hours and blocks a saved clo
     CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-12 10:00','Asia/Manila'));
     $visitor = ['visitorType'=>'Student','serviceKey'=>'other','serviceLabel'=>'Other','name'=>'Visitor','contact'=>'09123456789','email'=>'test@gmail.com'];
     $first = $this->verifiedPostJson('/api/visits',$visitor)->assertCreated()->json('queue');
-    $second = $this->verifiedPostJson('/api/visits',$visitor)->assertCreated()->json('queue');
+    $second = $this->verifiedPostJson('/api/visits',array_replace($visitor,['email'=>'other@gmail.com']))->assertCreated()->json('queue');
     expect($first['number'])->not->toBe($second['number']);
     expect($first['visitId'])->toMatch('/^VIS-[A-Z2-9]{8}$/');
     $this->getJson('/api/queue',calendarHeaders())->assertOk()->assertJsonCount(2,'queues');
     $cfg = OfficeCalendar::get(); $cfg['days']['2026-10-12']=['type'=>'closed','name'=>'Suspension'];
     $this->putJson('/api/calendar',['calendar'=>$cfg,'effects'=>['affected'=>0,'decision'=>'keep']],calendarHeaders())->assertOk();
-    $this->verifiedPostJson('/api/visits',$visitor)->assertConflict()->assertJsonPath('availability.reason','Closed today, Suspension');
+    $this->verifiedPostJson('/api/visits',array_replace($visitor,['email'=>'new@gmail.com']))->assertConflict()->assertJsonPath('availability.reason','Closed today, Suspension');
     expect(DB::table('queues')->count())->toBe(2);
 });
 

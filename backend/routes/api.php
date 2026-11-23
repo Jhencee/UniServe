@@ -83,6 +83,7 @@ Route::patch('/profile', [StaffLoginController::class, 'profile'])->middleware('
 Route::match(['GET', 'POST'], '/admins', [AdminManagementController::class, 'handle'])->middleware('throttle:60,1,api-route-37');
 Route::match(['PATCH', 'DELETE'], '/admins/{id}', [AdminManagementController::class, 'handle'])->middleware('throttle:60,1,api-route-38');
 Route::post('/visits', [QueueController::class, 'create'])->middleware('throttle:20,1,api-route-39');
+Route::get('/visits/active', [QueueController::class, 'activeVisit'])->middleware('throttle:120,1,api-route-40');
 Route::get('/visits/{visitId}', [QueueController::class, 'visit'])->middleware('throttle:120,1,api-route-40');
 Route::post('/visits/{visitId}/cancel', [QueueController::class, 'cancel'])->middleware('throttle:20,1,api-route-41');
 Route::get('/queue', [QueueController::class, 'index'])->middleware('throttle:120,1,api-route-42');

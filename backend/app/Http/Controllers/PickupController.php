@@ -47,7 +47,9 @@ class PickupController extends Controller {
    if(!empty($original['pickupQueueId'])){$existing=DB::table('queues')->where('id',$original['pickupQueueId'])->first();if($existing&&in_array($existing->status,['Waiting','Called','Serving','Skipped']))return response()->json(['queue'=>QueueData::read($existing->portal_payload)]);}
    $input=array_intersect_key($original,array_flip(['visitorType','serviceKey','serviceLabel','name','idNumber','idType','guestClass','contact','email','isSenior','isPWD']));
    $new=Request::create('/api/visits','POST',$input);$new->headers->set('X-Visitor-Token',$r->header('X-Visitor-Token',''));$new->headers->set('Accept','application/json');
-   $response=app(QueueController::class)->create($new);$payload=$response->getData(true);$queue=$payload['queue'];
+   $response=app(QueueController::class)->create($new);$payload=$response->getData(true);
+   abort_if($payload['existing']??false,409,'You already have an active walk-in visit. Finish or cancel it before joining the pickup queue.');
+   $queue=$payload['queue'];
    $queue['pickupOfVisitId']=$original['visitId'];$queue['pickupTransactionId']=$original['transactionId']??DB::table('shared_transactions')->where('queue_id',$row->id)->value('id');
    abort_unless($queue['pickupTransactionId'],409,'The original transaction could not be found.');
    $queue['serviceLabel']='Document pickup · '.($queue['serviceLabel']??'Good Moral Certificate');

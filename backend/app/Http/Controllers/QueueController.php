@@ -8,6 +8,25 @@ use Illuminate\Support\Facades\DB;
 
 class QueueController extends Controller
 {
+    private function activeWalkIn(string $email): ?array
+    {
+        if ($email === '') return null;
+        foreach (DB::table('queues')->where('source', 'Walk-in')->whereIn('status', ['Waiting', 'Called', 'Serving', 'Skipped'])->orderByDesc('created_at')->get() as $row) {
+            $queue = \App\Support\QueueData::read($row->portal_payload);
+            if (strtolower(trim($queue['email'] ?? '')) === $email) {
+                $queue['status'] = $row->status;
+                return $queue;
+            }
+        }
+        return null;
+    }
+
+    public function activeVisit(Request $request)
+    {
+        $email = \App\Support\VisitorAccess::email($request);
+        \App\Support\QueueDayClosure::run();
+        return response()->json(['queue' => $this->activeWalkIn($email)]);
+    }
     public function callNext(Request $r){
         $actor=StaffAuth::user($r,'ADMIN');\App\Support\QueueDayClosure::run();\App\Support\Availability::requireOpen();
         $queue=DB::transaction(function()use($actor){
@@ -39,8 +58,14 @@ class QueueController extends Controller
         if($assisted){$d=$request->validate(['identityCheck'=>'required|string|min:5|max:500']);$data['email']=$data['email']??'';$data['assisted']=true;$data['assistedBy']=$actor->id;$data['identityCheck']=$d['identityCheck'];}
         else \App\Support\VisitorAccess::requireEmail($request,$data['email']);
         if(\Illuminate\Support\Facades\Schema::hasTable('service_catalog')){ $service=DB::table('service_catalog')->where('key',$data['serviceKey'])->first();abort_unless($service,422,'Unknown service.');$data['serviceLabel']=$service->label;}
-        $queue = DB::transaction(function () use ($data) {
+        \App\Support\QueueDayClosure::run();
+        $result = DB::transaction(function () use ($data, $assisted) {
             $calendar = DB::table('office_calendar')->where('id', 1)->lockForUpdate()->first();
+            $existing = $this->activeWalkIn($data['email']);
+            if ($existing) {
+                if ($assisted) abort(409, 'This visitor already has an active walk-in visit.');
+                return ['queue' => $existing, 'existing' => true];
+            }
             $availability = \App\Support\OfficeCalendar::status(null, json_decode($calendar->payload, true));
             if (!$availability['open']) {
                 throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json(['message' => $availability['reason'], 'availability' => $availability], 409));
@@ -85,11 +110,12 @@ class QueueController extends Controller
                 'source' => 'Walk-in', 'status' => 'Waiting', 'portal_payload' => \App\Support\QueueData::write($queue),
             ]);
 
-            return $queue;
+            return ['queue' => $queue, 'existing' => false];
         });
+        $queue = $result['queue'];
         if($assisted)\App\Support\SystemAudit::record($actor,'Queue','Assisted walk-in identity checked',$queue['visitId']);
         $token=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$queue['visitId'],'expires'=>time()+3600]));
-        return response()->json(['queue' => $queue]+($assisted?[]:['visitToken'=>$token]), 201);
+        return response()->json(['queue' => $queue, 'existing' => $result['existing']]+($assisted?[]:['visitToken'=>$token]), $result['existing'] ? 200 : 201);
     }
 
     public function index(Request $request)

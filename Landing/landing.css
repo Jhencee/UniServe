@@ -3084,7 +3084,7 @@ html[data-theme="dark"] #landing .hero-actions a.is-disabled { background: #4300
   #publicDisplay .qd-serving li.qd-head { display: none; }
   #publicDisplay .qd-next .qd-pos { grid-column: 1; grid-row: 1; align-self: center; font-size: .72rem; }
   #publicDisplay .qd-next .qd-next-num { grid-column: 2; grid-row: 1; min-width: 0; overflow-wrap: anywhere; }
-  #publicDisplay .qd-next .qd-tag { grid-column: 2; grid-row: 2; width: fit-content; }
+  #publicDisplay .qd-next .qd-tag { grid-column: 2; grid-row: 2; width: fit-content; margin-left: -9px; }
   #publicDisplay .qd-next li .qd-eta { display: block; grid-column: 2; grid-row: 3; text-align: left; font-size: .78rem; line-height: 1.5; overflow-wrap: anywhere; }
   #publicDisplay .qd-next li .qd-eta::before { content: 'Estimated wait: '; }
   #publicDisplay .qd-label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; line-height: 1.6; margin-bottom: 12px; }

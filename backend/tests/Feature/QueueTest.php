@@ -43,10 +43,18 @@ it('shares a started visit with the Admin Queue and updates the visitor ticket',
 
 it('allocates unique queue numbers and synchronizes visitor cancellation', function () {
     $a = $this->verifiedPostJson('/api/visits', walkInData())->assertCreated()->json('queue');
-    $b = $this->verifiedPostJson('/api/visits', walkInData())->assertCreated()->json('queue');
+    $b = $this->verifiedPostJson('/api/visits', array_replace(walkInData(), ['email'=>'second@gmail.com']))->assertCreated()->json('queue');
     expect($a['number'])->not->toBe($b['number']);
     $this->postJson('/api/visits/'.$a['visitId'].'/cancel',[],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertOk()->assertJsonPath('queue.status', 'Cancelled');
     expect(DB::table('queues')->where('id', $a['id'])->value('status'))->toBe('Cancelled');
+});
+
+it('reports the current queue status on the public board even if the stored payload is stale', function () {
+    $q = $this->verifiedPostJson('/api/visits', walkInData())->assertCreated()->json('queue');
+    $payload = \App\Support\QueueData::read(DB::table('queues')->where('id', $q['id'])->value('portal_payload'));
+    $payload['status'] = 'Called';
+    DB::table('queues')->where('id', $q['id'])->update(['portal_payload' => \App\Support\QueueData::write($payload)]);
+    $this->getJson('/api/public-queue')->assertOk()->assertJsonFragment(['id' => $q['id'], 'status' => 'Waiting']);
 });
 
 it('protects queue details and modifications from unauthenticated visitors', function () {
@@ -55,11 +63,14 @@ it('protects queue details and modifications from unauthenticated visitors', fun
     $this->verifiedPostJson('/api/visits', [])->assertUnprocessable();
 });
 
-it('computes duplicate warnings on the server even when the visitor submits false', function () {
+it('returns the existing active walk-in instead of creating another', function () {
     $first=$this->verifiedPostJson('/api/visits',walkInData()+['possibleDuplicate'=>true])->assertCreated()->json('queue');
     expect($first['possibleDuplicate'])->toBeFalse();
-    $second=$this->verifiedPostJson('/api/visits',walkInData()+['possibleDuplicate'=>false])->assertCreated()->json('queue');
-    expect($second['possibleDuplicate'])->toBeTrue();
+    $this->verifiedPostJson('/api/visits',walkInData()+['possibleDuplicate'=>false])->assertOk()->assertJsonPath('existing',true)->assertJsonPath('queue.id',$first['id']);
+    expect(DB::table('queues')->count())->toBe(1);
+    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertOk()->assertJsonPath('queue.id',$first['id']);
+    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@gmail.com')])->assertOk()->assertJsonPath('queue',null);
+    $this->getJson('/api/visits/active')->assertUnauthorized();
 });
 
 it('does not flag completed visits as active duplicates', function () {
@@ -83,7 +94,7 @@ function servingChecklistVisit($test): array
 
 it('saves requirement checks per visit and preserves independent items across reloads',function(){
     [$q,$headers]=servingChecklistVisit($this);
-    $other=$this->verifiedPostJson('/api/visits',walkInData())->assertCreated()->json('queue');
+    $other=$this->verifiedPostJson('/api/visits',array_replace(walkInData(),['email'=>'other@gmail.com']))->assertCreated()->json('queue');
     $url='/api/queue/'.$q['id'].'/requirements';
     foreach(['Clearance','Student ID'] as $label)$this->patchJson($url,['serviceKey'=>'good_moral','requirement'=>$label,'checked'=>true],$headers)->assertOk();
     $this->patchJson($url,['serviceKey'=>'good_moral','requirement'=>'Clearance','checked'=>false],$headers)->assertOk();
