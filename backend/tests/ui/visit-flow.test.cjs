@@ -27,6 +27,23 @@ test('a late active-visit response does not navigate away from another screen',a
  const pending=c.resumeActiveWalkIn();c.visitorNavigationVersion++;c.visitorHubOpen=true;finish();await pending;assert.equal(shown,0);
 });
 
+test('service refresh does not show the start form while an active ticket is being checked',()=>{
+ const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');let picker=0;
+ const c={visitorHubOpen:false,visitorNavigationVersion:4,activeWalkInLookupNavigation:4,hideClosedScreen(){},myActiveQueueId:null,maintenanceOn:()=>false,visitStep:'pick',renderVisitPicker:()=>picker++,sessionStorage:{getItem:()=>null}};
+ vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function renderVisitScreen()'),source.indexOf('let visitEntryMethod =')),c);
+ c.renderVisitScreen();assert.equal(picker,0);
+ c.activeWalkInLookupNavigation=null;c.renderVisitScreen();assert.equal(picker,1);
+});
+
+test('page reload restores an open appointment after the refresh scripts load',()=>{
+ const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');
+ const start=source.indexOf("} else if (sessionStorage.getItem('oss_activeAppointmentId')) {"),end=source.indexOf('} else {\n  showVisitorHub();',start);
+ let listener,refreshed=0,open=true;const content={innerHTML:''};
+ const c={sessionStorage:{getItem:()=> 'a'},visitorNavigationVersion:1,visitorHubOpen:false,visitorView:'visit',setVisitorHubState:value=>open=value,document:{getElementById:()=>content,addEventListener:(name,fn)=>listener=fn},refreshAppointmentPass:()=>refreshed++};
+ vm.createContext(c);vm.runInContext('if (true) {'+source.slice(start+source.slice(start).indexOf('{')+1,end)+'}',c);
+ assert.equal(open,false);assert.match(content.innerHTML,/Loading your visit status/);listener();assert.equal(refreshed,1);assert.equal(c.visitorView,'checkvisit');
+});
+
 test('chat navigation requests verification before changing screens',()=>{const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');let requested=0;const c={window:{openVerifiedVisitorChat:()=>requested++},visitorView:'visit'};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function navigateVisitor('),source.indexOf('function renderVisitorSidebar(')),c);c.navigateVisitor('chat');assert.equal(requested,1);assert.equal(c.visitorView,'visit');});
 
 test('history navigation verifies Gmail before opening records',()=>{const source=fs.readFileSync(path.resolve(__dirname,'../../../User/user.js'),'utf8');let verified=0;const c={window:{openVerifiedVisitorHistory:()=>verified++},visitorView:'visit'};vm.createContext(c);vm.runInContext(source.slice(source.indexOf('function navigateVisitor('),source.indexOf('function renderVisitorSidebar(')),c);c.navigateVisitor('history');assert.equal(verified,1);assert.equal(c.visitorView,'visit');});

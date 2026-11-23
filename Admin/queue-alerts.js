@@ -34,7 +34,7 @@
       if(response.status===401){stop();return;}
       if(!response.ok)throw Error('Queue unavailable');
       const result=await response.json();if(!stopped)update(result.queues||[]);
-    }catch(_){count=0;paint();}finally{busy=false;}
+    }catch(_){}finally{busy=false;}
   }
   async function toggle(){enabled=!enabled;localStorage.setItem(key,enabled?'on':'off');paint();try{await unlock();if(enabled)chime();}catch(_){enabled=false;localStorage.setItem(key,'off');paint();}}
   const timer=setInterval(refresh,15000);

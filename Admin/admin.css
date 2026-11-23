@@ -3866,6 +3866,8 @@ html[data-theme="dark"] { --trend-color: var(--accent); }
 .queue-requirement-row input[type="checkbox"] { flex:0 0 16px; width:16px; height:16px; min-height:0; margin:2px 0 0; padding:0; accent-color:var(--accent); }
 .queue-requirement-row span { min-width:0; overflow-wrap:anywhere; }
 .queue-requirement-row:has(input:disabled) { cursor:default; }
+.queue-requirement-row input:disabled { opacity:.55; cursor:not-allowed; }
+.queue-requirement-row input:disabled + span { color:var(--text-soft); opacity:.7; }
 .queue-requirement-status { min-height:1.5em; margin:4px 0 0; font-size:.7rem; }
 .queue-preparation-option { margin:0 0 12px; }
 .queue-pickup-identity .field { max-width:360px; margin:0 0 6px 26px; }

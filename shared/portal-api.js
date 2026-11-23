@@ -57,7 +57,7 @@
     if(data.settings)db.systemSettings={...db.systemSettings,...data.settings};
     // Shared chats are an in-memory API snapshot, not persistent browser records.
     const persist={...db,chats:db.chats.filter(c=>!c.shared)};saveDB(persist);
-    chats=db.chats;return data;
+    chats=db.chats;if(staff&&typeof refreshSidebarCounts==='function')refreshSidebarCounts();return data;
   }
   let chats=[],serverAudit=null;
   const originalLoad=loadDB;
@@ -65,6 +65,7 @@
   const originalSave=saveDB;
   saveDB=function(db){chats=db.chats||chats;originalSave({...db,users:(db.users||[]).map(({password,password_hash,...user})=>user),chats:(db.chats||[]).filter(c=>!c.shared)});};
   async function refreshChats(){cache(await request('/chats'));}
+  if(staff&&currentUser?.role==='ADMIN')refreshChats().catch(()=>{});
   let settingsRevision=0,settingsRefreshPromise=null;
   async function refreshPortalSettings(){
     if(settingsRefreshPromise)return settingsRefreshPromise;

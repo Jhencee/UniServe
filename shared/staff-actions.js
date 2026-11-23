@@ -18,17 +18,6 @@
     inbox.onclick = () => navigate('notifications');
     controls.append(inbox);
     if (typeof window.refreshSidebarNotificationCount === 'function') window.refreshSidebarNotificationCount();
-    const syncCount = () => {
-      const sidebarBadge=document.querySelector('#sidebarNotifications .notification-bell-count');
-      const count=Math.max(0,Number(sidebarBadge?.textContent)||0);
-      const badge=inbox.querySelector('.staff-notification-count');
-      badge.textContent=count>99?'99+':String(count);
-      badge.hidden=count===0;
-      inbox.setAttribute('aria-label',count?'Notifications, '+count+' unread':'Notifications, no unread updates');
-    };
-    syncCount();
-    const navigation=document.getElementById('navList');
-    if(navigation)new MutationObserver(syncCount).observe(navigation,{childList:true,subtree:true,characterData:true});
   }
   controls.append(panel);
 })();

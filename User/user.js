@@ -660,6 +660,7 @@ function showVisitorHub() {
   document.getElementById('visitorContent').innerHTML='';
   renderVisitorSidebar();
 }
+let activeWalkInLookupNavigation = null;
 async function resumeActiveWalkIn() {
   const navigation = visitorNavigationVersion;
   const response = await fetch((globalThis.UniServeConfig?.apiBase || 'http://127.0.0.1:8000/api') + '/visits/active', {headers:{Accept:'application/json'},cache:'no-store'});
@@ -703,9 +704,13 @@ function navigateVisitor(key) {
   hideClosedScreen();
   if (key === 'visit' && sessionStorage.getItem?.('ossuniserve_visitor_token')) {
     const navigation = visitorNavigationVersion;
+    activeWalkInLookupNavigation = navigation;
+    document.getElementById('visitorContent').innerHTML = '';
     resumeActiveWalkIn().then(found => {
+      if (activeWalkInLookupNavigation === navigation) activeWalkInLookupNavigation = null;
       if (!found && visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
     }).catch(() => {
+      if (activeWalkInLookupNavigation === navigation) activeWalkInLookupNavigation = null;
       if (visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
     });
     return;
@@ -734,6 +739,7 @@ function uxGoStep(s) { captureVisitorDraft(); visitStep = s === 1 ? 'pick' : 'ch
 
 function renderVisitScreen() {
   if(visitorHubOpen)return;
+  if(activeWalkInLookupNavigation === visitorNavigationVersion)return;
   hideClosedScreen();
   if (myActiveQueueId) {
     if (loadDB().queues.some(x => x.id === myActiveQueueId)) { visitStep = 'ticket'; persistSession(); renderQueueTicket(); return; }
@@ -1690,6 +1696,14 @@ if (initialService) {
   navigateVisitor('visit');
 } else if (initialVisitorFlow && Object.prototype.hasOwnProperty.call(VISITOR_TITLES, initialVisitorFlow)) {
   navigateVisitor(initialVisitorFlow);
+} else if (sessionStorage.getItem('oss_activeAppointmentId')) {
+  visitorView = 'checkvisit';
+  setVisitorHubState(false);
+  document.getElementById('visitorContent').innerHTML = '<div class="visitor-page-wrap"><p class="field-hint" role="status">Loading your visit status...</p></div>';
+  const navigation = visitorNavigationVersion;
+  document.addEventListener('DOMContentLoaded', () => {
+    if (visitorNavigationVersion === navigation && !visitorHubOpen && sessionStorage.getItem('oss_activeAppointmentId')) refreshAppointmentPass();
+  }, {once:true});
 } else {
   showVisitorHub();
 }

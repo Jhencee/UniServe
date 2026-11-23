@@ -63,6 +63,18 @@ it('protects queue details and modifications from unauthenticated visitors', fun
     $this->verifiedPostJson('/api/visits', [])->assertUnprocessable();
 });
 
+it('uses a valid verified email when the visit token is expired or invalid', function () {
+    $q=$this->verifiedPostJson('/api/visits',walkInData())->assertCreated()->json('queue');
+    $url='/api/visits/'.$q['visitId'];
+    $expired=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$q['visitId'],'expires'=>time()-1]));
+    $valid=\App\Support\VisitorAccess::token('queue.test@gmail.com');
+    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>$valid])->assertOk()->assertJsonPath('queue.id',$q['id']);
+    $this->getJson($url,['X-Visit-Token'=>'invalid','X-Visitor-Token'=>$valid])->assertOk()->assertJsonPath('queue.id',$q['id']);
+    $this->getJson($url,['X-Visit-Token'=>$expired])->assertUnauthorized();
+    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@gmail.com')])->assertForbidden();
+    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visitor','email'=>'queue.test@gmail.com','expires'=>time()-1]))])->assertUnauthorized();
+});
+
 it('returns the existing active walk-in instead of creating another', function () {
     $first=$this->verifiedPostJson('/api/visits',walkInData()+['possibleDuplicate'=>true])->assertCreated()->json('queue');
     expect($first['possibleDuplicate'])->toBeFalse();

@@ -46,6 +46,7 @@
     if(result.queue) db.queues=db.queues.filter(q=>q.id!==result.queue.id).concat(result.queue);
     // API snapshots are cached directly; never enqueue another write for a read.
     (window.SecureState?SecureState.persist(snapshot(db)):localStorage.setItem(DB_KEY,JSON.stringify(snapshot(db))));
+    if(typeof refreshSidebarCounts==='function')refreshSidebarCounts();
     if(typeof window.refreshSidebarNotificationCount==='function')window.refreshSidebarNotificationCount();
     return result;
   }
@@ -223,6 +224,7 @@
         db.transactions=db.transactions.filter(t=>!t.shared && !result.transactions.some(s=>s.id===t.id||s.visitId&&s.visitId===t.visitId)).concat(result.transactions);
         db.visitorLog=db.visitorLog.filter(l=>!l.shared && !result.visitorLog.some(s=>s.id===l.id||s.visitId&&s.visitId===l.visitId)).concat(result.visitorLog);
         (window.SecureState?SecureState.persist(snapshot(db)):localStorage.setItem(DB_KEY,JSON.stringify(snapshot(db))));
+        if(typeof refreshSidebarCounts==='function')refreshSidebarCounts();
         if(typeof window.refreshSidebarNotificationCount==='function')window.refreshSidebarNotificationCount();
       })();
       try{await recordRefreshPromise;}finally{recordRefreshPromise=null;}
@@ -275,21 +277,22 @@
       const navigation=typeof visitorNavigationVersion==='undefined'?0:visitorNavigationVersion;
       const stillViewing=()=>sessionStorage.getItem('oss_activeAppointmentId')===id&&(typeof visitorNavigationVersion==='undefined'||visitorNavigationVersion===navigation)&&(typeof visitorHubOpen==='undefined'||!visitorHubOpen);
       const id=sessionStorage.getItem('oss_activeAppointmentId'),a=loadDB().appointments.find(a=>a.id===id);
-      if(!a?.shared){
-        sessionStorage.removeItem('oss_activeAppointmentId');
-        visitStep='pick';persistSession();renderVisitScreen();return;
-      }
+      if(!id)return;
       // The appointment ID stays stable while its pending reference becomes a Visit ID.
       // Cached Visit IDs from older browser versions may no longer match the server.
-      showPassModalReadonly(a,true);
+      if(a?.shared)showPassModalReadonly(a,true);
       try{
-        const result=await visitorRequest('/appointments/visit/'+encodeURIComponent(a.id));
+        const result=await visitorRequest('/appointments/visit/'+encodeURIComponent(id));
         if(!stillViewing())return;
         if(result)showPassModalReadonly(result.appointment,true);
       }catch(e){
         if(!stillViewing())return;
+        if(!a?.shared&&typeof document!=='undefined'){
+          const content=document.getElementById('visitorContent');
+          if(content)content.innerHTML='<div class="visitor-page-wrap"><div class="card card-pad"><p role="alert">Could not load your visit status. Please try again.</p><button type="button" class="btn btn-primary" onclick="refreshAppointmentPass()">Retry</button><button type="button" class="btn btn-ghost" onclick="navigateVisitor(\'checkvisit\')">Check another visit</button></div></div>';
+        }
         if(e.status===404){
-          toast('Could not refresh this appointment. Your saved ticket is still shown; use Visit History to check your records.','err');
+          toast(a?.shared?'Could not refresh this appointment. Your saved ticket is still shown; use Visit History to check your records.':'Could not find this appointment. Use Visit History to check your records.','err');
         }else toast(escapeHtml(e.message),'err');
       }
     };

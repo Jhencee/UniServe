@@ -24,6 +24,11 @@ test('requirements use the service catalogue and checks remain scoped to the vis
  assert.ok(c.queueRequirementsHtml(db,{...first,id:'second',requirementChecks:[]}).includes('0 of 2 checked'));
  assert.ok(c.queueRequirementsHtml(db,{...first,serviceKey:'b'}).includes('0 of 1 checked'));
  assert.ok(c.queueRequirementsHtml(db,{...first,status:'Completed'}).includes('disabled'));
+ const called=c.queueRequirementsHtml(db,{...first,status:'Called'});
+ assert.match(called,/type="checkbox"[^>]*disabled/);
+ assert.ok(called.includes('Start service to check the requirements.'));
+ const serving=c.queueRequirementsHtml(db,{...first,requirementChecks:[]});
+ assert.doesNotMatch(serving,/type="checkbox"[^>]*disabled/);
  assert.ok(c.queueRequirementsHtml(db,{...first,assignedAdminId:'another'}).includes('disabled'));
  assert.equal(c.queueRequirementsHtml(db,{...first,restricted:true}),'');
  assert.ok(c.queueRequirementsHtml({services:[{key:'a',requirements:['<script>']}]},first).includes('&lt;script>'));

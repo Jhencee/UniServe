@@ -20,8 +20,8 @@ test('missing server appointment keeps the open ticket without navigating back',
  const s=setup({id:'old',shared:true},Object.assign(Error('Appointment not found.'),{status:404}));await s.context.refreshAppointmentPass();
  assert.equal(s.cleared(),false);assert.equal(s.context.visitStep,'pass');assert.equal(s.reset(),0);assert.equal(s.shown.length,1);assert.match(s.notices[0],/Visit History/);
 });
-test('missing local appointment recovers instead of leaving an empty page',async()=>{
- const s=setup();await s.context.refreshAppointmentPass();assert.equal(s.cleared(),true);assert.equal(s.reset(),1);assert.equal(s.calls.length,0);
+test('missing local appointment is recovered from the server by its saved ID',async()=>{
+ const s=setup();await s.context.refreshAppointmentPass();assert.equal(s.cleared(),false);assert.equal(s.reset(),0);assert.deepEqual(s.calls,['/appointments/visit/missing']);assert.equal(s.shown.at(-1).visitId,'VIS-SERVER');
 });
 test('temporary refresh failure preserves the displayed ticket',async()=>{
  const record={id:'a1',shared:true};const s=setup(record,Error('Network unavailable'));await s.context.refreshAppointmentPass();assert.equal(s.shown[0],record);assert.equal(s.reset(),0);assert.equal(s.cleared(),false);

@@ -684,11 +684,23 @@ function renderSidebar() {
     if (!items.length) return '';
     return `<li class="nav-category" role="presentation">${group.label}</li>` + items.map(n => {
     const badge = n.key === 'messages' ? totalStaffUnread() : n.key === 'transactions' ? requests : n.key === 'appointments' ? appointments : n.key === 'queue' ? (window.UniServeQueueAlerts?.count||0) : 0;
-    return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${n.key === 'queue' ? `<span id="queueWaitingBadge" class="nav-badge" ${badge ? '' : 'hidden'} aria-label="${badge} visitors ready to call">${badge}</span>` : badge ? `<span class="nav-badge">${badge}</span>` : ''}</button></li>`;
+    return `<li><button class="nav-item ${state_view === n.key ? 'active' : ''}" title="${n.label}" onclick="navigate('${n.key}')">${icon(n.ic)}<span>${n.label}</span>${n.key === 'queue' ? `<span id="queueWaitingBadge" class="nav-badge" ${badge ? '' : 'hidden'} aria-label="${badge} visitors ready to call">${badge}</span>` : ['messages','transactions','appointments'].includes(n.key) ? `<span class="nav-badge" data-sidebar-count="${n.key}" ${badge ? '' : 'hidden'}>${badge}</span>` : ''}</button></li>`;
     }).join('');
   }).join('')+'<li id="sidebarNotifications" class="sidebar-notifications"></li>';
   const cases=db.transactions.filter(t=>t.caseStatus&&t.caseStatus!=='Resolved').length;
   if(document.getElementById('sidebarNotifications'))workloadSummaryHtml(db,`<section class="dashboard-attention"><div class="dashboard-attention-heading"><span class="dashboard-attention-icon" aria-hidden="true">${icon('clock',20)}</span><div><h3>Appointment requests and cases</h3><p>Review items waiting for your next step.</p></div></div><div class="dashboard-attention-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="navigate('appointments')">Appointment requests <span class="dashboard-attention-count">${appointments}</span></button><button type="button" class="btn btn-ghost btn-sm" onclick="navigate('transactions')">Case follow-ups <span class="dashboard-attention-count">${cases}</span></button></div></section>`);
+}
+function refreshSidebarCounts() {
+  const db = loadDB();
+  const counts = {
+    messages: totalStaffUnread(),
+    transactions: db.transactions.filter(t => t.status === 'Pending' || (t.caseStatus && t.caseStatus !== 'Resolved')).length,
+    appointments: db.appointments.filter(a => a.status === 'Requested' || a.rescheduleRequested || a.calendarReview).length
+  };
+  for (const badge of document.querySelectorAll('[data-sidebar-count]')) {
+    const count = counts[badge.dataset.sidebarCount] ?? 0;
+    badge.textContent = String(count); badge.hidden = count === 0;
+  }
 }
 const staffViewMemory={};
 function rememberStaffView() {
@@ -1029,7 +1041,7 @@ function queueRequirementsHtml(db, q) {
   const state=queueRequirementState(db,q),editable=q.status==='Serving'&&q.assignedAdminId===currentUser.id,saving=queueRequirementSaving.has(q.id);
   return '<section class="queue-requirements" data-queue-id="'+escapeHtml(q.id)+'" aria-label="Visit requirements"><div class="queue-requirements-head"><h4>Requirements</h4><span>'+state.checked+' of '+state.required+' checked</span></div>'+
     (state.required?state.items.map((item,index)=>{const row='<label class="queue-requirement-row"><input type="checkbox" data-index="'+index+'" data-upload="'+(item.source==='upload')+'" data-service-key="'+escapeHtml(q.serviceKey)+'" data-requirement="'+escapeHtml(item.label)+'" '+(item.checked?'checked ':'')+(!editable||saving||item.source==='upload'||(q.pickupClaimed&&item.checked)?'disabled ':'')+'onchange="saveQueueRequirement(this)"><span>'+escapeHtml(item.label)+(item.source==='upload'?'<small>Accepted upload</small>':'')+'</span></label>';return q.pickupTransactionId&&item.label==='Identity verified'?'<div class="queue-pickup-identity">'+row+(item.checked?'<div class="field"><label for="pickupQueueIdType">ID checked</label><select id="pickupQueueIdType" onchange="rememberPickupIdentity(this)" '+(!editable||saving||q.pickupClaimed?'disabled':'')+'><option value="">Select ID checked</option>'+['Student ID checked','Government-issued ID checked','Authorized representative ID and authorization checked'].map(value=>'<option '+((q.pickupIdentityCheck||pickupIdentityDrafts.get(q.id))===value?'selected':'')+'>'+escapeHtml(value)+'</option>').join('')+'</select></div>':'')+'</div>':row;}).join(''):'<p class="field-hint">No requirements listed for this service.</p>')+
-    '<p class="queue-requirement-status field-hint" role="status" aria-live="polite">'+(saving?'Saving...':state.required?(editable?(state.ready?'All requirements checked.':'Check the remaining requirements before completing service.') :q.status==='Called'?'Start service to check remaining requirements.':'Saved checklist ? read only.'):'')+'</p>'+(q.appointmentId?'<p class="field-hint queue-upload-note">Accepted uploads cover the requirements matched during document review. Check any remaining items at the counter.</p>':'')+'</section>';
+    '<p class="queue-requirement-status field-hint" role="status" aria-live="polite">'+(saving?'Saving...':state.required?(editable?(state.ready?'All requirements checked.':'Check the remaining requirements before completing service.') :['Waiting','Called'].includes(q.status)?'Start service to check the requirements.':'Saved checklist is read only.'):'')+'</p>'+(q.appointmentId?'<p class="field-hint queue-upload-note">Accepted uploads cover the requirements matched during document review. Check any remaining items at the counter.</p>':'')+'</section>';
 }
 async function saveQueueRequirement(input) {
   const host=input.closest('.queue-requirements'),id=host.dataset.queueId,q=loadDB().queues.find(q=>q.id===id);
