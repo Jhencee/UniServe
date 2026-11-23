@@ -3221,6 +3221,7 @@ body :is(.landing-nav, #publicDisplay .pd-top) {
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline { align-items:center; gap:var(--brand-gap); }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name { display:flex; flex-direction:column; justify-content:center; gap:2px; line-height:var(--brand-heading-line); }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name .brand-title { font-family:var(--font-display); font-size:var(--brand-heading-size); line-height:var(--brand-heading-line); font-weight:700; letter-spacing:-.01em; }
+@media(min-width:961px) { body #landing .landing-nav .brandline .name .brand-title { font-size:1.3rem; } }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name small { margin:0; padding:0; font-size:var(--brand-subtitle-size); line-height:var(--brand-subtitle-line); letter-spacing:normal; text-transform:none; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) { position:relative; align-self:stretch; flex-shrink:0; width:var(--brand-logo-width); height:auto; line-height:0; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) img { position:absolute; top:50%; left:50%; width:135%; height:135%; max-width:none; object-fit:contain; transform:translate(-50%,-50%); }

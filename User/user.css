@@ -3074,7 +3074,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .chat-office-hours > p { margin:12px 0 0; font-size:.72rem; line-height:1.6; color:var(--text-soft); }
 @media(max-width:600px) { .chat-office-hours { padding:14px 16px; } .chat-office-days { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 .visitor-hub-brand { display:flex; align-items:center; gap:12px; }
-.visitor-hub-brand > span:last-child { display:flex; flex-direction:column; gap:2px; line-height:1.1; font-family:var(--font-display); font-size:1.3rem; font-weight:700; color:var(--accent-strong); }
+.visitor-hub-brand > span:last-child { display:flex; flex-direction:column; gap:2px; line-height:1.1; font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:var(--accent-strong); }
 .visitor-hub-brand small { display:block; margin-top:0; line-height:1.15; font-family:var(--font-body); font-size:.72rem; font-weight:400; color:var(--text-soft); }
 @media(max-width:600px) {
   #visitorApp.visitor-hub-layout .topbar { min-height:48px; padding:6px 12px; }
