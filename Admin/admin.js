@@ -311,13 +311,15 @@ function fmtHourRange(h) {
   return `${f(h)} &ndash; ${f((h + 1) % 24)}`;
 }
 function computeReadiness(svc, attachments) {
-  const required=svc?.requirements?.length||0, files=attachments||[];
-  const accepted=files.filter(file=>file.review?.status==='Accepted').length;
+  const requirements=[...new Set((svc?.requirements||[]).map(label=>String(label).trim()).filter(Boolean))], required=requirements.length, files=attachments||[];
+  const accepted=files.filter(file=>file.review?.status==='Accepted');
+  const covered=new Set(accepted.filter(file=>!svc?.key||file.review?.serviceKey===svc.key).map(file=>file.review?.requirement).filter(label=>requirements.includes(label)));
   if(files.some(file=>file.review?.status==='Needs correction'))return {status:'INCOMPLETE',label:'Needs correction'};
   if(!required&&!files.length)return {status:'READY',label:'No uploads required'};
   if(files.length<required)return {status:'INCOMPLETE',label:`Incomplete — ${files.length} of ${required} requirements uploaded`};
   if(files.some(file=>file.review?.status!=='Accepted'))return {status:'FOR_REVIEW',label:'Pending review'};
-  return {status:'READY',label:`Accepted — ${accepted} ${accepted===1?'file':'files'}`};
+  if(covered.size<required)return {status:'INCOMPLETE',label:`Incomplete — ${covered.size} of ${required} requirements covered`};
+  return {status:'READY',label:`Accepted — ${accepted.length} ${accepted.length===1?'file':'files'}`};
 }
 function appointmentReadiness(db,appointment) {
   const queue=(db.queues||[]).find(q=>!q.restricted&&(q.id===appointment.queueId||q.appointmentId===appointment.id));
@@ -624,7 +626,7 @@ const NAV = [
   { key: 'dashboard', label: 'Dashboard', ic: 'dashboard' },
   { key: 'queue', label: 'Queue', ic: 'ticket' },
   { key: 'appointments', label: 'Appointments', ic: 'calendar' },
-  { key: 'calendar', label: 'Office Availability', ic: 'calendar' },
+  { key: 'calendar', label: 'Office Availability', ic: 'clock' },
   { key: 'logbook', label: 'Visitor Log', ic: 'log' },
   { key: 'messages', label: 'Messages', ic: 'chat' },
   { key: 'transactions', label: 'Transactions', ic: 'folder' },
@@ -1604,7 +1606,7 @@ function openStaffChat(id) {
       <input type="file" id="staffAttachInput" multiple style="display:none" onchange="handleStaffFileSelect(this)" ${closed ? 'disabled' : ''}>
       <button class="icon-btn" aria-label="Attach files" title="Attach files" onclick="document.getElementById('staffAttachInput').click()" ${closed ? 'disabled' : ''}>${icon('paperclip', 16)}</button>
       <textarea id="staffReplyBox" aria-label="Message" rows="1" placeholder="${closed ? 'Conversation is closed' : 'Write a message'}" ${closed ? 'disabled' : ''}></textarea>
-      <button type="button" class="staff-chat-send" aria-label="Send message" title="Send message" onclick="sendStaffReply('${c.id}')" ${closed ? 'disabled' : ''}><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 3.8a.8.8 0 0 1 1.1-.7l17 8.2a.8.8 0 0 1 0 1.4l-17 8.2a.8.8 0 0 1-1.1-.7l1.5-6.7L14 12l-9.5-1.5Z"/></svg></button></div>`;
+      <button type="button" class="staff-chat-send" aria-label="Send message" title="Send message" onclick="sendStaffReply('${c.id}')" ${closed ? 'disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div>`;
   const area = document.getElementById('chatMsgArea');
   if (area) area.scrollTop = area.scrollHeight;
 }

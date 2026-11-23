@@ -140,6 +140,9 @@ it('handles a verified document pickup without creating a second transaction',fu
  $this->getJson('/api/visits/'.$pickup['visitId'],$visitor)->assertOk()->assertJsonPath('queue.pickupStatus','Claimed');
  $this->patchJson($checks,['serviceKey'=>$pickup['serviceKey'],'requirement'=>'Document claimed','checked'=>false],$staff)->assertConflict();
  $this->patchJson('/api/queue/'.$pickup['id'],['status'=>'Completed'],$staff)->assertOk();
+ $this->postJson('/api/queue/'.$q['id'].'/feedback',['rating'=>5],$visitor)->assertOk();
+ $this->postJson('/api/queue/'.$pickup['id'].'/feedback',['rating'=>5],$visitor)->assertConflict();
+ $this->getJson('/api/visits/'.$q['visitId'],$visitor)->assertOk()->assertJsonPath('queue.feedback.rating',5);
  $this->getJson('/api/service-records',$staff)->assertOk()->assertJsonPath('transactions.0.pickupVisit.status','Completed')->assertJsonPath('transactions.0.pickupStatus','Claimed');
  expect(DB::table('shared_transactions')->count())->toBe(1);
  $this->patchJson($record,['status'=>'Claimed','identityCheck'=>'ID checked'],$staff)->assertConflict();

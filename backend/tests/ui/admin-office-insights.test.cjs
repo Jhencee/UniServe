@@ -25,7 +25,7 @@ test('timing columns use a zero-based minutes axis and readable duration labels'
 test('feedback chart shows rating counts and response totals',()=>{
  c.escapeHtml=String;const ratings=[{label:'5 stars',count:2},{label:'4 stars',count:0},{label:'3 stars',count:1}];
  const html=c.adminSatisfactionChart({satisfied:2,feedback:3,rating:4,ratings});
- assert.match(html,/2 of 3 respondents/);assert.match(html,/5 stars: 2/);assert.match(html,/4 \/ 5/);assert.match(html,/width:66\.66/);
+ assert.match(html,/2 of 3 respondents/);assert.match(html,/5 stars: 2/);assert.match(html,/4 \/ 5/);assert.match(html,/feedback-columns/);
  c.emptyChart=text=>text;assert.match(c.adminSatisfactionChart({feedback:0}),/No feedback/);
 });
 

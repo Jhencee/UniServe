@@ -345,13 +345,15 @@ function serviceLabel(db, key) { const s = db.services.find(x => x.key === key);
 function serviceQueueLabel(db, e) { return e.serviceLabel || (e.serviceKey ? serviceLabel(db, e.serviceKey) : 'General Concern'); }
 
 function computeReadiness(svc, attachments) {
-  const required=svc?.requirements?.length||0, files=attachments||[];
-  const accepted=files.filter(file=>file.review?.status==='Accepted').length;
+  const requirements=[...new Set((svc?.requirements||[]).map(label=>String(label).trim()).filter(Boolean))], required=requirements.length, files=attachments||[];
+  const accepted=files.filter(file=>file.review?.status==='Accepted');
+  const covered=new Set(accepted.filter(file=>!svc?.key||file.review?.serviceKey===svc.key).map(file=>file.review?.requirement).filter(label=>requirements.includes(label)));
   if(files.some(file=>file.review?.status==='Needs correction'))return {status:'INCOMPLETE',label:'Needs correction'};
   if(!required&&!files.length)return {status:'READY',label:'No uploads required'};
   if(files.length<required)return {status:'INCOMPLETE',label:`Incomplete — ${files.length} of ${required} requirements uploaded`};
   if(files.some(file=>file.review?.status!=='Accepted'))return {status:'FOR_REVIEW',label:'Pending review'};
-  return {status:'READY',label:`Accepted — ${accepted} ${accepted===1?'file':'files'}`};
+  if(covered.size<required)return {status:'INCOMPLETE',label:`Incomplete — ${covered.size} of ${required} requirements covered`};
+  return {status:'READY',label:`Accepted — ${accepted.length} ${accepted.length===1?'file':'files'}`};
 }
 function readinessPillHtml(r) {
   if (!r) return '';
@@ -533,7 +535,7 @@ const VISITOR_NAV = [
 ];
 const VISITOR_TITLES = {
   visit: ['Start Your Visit', 'Choose a service and how you want to visit'],
-  checkvisit: ['Check My Visit', 'See your appointment schedule or live queue status'],
+  checkvisit: ['Check My Visit', 'Track your appointment, visit, or document pickup'],
   history: ['Visit History', 'Verify your email to see your past visits'],
   chat: ['Chat with OSS', 'Send a message to the office'],
 };
@@ -1150,7 +1152,7 @@ function pickupSummaryHtml(q) {
   return '<div class="visit-document-status"><span class="visit-status-caption">Document pickup</span><h4>'+escapeHtml(label)+'</h4>'+action+'</div>';
 }
 function feedbackSectionHtml(q) {
-  if (q.status !== 'Completed') return '';
+  if (q.status !== 'Completed' || q.pickupOfVisitId || q.pickupTransactionId) return '';
   if (q.feedback) {
     return `<div class="fb-card fb-card-done"><h3>${icon('check', 12)} Feedback Received</h3>
       <div class="fb-stars fb-stars-static">${[1, 2, 3, 4, 5].map(n => `<span class="fb-star ${n <= q.feedback.rating ? 'on' : ''}">&#9733;</span>`).join('')}</div>
@@ -1166,7 +1168,7 @@ function setFeedbackStars(n) { feedbackStars = n; document.querySelectorAll('#fb
 function submitVisitFeedback(queueId) {
   if (!feedbackStars) { toast('Please select a star rating.', 'err'); return; }
   const db = loadDB(), q = db.queues.find(x => x.id === queueId);
-  if (!q) return;
+  if (!q || q.pickupOfVisitId || q.pickupTransactionId) return;
   q.feedback = { rating: feedbackStars, comment: (document.getElementById('fbComment')?.value || '').trim().slice(0, FEEDBACK_MAX), submittedAt: new Date() };
   saveDB(db); feedbackStars = 0;
   toast('Thanks for your feedback!', 'ok');
@@ -1240,7 +1242,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;
   const pickupStatus=q.pickupStatus||q.pickupProgress?.documentStatus;
   const activePickup=hasActivePickup(q);
-  const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':'Your visit is complete. Share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
+  const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':q.feedback?'Your visit is complete. Thank you for your feedback.':(q.pickupOfVisitId||q.pickupTransactionId)?'Your pickup visit is complete.':'Your visit is complete. You may share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
   const progressOpen=lastTicketRender.id===q.id ? (document.querySelector('.queue-visit-journey')?.open ?? !isDone) : !isDone;
   document.getElementById('visitorContent').innerHTML = `
     <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
@@ -1348,7 +1350,7 @@ document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
 window.addEventListener('pageshow', refreshActiveVisitorTicket);
 
 function renderCheckVisitScreen() {
-  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID to see your pass, queue status or appointment.</p></div><div class="field"><label for="cvInput">Visit ID</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where is my Visit ID?</summary><p>Find it on your Visit Pass or confirmation email. Each visit has its own ID. You can enter older Visit IDs too.</p></details></div>`;
+  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my reference?</summary><p>Find your Visit ID on your Visit Pass or confirmation email. A pending appointment has a request reference. To collect a document, use the original visit's ID to check its pickup status.</p></details></div>`;
 }
 
 async function lookupMyVisit() {

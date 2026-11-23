@@ -25,9 +25,9 @@
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261109-consistency-pass">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
-    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261109-clean-calendar">
+    <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
     <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261121-button-hover">
-    <link rel="stylesheet" href="landing-containers.css?v=20261121-mobile-office-status">
+    <link rel="stylesheet" href="landing-containers.css?v=20261123-mobile-header">
 </head>
 
 <body>
@@ -129,7 +129,7 @@
                 <li class="step">
                     <span class="step-num">3</span>
                     <h3>Follow your visit</h3>
-                    <p>Keep your request reference or Visit ID. Check updates online and show your Visit Pass when you arrive.</p>
+                    <p>Keep your request reference or Visit ID. Check your visit online, show your Visit Pass when you arrive, and follow any document pickup updates.</p>
                 </li>
             </ol>
         </section>
@@ -171,6 +171,10 @@
                 <details class="faq-item">
                     <summary>How do I check my visit or recover my reference?</summary>
                     <div class="faq-body">Open <b>Check My Visit</b> using the reference on your Visit Pass. A pending appointment has a request reference; a Visit ID is assigned when the schedule is confirmed. To find previous visits, open <b>History</b> in the visitor portal and verify the email used for your visit. Visitors without email can ask OSS staff for help at the counter.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>How do I pick up my document once it is ready?</summary>
+                    <div class="faq-body">Check <b>Check My Visit</b> for your document status. When it says <b>Ready for pickup</b>, go to OSS during office hours. Open your visit using your Visit ID, then select <b>Join pickup queue</b>. Bring a valid ID for verification. Pickup depends on walk-in availability.</div>
                 </details>
                 <details class="faq-item">
                     <summary>Can I use the portal outside office hours?</summary>
@@ -390,7 +394,7 @@
     <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261121-consistent-visit-times"></script>
+    <script src="landing.js?v=20261123-visit-instructions"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
     <script src="../shared/portal-api.js?v=20261120-public-queue-isolation"></script>

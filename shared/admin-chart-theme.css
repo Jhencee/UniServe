@@ -74,14 +74,22 @@ body #content .admin-service-dashboard .admin-insight-card { display:flex; flex-
 body #content .admin-service-dashboard .admin-insight-card .card-pad { flex:1; padding-top:20px; padding-bottom:20px; }
 body #content .admin-service-dashboard .admin-insight-card .analytics-footer { line-height:1.7; }
 .admin-insight-card .card-pad > :not(.helper-empty) svg { display:block; width:100%; height:auto; }
+.admin-insight-card .card-pad .appointment-outcomes-chart .dashboard-donut { gap:18px; }
+.admin-insight-card .card-pad .appointment-outcomes-chart .dashboard-donut > svg { width:124px; height:124px; flex:0 0 124px; }
+@media(max-width:420px) {
+  .admin-insight-card .card-pad .appointment-outcomes-chart .dashboard-donut { gap:12px; }
+  .admin-insight-card .card-pad .appointment-outcomes-chart .dashboard-donut > svg { width:108px; height:108px; flex-basis:108px; }
+}
 .admin-satisfaction { padding:6px 0; }
 .admin-satisfaction-heading { display:flex; align-items:baseline; gap:10px; }
 .admin-satisfaction-heading strong { font-size:1.3rem; font-weight:500; }
 .admin-satisfaction-heading span, .admin-satisfaction p, .admin-satisfaction-average { font-size:.74rem; color:var(--text-soft); }
+.feedback-columns { max-width:360px; margin:10px auto; }
+.feedback-columns text { fill:var(--text-soft); font-family:inherit; font-size:10px; }
 .feedback-distribution { display:grid; gap:10px; margin:18px 0 14px; }
 .feedback-distribution-row { display:grid; grid-template-columns:48px minmax(0,1fr) 24px; align-items:center; gap:10px; font-size:.72rem; color:var(--text-soft); }
 .feedback-distribution-track { height:6px; overflow:hidden; border-radius:999px; background:var(--border); }
-.feedback-distribution-track > div { height:100%; border-radius:inherit; background:var(--accent); }
+.feedback-distribution-track > div { height:100%; border-radius:inherit; background:var(--dashboard-chart-4); }
 .feedback-distribution-count { text-align:right; font-variant-numeric:tabular-nums; }
 .admin-satisfaction p { margin:0 0 18px; line-height:1.6; }
 .admin-insight-note { margin:0 20px; padding:10px 0 14px; border-top:1px solid var(--border); font-size:.7rem; line-height:1.6; color:var(--text-soft); }

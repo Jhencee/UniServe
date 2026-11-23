@@ -3320,9 +3320,10 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   .visit-choose-page .visit-calendar-link .btn { width:auto; text-align:left; }
 }
 @media(max-width:700px) {
-  #visitorApp.visitor-hub-layout .topbar { padding:6px 12px; }
+  #visitorApp.visitor-hub-layout .topbar { padding:5px 16px; }
   #visitorApp.visitor-hub-layout .topbar > div:first-child { flex:1 1 auto; }
   #visitorApp.visitor-hub-layout .topbar-right { margin-left:0; }
+  #visitorApp .visitor-actions > summary svg { width:18px; height:18px; }
   .visitor-section-bar { width:calc(100% - 28px); max-width:600px; padding:20px 0 0; }
 }
 

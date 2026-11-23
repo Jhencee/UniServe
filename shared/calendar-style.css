@@ -164,3 +164,25 @@ body #content .calendar-hours-card .calendar-time-range time::before { content:'
 body #content .calendar-hours-card .calendar-time-range time:last-child::before { content:'Closes'; }
 body #content .calendar-hours-card .card-head .btn { border:0; background:transparent; color:var(--accent-strong); }
 body #content .calendar-hours-card .card-head .btn:hover { background:var(--surface-2); }
+
+/* Visitor office calendar: restrained spacing and consistent status cells. */
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-toolbar { border-bottom:1px solid var(--border); padding-bottom:12px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-toolbar .btn { border:0; background:transparent; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-toolbar .btn:hover { background:var(--surface-2); }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-legend { margin:14px 0 8px; gap:8px 16px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-note { background:transparent; border-radius:0; padding:4px 0; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal #visitorCalendarDetails { margin-top:4px; padding:10px 0 0; border-top:1px solid var(--border); }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid { gap:4px; margin:12px 0; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day { border-radius:6px; gap:3px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.closed,
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.holiday,
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.special { background:color-mix(in srgb,var(--text-soft) 7%,var(--surface)); }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal { max-width:540px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .modal-head { border-bottom:0; padding-bottom:4px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-toolbar { border-bottom:0; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid { gap:2px; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-grid > span { font-weight:600; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.closed,
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.holiday,
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day.special { background:transparent; }
+body:is(:has(#visitorApp), :has(#landing)) .office-calendar-modal .ux-calendar-day .ux-calendar-dot { width:5px; height:5px; }
