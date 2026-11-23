@@ -400,4 +400,7 @@ body #visitorApp :is(.visitor-hub-nav .nav-item,.svc-card):hover {
   box-shadow:none;
 }
 body #visitorApp :is(.visitor-hub-nav .nav-item,.svc-card)::before { display:none; }
+/* Availability checks should not make a card move when it becomes enabled. */
+body #visitorApp .entry-method-card:not(:disabled),
+body #visitorApp .entry-method-card:not(:disabled):hover { transform:none; transition:none; }
 body #visitorApp .visitor-section-bar .home-back-arrow { justify-content:flex-start; }
