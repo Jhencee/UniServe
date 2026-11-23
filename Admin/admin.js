@@ -1314,7 +1314,7 @@ function appointmentActionsHtml(r){
   const mainIndex=buttons.findIndex(button=>button.includes('btn-primary'));
   const main=mainIndex<0?'':buttons.splice(mainIndex,1)[0];
   const actionIcons={'View details':'eye','Review requirements':'checkin','Review request':'eye','Reschedule':'calendar','Email details':'chat','Cancel':'x'};
-  const items=buttons.map(button=>{const label=button.match(/>([^<]+)<\/button>$/)?.[1],withIcon=button.replace(/>([^<]+)<\/button>$/,`>${icon(actionIcons[label]||'log',14)} $1</button>`);return withIcon.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); ');});
+  const items=buttons.map(button=>{const label=button.match(/">([^<]+)<\/button>$/)?.[1],withIcon=button.replace(/">([^<]+)<\/button>$/,`">${icon(actionIcons[label]||'log',14)} $1</button>`);return withIcon.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); ');});
   return `${main}<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
 }
 function showAppointmentAccess(id) {

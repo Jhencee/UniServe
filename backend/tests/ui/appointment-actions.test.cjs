@@ -14,5 +14,7 @@ test('table actions are direct and match the appointment status',()=>{
  const requested=c.appointmentActionsHtml({id:'a',status:'Requested',shared:true});assert.ok(requested.includes('Review request'));assert.ok(requested.includes('Cancel'));assert.ok(!requested.includes('Check in'));
  assert.ok(requested.indexOf('Review request')>requested.indexOf('class="kebab-menu"'));assert.ok(!requested.includes('btn-primary'));assert.ok(requested.includes('closeKebabs(); openApptDetail'));
  const booked=c.appointmentActionsHtml({id:'a',status:'Booked',date:'2026-10-13',shared:true});for(const label of ['View details','Reschedule','Email details','Cancel'])assert.ok(booked.includes(label));assert.ok(!booked.includes('More options'));assert.ok(!booked.includes('Check in'));assert.ok(!booked.includes('adminCheckInAppointment'));
+ assert.ok(booked.includes("onclick=\"closeKebabs(); UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='a'))\""));
+ assert.ok(booked.includes('> Email details</button>'));
  const cancelled=c.appointmentActionsHtml({id:'a',status:'Cancelled',shared:true});assert.ok(cancelled.includes('Email details'));assert.ok(!cancelled.includes('>Cancel</button>'));assert.ok(!cancelled.includes('Reschedule'));
 });
