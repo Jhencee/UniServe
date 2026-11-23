@@ -21,13 +21,13 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261123-brand-size-2">
+    <link rel="stylesheet" href="landing.css?v=20261123-status-alignment">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261123-compact-modals">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
     <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
     <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261123-compact-modals">
-    <link rel="stylesheet" href="landing-containers.css?v=20261123-brand-size-2">
+    <link rel="stylesheet" href="landing-containers.css?v=20261123-service-descriptions">
 </head>
 
 <body>
@@ -47,7 +47,6 @@
             <div class="nav-actions" id="navActions">
                 <a href="#services" class="nav-link">Services</a>
                 <a href="#how" class="nav-link">How it works</a>
-                <a href="#feedback" class="nav-link">Feedback</a>
                 <a href="#faq" class="nav-link">FAQ</a>
                 <a href="#contact" class="nav-link">Contact</a>
                 <button class="nav-link nav-link-btn nav-link-live" type="button" onclick="openPublicDisplay()">
@@ -55,8 +54,8 @@
                 </button>
                 <button class="nav-link nav-link-btn" type="button" onclick="showLogin()">Login</button>
                 <span class="nav-sep" aria-hidden="true"></span>
-                <a href="../User/user.html?flow=checkvisit" class="nav-link">Check My Visit</a>
-                <a href="../User/user.html" class="nav-link nav-link-primary">Start a Visit</a>
+                <a href="../User/user.html?flow=checkvisit" class="nav-link">Check Visit</a>
+                <a href="../User/user.html" class="nav-link nav-link-primary">Get Started</a>
             </div>
         </nav>
 
@@ -82,11 +81,12 @@
             <div class="hero-inner">
                 <span class="eyebrow">Student &amp; Guest</span>
                 <h1>One Place to Begin. <br> <em>Every</em> Step Made Within.</h1>
-                <p>Find the service you need, request an appointment or join the walk-in queue, and track your visit in one place.</p>
+                <p>Find a service, join the queue or request an appointment, and track your visit.</p>
                 <div class="hero-actions" aria-label="Visitor actions">
-                    <a class="btn btn-primary" href="../User/user.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Start a Visit</a>
+                    <a class="btn btn-primary" href="../User/user.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Get Started</a>
                     <a class="btn btn-ghost" href="../User/user.html?flow=checkvisit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg>Check My Visit</a>
                 </div>
+                <div id="heroFeedback" class="hero-feedback" hidden></div>
             </div>
         </header>
 
@@ -96,7 +96,6 @@
 
         <section class="section-pad" id="services">
             <div class="section-head">
-                <div class="kicker">Services &amp; requirements</div>
                 <h2>Choose your service</h2>
             </div>
             <div class="svc-filter">
@@ -112,39 +111,29 @@
 
         <section class="section-pad" id="how">
             <div class="section-head">
-                <div class="kicker">How it works</div>
                 <h2>Three simple steps</h2>
             </div>
             <ol class="steps">
                 <li class="step">
                     <span class="step-num">1</span>
                     <h3>Choose your service</h3>
-                    <p>Select a service to see its requirements. Have your contact details and supporting documents ready.</p>
+                    <p>Choose the OSS service you need and check which documents to prepare.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">2</span>
                     <h3>Choose how to visit</h3>
-                    <p>Join the walk-in queue while intake is open, or request an appointment for staff approval.</p>
+                    <p>Join the walk-in queue during office hours, or request an appointment and wait for OSS confirmation.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">3</span>
                     <h3>Follow your visit</h3>
-                    <p>Keep your request reference or Visit ID. Check your visit online, show your Visit Pass when you arrive, and follow any document pickup updates.</p>
+                    <p>Keep your request reference or Visit ID. Use Check My Visit to track your status.</p>
                 </li>
             </ol>
         </section>
 
-        <section class="section-pad" id="feedback">
-            <div class="section-head">
-                <div class="kicker">Visitor feedback</div>
-                <h2>What visitors say about UniServe</h2>
-            </div>
-            <div id="feedbackBody"></div>
-        </section>
-
         <section class="section-pad" id="faq">
             <div class="section-head">
-                <div class="kicker">Questions</div>
                 <h2>Frequently asked questions</h2>
             </div>
             <div class="faq-list">
@@ -170,11 +159,11 @@
                 </details>
                 <details class="faq-item">
                     <summary>How do I check my visit or recover my reference?</summary>
-                    <div class="faq-body">Open <b>Check My Visit</b> using the reference on your Visit Pass. A pending appointment has a request reference; a Visit ID is assigned when the schedule is confirmed. To find previous visits, open <b>History</b> in the visitor portal and verify the email used for your visit. Visitors without email can ask OSS staff for help at the counter.</div>
+                    <div class="faq-body">Use your request reference or Visit ID in <b>Check My Visit</b>. A Visit ID is assigned when your appointment is confirmed. To find past visits, open <b>Visit History</b> and verify your email. Visitors without email can ask OSS staff for help.</div>
                 </details>
                 <details class="faq-item">
                     <summary>How do I pick up my document once it is ready?</summary>
-                    <div class="faq-body">Check <b>Check My Visit</b> for your document status. When it says <b>Ready for pickup</b>, go to OSS during office hours. Open your visit using your Visit ID, then select <b>Join pickup queue</b>. Bring a valid ID for verification. Pickup depends on walk-in availability.</div>
+                    <div class="faq-body">When your document is <b>Ready for pickup</b>, visit OSS during office hours. Open your visit, select <b>Join pickup queue</b>, and bring a valid ID. Pickup depends on walk-in availability.</div>
                 </details>
                 <details class="faq-item">
                     <summary>Can I use the portal outside office hours?</summary>
@@ -195,8 +184,7 @@
 
         <section class="section-pad" id="contact">
             <div class="section-head">
-                <div class="kicker">Contact &amp; location</div>
-                <h2>Visit or reach the office</h2>
+                <h2>Contact</h2>
             </div>
             <div class="contact-grid">
                 <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -232,7 +220,7 @@
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
                         </svg></div>
-<div class="contact-details"><h3>Office hours</h3></div></div><div class="svc-bring"><div class="office-hours" id="contactOfficeHours"></div><div class="desc">Holiday and special hours may differ.</div><button class="btn btn-primary btn-sm contact-calendar-button" onclick="UniServeUX.visitorCalendar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Office calendar</span></button></div></article>
+<div class="contact-details"><h3>Office hours</h3></div></div><div class="svc-bring"><div class="office-hours" id="contactOfficeHours"></div><button class="btn btn-primary btn-sm contact-calendar-button" onclick="UniServeUX.visitorCalendar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Office calendar</span></button></div></article>
             </div>
         </section>
 
@@ -246,15 +234,13 @@
                             <div class="fb-sub">Office of Student Services</div>
                         </div>
                     </div>
-                    <p>The visitor and service portal of the Office of Student Services, Polytechnic University of the
-                        Philippines, Santa Maria Campus &mdash; simplifying every visit from start to service.</p>
+                    <p>The visitor portal for PUP Santa Maria's Office of Student Services.</p>
                 </div>
                 <div class="footer-col">
                     <h4>Explore</h4>
                     <a href="../User/user.html?flow=checkvisit">Check My Visit</a>
                     <a href="#" onclick="openPublicDisplay(); return false;">Queue Display</a>
                     <a href="#services">Services &amp; requirements</a>
-                    <a href="#feedback">Visitor feedback</a>
                     <a href="#faq">FAQ</a>
                     <a href="#contact">Contact the office</a>
                 </div>
@@ -369,7 +355,7 @@
                     <div id="loginTurnstile" hidden><div id="loginTurnstileWidget"></div><p id="loginTurnstileStatus" class="field-hint" role="status" aria-live="polite"></p></div>
                     <button type="submit" class="btn btn-primary btn-block" id="staffSignIn">Sign In</button>
                     <p class="login-account-help">Need an account? Contact your administrator.</p>
-                    <p class="login-visitor-link">Student or guest? <a href="../User/user.html">Start a visit</a></p>
+                    <p class="login-visitor-link">Student or guest? <a href="../User/user.html">Visitor Portal</a></p>
                 </form>
             </div>
         </div>
@@ -394,7 +380,7 @@
     <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261123-visit-instructions"></script>
+    <script src="landing.js?v=20261123-service-descriptions"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
     <script src="../shared/portal-api.js?v=20261120-public-queue-isolation"></script>

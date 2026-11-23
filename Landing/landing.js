@@ -612,8 +612,9 @@ function renderServicesPreview() {
     <a class="svc-preview-card svc-preview-link" href="../User/user.html?service=${encodeURIComponent(s.key)}" aria-label="Start a visit for ${escapeHtml(s.label)}">
       <div class="svc-preview-head">
         <span class="svc-preview-ic">${icon(s.icon || 'home', 22)}</span>
-        <div><h3>${escapeHtml(s.label)}</h3><div class="desc">${escapeHtml(s.desc || '')}</div></div>
+        <div><h3>${escapeHtml(s.label)}</h3></div>
       </div>
+      ${s.desc ? `<p class="svc-preview-description">${escapeHtml(s.desc)}</p>` : '<p class="svc-preview-description" aria-hidden="true"></p>'}
       <div class="svc-bring">
         <div class="svc-bring-title">What to bring</div>
         ${s.requirements && s.requirements.length
@@ -629,30 +630,17 @@ let landingFeedbackSummary=null,landingFeedbackLoading=false,landingFeedbackFetc
 async function refreshLandingFeedback(){
  if(landingFeedbackLoading||Date.now()-landingFeedbackFetchedAt<30000)return;landingFeedbackLoading=true;
  try{const response=await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/public-feedback',{headers:{Accept:"application/json"},signal:AbortSignal.timeout(15000)});if(!response.ok)throw Error("Unavailable");landingFeedbackSummary=await response.json();landingFeedbackFetchedAt=Date.now();renderFeedbackSection();}
- catch(_){const el=document.getElementById("feedbackBody");if(el&&!landingFeedbackSummary)el.innerHTML='<div class="fb-empty">Feedback is temporarily unavailable.</div>';}
+ catch(_){ /* Keep the rating hidden until feedback can be loaded. */ }
  finally{landingFeedbackLoading=false;}
 }
 function renderFeedbackSection() {
-  const el = document.getElementById('feedbackBody');
-  if (!el) return;
-  if(!landingFeedbackSummary){el.innerHTML='<div class="fb-empty">Loading feedback...</div>';refreshLandingFeedback();return;}
-  const n=landingFeedbackSummary.total;
-  if(!n){el.innerHTML='<div class="fb-empty">No feedback yet. Ratings from completed visits will appear here.</div>';return;}
-  const avg=landingFeedbackSummary.average,satisfied=landingFeedbackSummary.satisfied,dist=landingFeedbackSummary.distribution;
-  el.innerHTML = `
-    <div class="fb-wrap">
-      <div class="fb-top">
-        <div class="fb-score">
-          <div class="fb-score-val">${avg.toFixed(1)}</div>
-          <div class="fb-score-stars" aria-hidden="true">${STARS(Math.round(avg))}</div>
-          <div class="fb-score-sub">${satisfied}% satisfied &middot; ${n} ${n === 1 ? 'response' : 'responses'}</div>
-        </div>
-        <div class="fb-bars">${dist.map(d => `
-          <div class="fb-bar-row"><span class="fb-bar-lbl">${d.s} &#9733;</span><span class="fb-bar-track"><span class="fb-bar-fill" style="width:${Math.round(d.count / n * 100)}%"></span></span><span class="fb-bar-n">${d.count}</span></div>`).join('')}
-        </div>
-      </div>
-
-    </div>`;
+  const hero = document.getElementById('heroFeedback');
+  if(hero){
+    const count=landingFeedbackSummary?.total||0;
+    hero.hidden=!count;
+    hero.innerHTML=count?`<div class="hero-feedback-rating"><span class="hero-feedback-stars" aria-hidden="true">${STARS(Math.round(landingFeedbackSummary.average))}</span><strong>${landingFeedbackSummary.average.toFixed(1)} <span class="hero-feedback-scale">/ 5</span></strong></div>`:'';
+    if(count)hero.setAttribute('aria-label',`Average visitor rating: ${landingFeedbackSummary.average.toFixed(1)} out of 5`);
+  }
 }
 
 function renderLandingInfo() {
@@ -746,18 +734,10 @@ window.addEventListener('storage', e => { if (e.key === DB_KEY) renderLandingLiv
 window.addEventListener('office-calendar-change', () => { applyPortalAvailability(); renderOfficeStatus(); if (!document.getElementById('publicDisplay').hidden) renderPublicDisplay(); });
 
 function contactHoursHtml() {
-  const cfg = OfficeCalendar.get(), names = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], groups = [];
-  for (const i of [1,2,3,4,5,6,0]) {
-    const day = cfg.weekly[i], key = day.open ? day.start + '-' + day.end : 'closed';
-    const last = groups[groups.length - 1];
-    if (last && last.key === key) last.days.push(names[i]);
-    else groups.push({key,days:[names[i]],day});
-  }
-  const rows = groups.map(g => {
-    const label = g.days.length > 1 ? g.days[0] + '\u2013' + g.days[g.days.length-1] : g.days[0];
-    const hours = g.day.open ? OfficeCalendar.clock(g.day.start).replace(':00', '') + ' \u2013 ' + OfficeCalendar.clock(g.day.end).replace(':00', '') : 'Closed';
-    return '<div class="office-hours-row"><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(hours)+'</dd></div>';
-  });
-  if (cfg.lunch.enabled) rows.push('<div class="office-hours-row office-hours-lunch"><dt>Lunch</dt><dd>'+escapeHtml(OfficeCalendar.clock(cfg.lunch.start).replace(':00', '')+' \u2013 '+OfficeCalendar.clock(cfg.lunch.end).replace(':00', ''))+'</dd></div>');
-  return '<dl>'+rows.join('')+'</dl>';
+  if (!OfficeCalendar.ready()) return '<p class="desc">Hours temporarily unavailable.</p>';
+  const date = OfficeCalendar.parts().date, day = OfficeCalendar.day(date);
+  const hours = day.open ? OfficeCalendar.clock(day.start).replace(':00', '') + ' \u2013 ' + OfficeCalendar.clock(day.end).replace(':00', '') : 'Closed';
+  const intervals = OfficeCalendar.intervals(date);
+  const lunch = intervals.length > 1 ? '<div class="desc">Lunch: '+escapeHtml(OfficeCalendar.clock(intervals[0][1]).replace(':00', '')+' \u2013 '+OfficeCalendar.clock(intervals[1][0]).replace(':00', ''))+'</div>' : '';
+  return '<div class="desc">Today: '+escapeHtml(hours)+'</div>'+lunch;
 }

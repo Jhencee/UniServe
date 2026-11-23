@@ -850,9 +850,9 @@ async function refreshWalkInEntryAvailability() {
     if(document.getElementById('walkInEntryButton')===button){button.disabled=true;status.textContent='Walk-in availability could not be verified. Please try again later.';}
   }
 }
-function selectedBarHtml(ic, title, svc) {
+function selectedBarHtml(title, svc) {
   return `<div class="svc-selected-bar">
-      <div class="lbl">${icon(ic, 16)} &nbsp;${title}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; ${escapeHtml(svc.label)}</small></div>
+      <div class="lbl">${title}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; ${escapeHtml(svc.label)}</small></div>
       <button class="btn btn-ghost btn-sm" onclick="uxGoStep(2)">Change entry method</button>
     </div>`;
 }
@@ -892,14 +892,14 @@ function renderVisitWalkinForm() {
   const svc = visitSelectedService, db = loadDB(), isStudent = visitVisitorType === 'Student';
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
-    ${selectedBarHtml('ticket', 'Walk in today', svc)}
+    ${selectedBarHtml('Walk in today', svc)}
     <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmWalkInPrompt')"><div class="chat-contact-head"><h3>Your details</h3><p>Complete your information, then review it before getting your queue number.</p></div>
       <fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('q', isStudent)}
       ${disabilityPriorityHtml('q')}</fieldset>
-      <fieldset class="visitor-form-section"><legend>Contact details</legend>
+      <fieldset class="visitor-form-section"><legend>Contact details</legend><div class="form-row">
       <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
       <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="juan.delacruz@gmail.com" required><p class="field-hint">Email verification is required before continuing.</p><div class="field-error"></div></div>
-      </fieldset><p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch the &ldquo;Now Serving&rdquo; board and go to OSS when called.</p>
+      </div></fieldset><p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch for it under &ldquo;Now calling&rdquo; and proceed to the assigned counter when called.</p>
       ${visitorTermsHtml('q')}
       <button class="btn btn-gold btn-block" onclick="confirmWalkInPrompt()">${icon('check', 16)} Review details</button>
     </div>`;
@@ -967,8 +967,8 @@ function renderVisitScheduleForm() {
   const svc = visitSelectedService, isStudent = visitVisitorType === 'Student', reqs = svc.requirements || [];
   document.getElementById('visitorContent').innerHTML = `
     ${stepperHtml(3)}
-    ${selectedBarHtml('calendar', 'Request an appointment', svc)}
-    <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose your preferred date and available time. Staff will approve or reschedule your request.</p></div>
+    ${selectedBarHtml('Request an appointment', svc)}
+    <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose a date and time. OSS will confirm or reschedule your request.</p></div>
       <fieldset class="visitor-form-section"><legend>Schedule</legend><input id="bkOffice" type="hidden" value="">
       <div class="form-row"><div class="field"><label for="bkDate">Preferred date *</label><input id="bkDate" type="date" min="${OfficeCalendar.parts().date}" onchange="refreshBookingSlots()" required></div><div class="field"><label for="bkTime">Available time slot *</label><select id="bkTime" required disabled><option value="">Choose a date first</option></select></div></div><p id="bkSlotStatus" class="field-hint" role="status" aria-live="polite"></p>
       </fieldset><fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('bk', isStudent)}
@@ -1383,7 +1383,7 @@ document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
 window.addEventListener('pageshow', refreshActiveVisitorTicket);
 
 function renderCheckVisitScreen() {
-  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my reference?</summary><p>Find your Visit ID on your Visit Pass or confirmation email. A pending appointment has a request reference. To collect a document, use the original visit's ID to check its pickup status.</p></details></div>`;
+  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my Visit ID or request reference?</summary><p>For a walk-in, find your <b>Visit ID</b> on your <b>Visit Pass</b>. For an appointment, use your <b>request reference</b> while it is pending. Once confirmed, find your <b>Visit ID</b> on your Visit Pass or appointment confirmation email. For document pickup, use the original visit's ID to check its status.</p></details></div>`;
 }
 
 async function lookupMyVisit() {

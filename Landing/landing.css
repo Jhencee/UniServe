@@ -940,13 +940,17 @@ a.is-disabled:hover {
 }
 
 .status-sub {
-    font-size: .84rem;
+    font-size: .78rem;
+    line-height: 1.5;
     color: var(--text-soft);
     margin-top: 2px;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow-x: auto;
 }
 
 @media screen and (max-width:600px) {
-    .status-sub .status-next-opening { display:block; }
+    .status-sub .status-next-opening { display:inline; }
 }
 
 .status-num {
@@ -1315,150 +1319,6 @@ a.is-disabled:hover {
     font-size: .95rem;
 }
 
-.fb-wrap {
-    width: 100%;
-}
-
-.fb-top {
-    display: grid;
-    grid-template-columns: 240px minmax(0, 1fr);
-    gap: 64px;
-    align-items: center;
-    padding-bottom: 32px;
-    border-bottom: 1px solid var(--border);
-}
-
-.fb-score-val {
-    font-family: var(--font-display);
-    font-variant-numeric: lining-nums tabular-nums;
-    font-size: 4rem;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--accent-strong);
-}
-
-.fb-score-stars {
-    margin-top: 10px;
-    font-size: 1.1rem;
-    letter-spacing: 3px;
-    color: var(--accent);
-}
-
-.fb-score-sub {
-    margin-top: 8px;
-    font-size: .86rem;
-    color: var(--text-soft);
-}
-
-.fb-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.fb-bar-row {
-    display: grid;
-    grid-template-columns: 40px 1fr 32px;
-    align-items: center;
-    gap: 14px;
-    font-size: .84rem;
-    color: var(--text-soft);
-}
-
-.fb-bar-lbl {
-    font-weight: 600;
-    color: var(--text);
-    white-space: nowrap;
-}
-
-.fb-bar-track {
-    display: block;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--border);
-    overflow: hidden;
-}
-
-.fb-bar-fill {
-    display: block;
-    height: 100%;
-    border-radius: 999px;
-    background: var(--accent);
-}
-
-.fb-bar-n {
-    text-align: right;
-    font-variant-numeric: lining-nums tabular-nums;
-}
-
-.fb-comments {
-    list-style: none;
-}
-
-.fb-entry {
-    display: grid;
-    grid-template-columns: 96px minmax(0, 1fr) auto;
-    align-items: baseline;
-    gap: 20px;
-    padding: 18px 0;
-    border-bottom: 1px solid var(--border);
-}
-
-.fb-entry-stars {
-    color: var(--accent);
-    letter-spacing: 2px;
-    font-size: .85rem;
-    white-space: nowrap;
-}
-
-.fb-entry-text {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: .95rem;
-    color: var(--text);
-}
-
-.fb-entry-meta {
-    font-size: .78rem;
-    color: var(--text-soft);
-    white-space: nowrap;
-}
-
-.fb-empty {
-    padding: 28px 0;
-    color: var(--text-soft);
-    font-size: .95rem;
-}
-
-@media (max-width: 700px) {
-    .fb-top {
-        grid-template-columns: 1fr;
-        gap: 28px;
-    }
-
-    .fb-entry {
-        grid-template-columns: 1fr auto;
-        gap: 6px 12px;
-    }
-
-    .fb-entry-text {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        white-space: normal;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-    }
-
-    .fb-entry-meta {
-        white-space: normal;
-        text-align: right;
-    }
-}
-
 .faq-list {
     max-width: 860px;
     display: flex;
@@ -1538,10 +1398,6 @@ a.is-disabled:hover {
 .contact-card a { color: inherit; text-decoration: none; overflow-wrap: anywhere; }
 .contact-card a.contact-map-link { color: var(--accent-strong); }
 .contact-card a:hover { color: var(--accent); }
-.office-hours-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; padding: 5px 0; font-size: .8rem; line-height: 1.6; }
-.office-hours-row dt { color: var(--text-soft); }
-.office-hours-row dd { margin: 0; color: var(--text); white-space: nowrap; }
-.office-hours-lunch { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 10px; }
 @media (max-width: 1200px) {
     .contact-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .contact-card { grid-column: span 2; }
@@ -1584,8 +1440,6 @@ a.is-disabled:hover {
 #landing #contact h3 { font-size: .8125rem; }
 #landing #contact .svc-bring { margin: 10px 0 0; padding: 0; border: 0; }
 #landing #contact .desc { margin-top: 3px; font-size: .75rem; line-height: 1.6; }
-#landing #contact .office-hours-row { padding: 1px 0; gap: 4px 8px; font-size: .75rem; }
-#landing #contact .office-hours-lunch { margin: 3px 0 0; padding-top: 3px; border: 0; }
 #landing #contact .contact-calendar-button {
     justify-content: flex-start;
     width: auto;
@@ -1604,7 +1458,6 @@ a.is-disabled:hover {
     #landing #contact .contact-card:nth-child(n+3) { border-top: 1px solid var(--border); }
     #landing #contact .contact-card:last-child { grid-column: 1 / -1; }
     #landing #contact .office-hours { display: flex; flex-wrap: wrap; gap: 4px 20px; }
-    #landing #contact .office-hours-lunch { margin: 0; padding: 1px 0; }
 }
 @media (max-width: 600px) {
     #landing #contact .contact-grid { grid-template-columns: minmax(0, 1fr); }
@@ -1742,6 +1595,7 @@ a.is-disabled:hover {
     color: #fff;
     line-height: 1.15;
 }
+@media(min-width:961px) { #landing .footer-brand .fb-name { font-size:1.15rem; } }
 
 .footer-brand .fb-sub {
     font-size: .8rem;
@@ -2835,6 +2689,10 @@ html[data-theme="dark"] .status-lbl {
 #landing .status-cell, #landing .status-cell:first-child, #landing .status-cell:nth-child(2) { min-width:0; padding:20px 22px; }
 #landing .status-main { grid-column:auto; align-items:center; border-bottom:0; }
 #landing .status-main .status-title { margin-top:4px; }
+@media(min-width:961px) {
+  #landing .status-main { align-items:flex-start; }
+  #landing .status-cell:not(.status-main) { justify-content:flex-end; }
+}
 #landing .status-title, #landing .status-num { font-family:var(--font-body); font-size:1.2rem; font-weight:600; line-height:1.3; white-space:normal; overflow-wrap:anywhere; }
 #landing .status-num.long { font-size:1rem; }
 @media(max-width:700px) {
@@ -2981,6 +2839,10 @@ button.forgot-link { display:inline-flex; align-items:center; min-height:36px; m
 #landing .section-pad { padding: 64px 6vw; background: var(--bg); }
 #landing .section-pad + .section-pad { border-top: 1px solid var(--border); }
 #landing .section-head { margin-bottom: 28px; }
+@media(min-width:961px) {
+  #landing .section-head { margin-bottom:20px; }
+  #landing .steps .step { padding:20px; }
+}
 #landing .section-head .kicker { font-size: .7rem; font-weight: 600; letter-spacing: .09em; margin-bottom: 10px; gap: 9px; }
 #landing .section-head .kicker::before { width: 18px; height: 2px; }
 #landing .section-head h2 { font-size: clamp(1.6rem, 2.5vw, 2rem); line-height: 1.3; }
@@ -3004,7 +2866,6 @@ button.forgot-link { display:inline-flex; align-items:center; min-height:36px; m
 #landing .faq-item[open] { background: var(--surface); box-shadow: none; }
 #landing .faq-item summary { padding: 20px 24px; font-size: .88rem; font-weight: 500; }
 #landing .faq-body { padding: 0 24px 22px; max-width: 900px; font-size: .84rem; }
-#landing .fb-top, #landing .fb-empty { padding: 28px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: none; }
 #landing .contact-calendar-button { background: transparent; color: var(--accent-strong); border: 1px solid var(--border); box-shadow: none; }
 #landing .contact-calendar-button:hover { background: var(--surface-2); }
 @media(max-width:600px) {
@@ -3221,7 +3082,7 @@ body :is(.landing-nav, #publicDisplay .pd-top) {
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline { align-items:center; gap:var(--brand-gap); }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name { display:flex; flex-direction:column; justify-content:center; gap:2px; line-height:var(--brand-heading-line); }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name .brand-title { font-family:var(--font-display); font-size:var(--brand-heading-size); line-height:var(--brand-heading-line); font-weight:700; letter-spacing:-.01em; }
-@media(min-width:961px) { body #landing .landing-nav .brandline .name .brand-title { font-size:1.3rem; } }
+@media(min-width:961px) { body #landing .landing-nav .brandline .name .brand-title { font-size:1.15rem; } }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline .name small { margin:0; padding:0; font-size:var(--brand-subtitle-size); line-height:var(--brand-subtitle-line); letter-spacing:normal; text-transform:none; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) { position:relative; align-self:stretch; flex-shrink:0; width:var(--brand-logo-width); height:auto; line-height:0; }
 body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #crestSlotPD, #crestSlotTerms) img { position:absolute; top:50%; left:50%; width:135%; height:135%; max-width:none; object-fit:contain; transform:translate(-50%,-50%); }

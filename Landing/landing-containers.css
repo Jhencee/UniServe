@@ -1,4 +1,43 @@
 /* Container refinements only: preserve the existing hero, palette and content. */
+body #landing .hero-feedback:not([hidden]) { display:flex; flex-direction:column; align-items:flex-start; gap:3px; margin-top:18px; color:#fff; font-size:.8rem; line-height:1.4; }
+body #landing .hero-feedback-rating { display:flex; align-items:center; gap:8px; }
+body #landing .hero-feedback-stars { color:#ffe2a8; letter-spacing:2px; }
+body #landing .hero-feedback-scale { color:rgba(255,255,255,.7); font-weight:400; }
+@media (min-width:961px) {
+ body #landing .landing-nav { gap:16px; }
+ body #landing .landing-nav .brandline { flex:0 1 auto; min-width:0; }
+ body #landing .landing-nav .nav-actions { flex:0 0 auto; gap:2px; }
+ body #landing .landing-nav .nav-link { padding-inline:6px; }
+ body #landing .landing-nav .nav-link-primary { padding-inline:12px; }
+ body #landing .section-pad { padding-top:52px; padding-bottom:52px; }
+ body #landing .section-head { margin-bottom:20px; }
+ body #landing #services .svc-preview-grid { gap:16px; }
+ body #landing #services .svc-preview-grid > .svc-preview-card { padding:18px 20px; gap:14px; }
+ body #landing #services .svc-preview-head { gap:12px; flex:0 0 auto; min-height:48px; }
+ body #landing #services .svc-preview-head > div { display:flex; align-items:center; min-height:32px; }
+ body #landing #services .svc-preview-head h3 { margin:0; }
+ body #landing #services .svc-preview-ic { width:32px; height:32px; }
+ body #landing #services .svc-preview-ic svg { width:16px; height:16px; }
+ body #landing #services .svc-preview-description { min-height:3.2em; margin:0; color:var(--text-soft); font-size:.76rem; line-height:1.6; }
+ body #landing #services .svc-preview-grid .svc-bring { padding-top:12px; }
+ body #landing #services .svc-preview-grid .svc-bring ul { margin-top:8px; }
+ body #landing #how .steps { gap:16px; }
+ body #landing .steps > .step { padding:20px; }
+ body #landing #how .steps { gap:0; padding:20px 0; border:1px solid var(--border); border-radius:8px; background:var(--surface); overflow:hidden; }
+ body #landing #how .steps > .step { display:grid; grid-template-columns:32px minmax(0,1fr); grid-template-rows:auto 1fr; align-content:start; align-items:start; column-gap:12px; row-gap:6px; padding:0 20px; border:0; border-radius:0; background:transparent; }
+ body #landing #how .steps > .step + .step { border-left:1px solid var(--border); }
+ body #landing #how .steps > .step:hover { background:transparent; box-shadow:none; transform:none; }
+ body #landing #how .step-num { grid-column:1; grid-row:1 / 3; width:32px; height:32px; margin:0; }
+ body #landing #how .step h3 { grid-column:2; margin:0; line-height:1.4; }
+ body #landing #how .step p { grid-column:2; margin:0; text-align:left; line-height:1.6; }
+ body #landing #faq .faq-item summary { padding:16px 20px; }
+ body #landing #faq .faq-body { padding:0 20px 20px; }
+ body #landing #contact .svc-preview-head { gap:12px; min-height:32px; align-items:center; }
+ body #landing #contact .svc-preview-ic { width:32px; height:32px; border-radius:9px; }
+ body #landing #contact .svc-preview-ic svg { width:16px; height:16px; }
+ body #landing #contact .contact-details h3 { margin:0; font-size:.94rem; font-weight:600; line-height:1.5; }
+}
+@media (max-width:960px) { body #landing .hero-feedback:not([hidden]) { margin-top:16px; } }
 body #landing :is(.svc-preview-grid, .steps, .feat-grid) {
  gap:20px;
  align-items:stretch;
@@ -25,6 +64,7 @@ body #landing .svc-preview-grid .svc-preview-head {
  flex:1;
 }
 body #landing .svc-preview-grid .svc-preview-head > div { min-width:0; }
+body #landing .svc-preview-description { margin:0; color:var(--text-soft); font-size:.76rem; line-height:1.6; }
 body #landing .svc-preview-grid .svc-preview-ic { flex-shrink:0; }
 body #landing .svc-preview-grid h3 { margin:0 0 6px; }
 body #landing .svc-preview-grid .desc { margin:0; }
@@ -38,13 +78,12 @@ body #landing .svc-preview-grid .svc-bring li + li { margin-top:6px; }
 body #landing .svc-preview-link:focus-visible { outline:2px solid var(--accent); outline-offset:4px; }
 body #landing .step h3 { margin:0 0 10px; }
 body #landing .step p { margin:0; }
-body #landing :is(.faq-list, .fb-top, .fb-empty, #contact .contact-grid) {
+body #landing :is(.faq-list, #contact .contact-grid) {
  box-sizing:border-box;
  border:1px solid var(--border);
  border-radius:8px;
  box-shadow:none;
 }
-body #landing :is(.fb-top, .fb-empty) { padding:24px; }
 body #landing .faq-item summary { padding:20px 24px; }
 body #landing .faq-body { padding:0 24px 24px; }
 body #landing #contact .contact-grid { align-items:stretch; }
@@ -56,13 +95,13 @@ body #landing #contact .desc { overflow-wrap:anywhere; }
  body #landing .landing-nav .brandline, body #landing .landing-nav .name { min-width:0; }
  body #landing .landing-nav .brand-campus, body #landing .landing-nav .brand-separator { display:none; }
  body #landing :is(.svc-preview-grid, .steps, .feat-grid) { gap:14px; }
- body #landing :is(.svc-preview-grid > .svc-preview-card, .step, .feat-card, .fb-top, .fb-empty) { padding:20px; }
+ body #landing :is(.svc-preview-grid > .svc-preview-card, .step, .feat-card) { padding:20px; }
  body #landing .svc-preview-grid > .svc-preview-card { gap:16px; }
  body #landing .faq-item summary { padding:18px 20px; }
  body #landing .faq-body { padding:0 20px 20px; }
 }
 /* Lift cards on hover without changing their border or background colors. */
-body #landing :is(#services, #how, #feedback, #contact) :is(.svc-preview-card, .step, .feat-card, .fb-top):hover {
+body #landing :is(#services, #how, #contact) :is(.svc-preview-card, .step, .feat-card):hover {
  border-color:var(--border);
  background:var(--surface);
  box-shadow:none;
@@ -70,11 +109,11 @@ body #landing :is(#services, #how, #feedback, #contact) :is(.svc-preview-card, .
 body #landing #contact .contact-card:hover { border-color:var(--border); background:transparent; }
 body #landing #services .svc-preview-card::before { display:none; }
 @media(hover:hover) and (prefers-reduced-motion:no-preference) {
- body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top) { transition:transform .2s ease; }
- body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top):hover { transform:translateY(-4px); }
+ body #landing :is(#services, #how) :is(.svc-preview-card, .step, .feat-card) { transition:transform .2s ease; }
+ body #landing :is(#services, #how) :is(.svc-preview-card, .step, .feat-card):hover { transform:translateY(-4px); }
 }
 @media(prefers-reduced-motion:reduce) {
- body #landing :is(#services, #how, #feedback) :is(.svc-preview-card, .step, .feat-card, .fb-top) { transition:none; transform:none; }
+ body #landing :is(#services, #how) :is(.svc-preview-card, .step, .feat-card) { transition:none; transform:none; }
 }
 /* Keep the footer identity legible on its original maroon background. */
 body #landing .footer-brand .fb-row { gap:12px; align-items:center; }
@@ -143,7 +182,7 @@ body #landing .privacy-note { text-align:left; }
  body #landing .status-main { grid-column:1; }
  body #landing .status-main > div { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 16px; width:100%; }
  body #landing .status-main .status-title { margin:0; padding:0; border-radius:0; background:transparent; font-size:.875rem; line-height:1.4; text-align:right; }
- body #landing .status-sub { grid-column:1 / -1; margin-top:4px; font-size:.78rem; line-height:1.6; }
+ body #landing .status-sub { grid-column:1 / -1; margin-top:4px; font-size:.75rem; line-height:1.5; }
  body #landing .status-cell:not(.status-main) { display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; gap:16px; padding:12px 18px; border-left:0; border-bottom:1px solid var(--border); }
  body #landing .status-cell:last-child { border-bottom:0; }
  body #landing .status-lbl { font-size:.75rem; letter-spacing:0; text-transform:none; flex-shrink:0; }
