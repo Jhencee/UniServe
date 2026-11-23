@@ -3081,8 +3081,8 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   .visitor-hub-brand { gap:8px; }
   .visitor-hub-brand #crestSlotF { display:flex; align-items:center; flex-shrink:0; }
   .visitor-hub-brand #crestSlotF img { width:40px!important; height:40px!important; transform:scale(1.2) !important; }
-  .visitor-hub-brand > span:last-child { height:40px; justify-content:center; font-size:20px; line-height:22px; gap:0; }
-  .visitor-hub-brand small { display:block; font-size:12px; line-height:14px; white-space:nowrap; }
+  .visitor-hub-brand > span:last-child { height:40px; justify-content:center; font-size:16px; line-height:19px; gap:0; }
+  .visitor-hub-brand small { display:block; font-size:11px; line-height:14px; white-space:nowrap; }
   #visitorApp .visitor-actions > summary { width:40px; height:40px; }
   #visitorApp .visitor-actions > summary svg { width:36px; height:36px; }
 }
@@ -3667,5 +3667,9 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
  #visitorApp .visit-choose-page .visit-calendar-link .field-hint { font-size:.73rem; line-height:1.6; }
 }
 /* Unavailable entry methods remain visible without inviting a click. */
-.entry-method-card:disabled { opacity:.55; cursor:not-allowed; box-shadow:none; transform:none; }
+.entry-method-card:disabled { opacity:1; cursor:not-allowed; box-shadow:none; transform:none; }
 .entry-method-card:disabled:hover { box-shadow:none; transform:none; border-color:var(--border); }
+@media(max-width:600px) {
+ #visitorApp .visit-choose-page .entry-method-card:disabled { grid-template-rows:auto auto auto; grid-template-areas:"ic title arrow" ". desc arrow" ". go go"; }
+ #visitorApp .visit-choose-page .entry-method-card:disabled .svc-go { display:block; margin:0; color:var(--text-soft); font-size:.72rem; line-height:1.4; }
+}

@@ -123,6 +123,8 @@ body #landing .privacy-note { text-align:left; }
 /* Mobile arrival: header, readable hero, equal actions, then live office status. */
 @media(max-width:600px) {
  body #landing .landing-nav { display:grid; grid-template-columns:minmax(0,1fr) 40px; align-items:center; padding:5px 16px; position:relative; z-index:30; }
+ body #landing .landing-nav .brandline .name .brand-title { font-size:16px; line-height:19px; }
+ body #landing .landing-nav .brandline .name small { font-size:11px; line-height:14px; }
  body #landing .landing-nav > .nav-menu-btn { display:inline-flex; align-items:center; justify-content:center; position:static; grid-column:2; grid-row:1; order:0; width:40px; height:40px; margin:0; padding:0; border:0; background:transparent; color:var(--text); font-size:20px; box-shadow:none; }
  body #landing .landing-nav .nav-actions { grid-column:1 / -1; }
  body #landing .hero { padding:44px 20px 28px; text-align:left; }
