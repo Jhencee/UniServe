@@ -9,7 +9,7 @@ function chatProfileValidation(profile) {
   return {first:isValidPersonName(profile.first),last:isValidPersonName(profile.last)};
 }
 function startContactChat() {
-  if(!isOfficeHours()){renderClosedScreen();return;}
+  if(!isOfficeHours()){toast('New chats are available during office hours. You can still resume an existing chat.', 'err');return;}
   const profile={first:document.getElementById('chatFirst').value.trim(),last:document.getElementById('chatLast').value.trim()};
   const valid=chatProfileValidation(profile);let ok=true;
   for(const [key,id,message] of [['first','fwChatFirst','Enter a valid first name.'],['last','fwChatLast','Enter a valid last name.']])ok=markField(id,valid[key],message)&&ok;
