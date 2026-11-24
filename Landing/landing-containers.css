@@ -3,6 +3,7 @@ body #landing .hero-feedback:not([hidden]) { display:flex; flex-direction:column
 body #landing .hero-feedback-rating { display:flex; align-items:center; gap:8px; }
 body #landing .hero-feedback-stars { color:#ffe2a8; letter-spacing:2px; }
 body #landing .hero-feedback-scale { color:rgba(255,255,255,.7); font-weight:400; }
+body #landing .status-sub { font-size:.7rem; }
 @media (min-width:961px) {
  body #landing .landing-nav { gap:16px; }
  body #landing .landing-nav .brandline { flex:0 1 auto; min-width:0; }
@@ -384,6 +385,16 @@ body #landing #contact.footer-contact .contact-map-link { display:inline-flex; a
 body #landing .landing-footer .footer-grid > .footer-col h4,
 body #landing #contact.footer-contact .section-head h2,
 body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) .contact-details h3 { font-weight:700; }
+body #landing .landing-footer .footer-grid > .footer-col :is(h4,a),
+body #landing #contact.footer-contact .section-head h2,
+body #landing #contact.footer-contact .contact-grid :is(h3,.desc,.desc a,.office-hours,.contact-calendar-button) { font-family:var(--font-body); font-size:.95rem; font-weight:400; line-height:1.6; color:rgba(255,255,255,.86); }
+body #landing .landing-footer .footer-grid > .footer-col h4,
+body #landing #contact.footer-contact .section-head h2,
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) .contact-details h3 { font-size:.95rem; font-weight:600; line-height:1.6; color:#fff; }
+body #landing .landing-footer .footer-grid > .footer-col a { padding-top:6px; padding-bottom:6px; }
+body #landing #contact.footer-contact .contact-grid { row-gap:6px; }
+body #landing #contact.footer-contact .office-hours .desc,
+body #landing #contact.footer-contact .contact-calendar-button { min-height:36px; }
 /* Use the same page inset for sections and both footer rows. */
 body #landing { --page-inset:6vw; }
 body #landing .section-pad,
@@ -435,7 +446,7 @@ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) {
  body #landing .status-main { grid-column:1; }
  body #landing .status-main > div { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:4px 16px; width:100%; }
  body #landing .status-main .status-title { margin:0; padding:0; border-radius:0; background:transparent; font-size:.875rem; line-height:1.4; text-align:right; }
- body #landing .status-sub { grid-column:1 / -1; margin-top:4px; font-size:.75rem; line-height:1.5; }
+ body #landing .status-sub { grid-column:1 / -1; margin-top:4px; font-size:.7rem; line-height:1.5; }
  body #landing .status-cell:not(.status-main) { display:flex; flex-direction:row-reverse; justify-content:space-between; align-items:center; gap:16px; padding:12px 18px; border-left:0; border-bottom:1px solid var(--border); }
  body #landing .status-cell:last-child { border-bottom:0; }
  body #landing .status-lbl { font-size:.75rem; letter-spacing:0; text-transform:none; flex-shrink:0; }

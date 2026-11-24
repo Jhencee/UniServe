@@ -589,7 +589,8 @@ function renderOfficeStatus() {
   const nowServing = serving.length ? serving.slice(0, 2).map(queueRef).join(', ') : 'None';
   const title = open ? 'Open now' : 'Closed';
   el.dataset.officeOpen = String(open);
-  const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? '' : OfficeCalendar.status().lunch ? escapeHtml(OfficeCalendar.status().message) : 'Next opening: <span class="status-next-opening">' + escapeHtml(OfficeCalendar.status().nextLabel) + '</span>');
+  const officeStatus = OfficeCalendar.status();
+  const sub = maint ? 'The visitor portal is temporarily unavailable' : (open ? '' : officeStatus.lunch ? escapeHtml(officeStatus.message) : 'Next opening: <span class="status-next-opening">' + escapeHtml(officeStatus.nextLabel) + '</span>');
   el.innerHTML = `
     <div class="status-cell status-main">
       <div><div class="status-lbl">Office status</div><div class="status-title">${title}</div>${sub ? `<div class="status-sub">${sub}</div>` : ''}</div>
