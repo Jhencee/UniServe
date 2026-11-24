@@ -599,6 +599,11 @@ function renderOfficeStatus() {
     <div class="status-cell"><div class="status-num${nowServing.length > 9 ? ' long' : ''}">${escapeHtml(nowServing)}</div><div class="status-lbl">Now serving</div></div>`;
 }
 
+let servicesPreviewExpanded = false;
+function toggleServicesPreview() {
+  servicesPreviewExpanded = !servicesPreviewExpanded;
+  renderServicesPreview();
+}
 function renderServicesPreview() {
   const grid = document.getElementById('svcPreviewGrid');
   if (!grid) return;
@@ -608,18 +613,19 @@ function renderServicesPreview() {
     || s.label.toLowerCase().includes(q)
     || (s.desc || '').toLowerCase().includes(q)
     || (s.requirements || []).some(r => r.toLowerCase().includes(q)));
-  grid.innerHTML = list.length ? list.map(s => `
+  const toggle = document.getElementById('svcPreviewToggle');
+  if (toggle) {
+    toggle.hidden = !!q || list.length <= 4;
+    toggle.setAttribute('aria-expanded', String(servicesPreviewExpanded));
+    toggle.innerHTML = `${servicesPreviewExpanded ? 'Show fewer services' : 'See more services'} <span class="svc-more-arrow${servicesPreviewExpanded ? ' is-expanded' : ''}" aria-hidden="true"></span>`;
+  }
+  const visible = q || servicesPreviewExpanded ? list : list.slice(0, 4);
+  grid.innerHTML = list.length ? visible.map(s => `
     <a class="svc-preview-card svc-preview-link" href="../User/user.html?service=${encodeURIComponent(s.key)}" aria-label="Start a visit for ${escapeHtml(s.label)}">
       <div class="svc-preview-head">
         <span class="svc-preview-ic">${icon(s.icon || 'home', 22)}</span>
-        <div><h3>${escapeHtml(s.label)}</h3></div>
-      </div>
-      ${s.desc ? `<p class="svc-preview-description">${escapeHtml(s.desc)}</p>` : '<p class="svc-preview-description" aria-hidden="true"></p>'}
-      <div class="svc-bring">
-        <div class="svc-bring-title">What to bring</div>
-        ${s.requirements && s.requirements.length
-          ? `<ul>${s.requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>`
-          : `<div class="muted" style="font-size:.86rem;">No documents required.</div>`}
+        <div class="svc-preview-copy"><h3>${escapeHtml(s.label)}</h3><p class="svc-preview-description">${escapeHtml(s.desc || '')}</p></div>
+        <span class="svc-preview-arrow" aria-hidden="true">&#8250;</span>
       </div>
     </a>`).join('')
     : `<div class="svc-empty">No service matches &ldquo;${escapeHtml(q)}&rdquo;. Try another word.</div>`;

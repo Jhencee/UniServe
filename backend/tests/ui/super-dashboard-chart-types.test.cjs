@@ -24,6 +24,13 @@ test('reference comparison charts retain stacked totals and each trend series',(
   if(type==='area')assert.equal((html.match(/fill-opacity=".22"/g)||[]).length,2);
  }
 });
+test('comparison charts use each supplied series color in the chart and legend',()=>{
+ const c=setup(),series=[{label:'Active',color:'#a12345',values:[3]},{label:'Disabled',color:'#687987',values:[1]}];
+ for(const type of ['stacked','grouped','line']){
+  const html=c.superComparisonChart(['Staff'],series,type,'Account status');
+  for(const color of ['#a12345','#687987'])assert.ok((html.match(new RegExp(color,'g'))||[]).length>=2);
+ }
+});
 test('bubble and opposing charts expose original counts without negative geometry',()=>{
  const c=setup();
  const bubbles=c.superBubbleChart([{label:'<Accounts>',count:6,days:3}],'Category activity');

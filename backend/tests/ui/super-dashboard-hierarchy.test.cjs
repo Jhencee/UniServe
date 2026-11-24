@@ -25,7 +25,7 @@ test('dashboard uses charts for account breakdowns without repeating account sta
 });
 test('dashboard counts denied events and keeps a fourteen-day activity series',()=>{
  const {html,trend}=preview();
- assert.match(html,/Failed or denied events<\/div><div class="val">1<\/div>/);
+ assert.match(html,/Failed or denied events \(last 14 days\)<\/div><div class="val">1<\/div>/);
  assert.equal(trend.values.length,14);assert.equal(trend.values.reduce((sum,value)=>sum+value,0),2);
  assert.ok(html.includes('Last 14 days'));
 });

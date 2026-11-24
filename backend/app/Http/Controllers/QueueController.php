@@ -55,6 +55,9 @@ class QueueController extends Controller
             'email' => [$assisted?'nullable':'required', 'email', 'max:120'],
             'isSenior' => ['boolean'], 'isPWD' => ['boolean'], 'possibleDuplicate' => ['boolean'],
         ]);
+        if ($data['visitorType'] === 'Student' && !empty($data['email']) && !str_ends_with($data['email'], '@iskolarngbayan.pup.edu.ph')) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Use your @iskolarngbayan.pup.edu.ph student email address.']);
+        }
         if($assisted){$d=$request->validate(['identityCheck'=>'required|string|min:5|max:500']);$data['email']=$data['email']??'';$data['assisted']=true;$data['assistedBy']=$actor->id;$data['identityCheck']=$d['identityCheck'];}
         else \App\Support\VisitorAccess::requireEmail($request,$data['email']);
         if(\Illuminate\Support\Facades\Schema::hasTable('service_catalog')){ $service=DB::table('service_catalog')->where('key',$data['serviceKey'])->first();abort_unless($service,422,'Unknown service.');$data['serviceLabel']=$service->label;}

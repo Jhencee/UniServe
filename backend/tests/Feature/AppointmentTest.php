@@ -13,9 +13,15 @@ beforeEach(function(){
 });
 afterEach(function(){CarbonImmutable::setTestNow();foreach(['queue_counters','shared_chats','shared_system_settings','shared_transactions','shared_visitor_log','shared_appointments','service_catalog','confidential_requests','confidential_cases','notification_outbox','system_audit','calendar_audit','office_calendar','queues','staff_users'] as $t)Schema::dropIfExists($t);});
 it('supports verified institutional email without allowing mailbox impersonation',function(){
- $d=appointmentInput();$d['email']='student@university.edu.ph';
+ $d=appointmentInput();$d['email']='student@iskolarngbayan.pup.edu.ph';
  $this->verifiedPostJson('/api/appointments',$d)->assertCreated();
  $this->postJson('/api/appointments',$d,['X-Visitor-Token'=>VisitorAccess::token('other@university.edu.ph')])->assertForbidden();
+});
+it('requires the student domain while allowing guest email addresses',function(){
+ $d=appointmentInput();
+ $this->verifiedPostJson('/api/appointments',$d)->assertUnprocessable()->assertJsonValidationErrors('email');
+ $d['type']='Guest';
+ $this->verifiedPostJson('/api/appointments',$d)->assertCreated();
 });
 it('releases an elapsed unconfirmed request once without classifying it as a no-show',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');

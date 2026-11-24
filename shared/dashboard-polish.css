@@ -16,9 +16,12 @@ body #content .analytics-dashboard :is(.overview-section-title, .super-dashboard
  letter-spacing:0;
  text-transform:none;
 }
-body #content .analytics-dashboard .analytics-metrics > .stat-card { min-height:128px; padding:18px 20px; border-radius:8px; }
+body #content .analytics-dashboard .analytics-metrics > .stat-card { min-height:96px; padding:16px 20px; border-radius:8px; }
 body #content .analytics-dashboard .analytics-metrics .lbl { color:var(--overview-secondary); line-height:1.5; padding-right:24px; }
 body #content .analytics-dashboard .analytics-metrics .val { font-size:2rem; font-weight:600; margin-top:10px; }
+body #content .stat-grid:not(.rpt-stat-grid) > .stat-card { box-sizing:border-box; min-height:96px; padding:16px 20px; border-radius:8px; }
+body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .lbl { color:var(--overview-secondary, var(--text-soft)); line-height:1.5; }
+body #content .stat-grid:not(.rpt-stat-grid) > .stat-card .val { font-size:2rem; font-weight:600; margin-top:10px; }
 body #content .analytics-dashboard :is(.metric-note, .card-head .desc, .analytics-footer, .helper-empty) { color:var(--overview-secondary); }
 body #content .analytics-dashboard .card { border-radius:8px; box-shadow:none; }
 body #content .analytics-dashboard .card-head { padding:18px 20px 0; }
@@ -35,7 +38,7 @@ body #content .analytics-dashboard .analytics-link { display:inline-flex; align-
 body #content .analytics-dashboard .analytics-link:hover { text-decoration:underline; text-underline-offset:4px; }
 body #content .analytics-dashboard .analytics-link:focus-visible { outline:2px solid var(--accent); outline-offset:4px; border-radius:2px; }
 @media(max-width:760px) {
- body #content .analytics-dashboard .analytics-metrics > .stat-card { min-height:120px; padding:16px; }
+ body #content .analytics-dashboard .analytics-metrics > .stat-card { min-height:96px; padding:16px; }
  body #content .analytics-dashboard .card-head { padding:16px 16px 0; }
  body #content .analytics-dashboard .card-pad { padding:14px 16px; }
  body #content .analytics-dashboard .analytics-footer { padding:8px 16px; }
@@ -43,9 +46,30 @@ body #content .analytics-dashboard .analytics-link:focus-visible { outline:2px s
 }
 /* Quiet inline icons shared by both staff dashboards. */
 body #content :is(.staff-overview,.system-overview) .dashboard-metric-label { display:flex; align-items:center; gap:7px; }
-.dashboard-metric-symbol { display:inline-flex; flex:0 0 16px; width:16px; height:16px; align-items:center; justify-content:center; color:var(--text-soft); }
+.dashboard-metric-symbol { display:inline-flex; flex:0 0 19px; width:19px; height:19px; align-items:center; justify-content:center; color:var(--text-soft); }
 .stat-card .dashboard-metric-label { display:flex; align-items:center; gap:7px; }
-.dashboard-metric-symbol svg { width:16px; height:16px; }
+.dashboard-metric-symbol svg { width:19px; height:19px; }
 /* Match the Admin overview accents to the maroon sidebar. */
 body #content .stat-card .dashboard-metric-symbol,
 body #content .stat-card .metric-icon { color:var(--accent); }
+
+/* Add quiet depth and motion to the two dashboard overviews. */
+body #content :is(.staff-overview,.system-overview).analytics-dashboard :is(.stat-card,.card) {
+ transition:box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+}
+@media (hover:hover) {
+ body #content :is(.staff-overview,.system-overview).analytics-dashboard :is(.stat-card,.card):hover {
+  transform:translateY(-2px);
+  border-color:color-mix(in srgb,var(--accent) 22%,var(--border));
+  box-shadow:0 8px 22px rgba(74,24,30,.08);
+ }
+}
+body #content :is(.staff-overview,.system-overview).analytics-dashboard .dashboard-bar-fill {
+ animation:dashboard-bar-appear .55s ease-out both;
+ transform-origin:left center;
+}
+@keyframes dashboard-bar-appear { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+@media (prefers-reduced-motion:reduce) {
+ body #content :is(.staff-overview,.system-overview).analytics-dashboard :is(.stat-card,.card,.dashboard-bar-fill) { animation:none; transition:none; }
+ body #content :is(.staff-overview,.system-overview).analytics-dashboard :is(.stat-card,.card):hover { transform:none; }
+}

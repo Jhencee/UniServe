@@ -3187,9 +3187,6 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visitor-hub-office-notice[hidden] { display:none; }
 .visitor-welcome .visitor-hub-office-notice { width:fit-content; max-width:100%; margin:20px auto 0; }
 .visitor-hub-office-notice svg { flex-shrink:0; }
-#visitorApp .visitor-hub-nav .nav-item[data-service="visit"] .visitor-hub-icon { background:var(--accent-strong); }
-#visitorApp .visitor-hub-nav .nav-item[data-service="visit"] .visitor-hub-icon svg { color:#fff; }
-#visitorApp .visitor-hub-nav .nav-item[data-service="visit"] .visitor-hub-label b { color:var(--accent-strong); }
 #visitorApp.visitor-hub-layout .topbar { flex-shrink:0; }
 @media(max-width:700px) {
   .visitor-hub { gap:26px; width:calc(100% - 28px); max-width:600px; padding:24px 0; margin:auto; }
@@ -3348,6 +3345,11 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .ph-phone-input input { border:0; border-radius:0; background:transparent; box-shadow:none; }
 .ph-phone-input input:focus { border:0; box-shadow:none; outline:none; }
 .ph-phone-input:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent); }
+#visitorApp .visit-details-form .field input:not([type="checkbox"]):not([type="file"]), #visitorApp .visit-details-form .field select { box-sizing:border-box; height:46px; }
+#visitorApp .visit-details-form .ph-phone-input { box-sizing:border-box; height:46px; }
+#visitorApp .visit-details-form .ph-phone-input input[type="tel"] { height:100%; min-height:0; }
+#visitorApp .visit-details-form .ph-phone-prefix { flex-basis:42px; }
+#visitorApp .visit-details-form .ph-phone-flag svg { width:20px; height:auto; }
 
 /* Simple requirement lists, shared with the landing-page treatment. */
 .req-box ul, .visit-choose-page .req-box ul, .visitor-requirements { display: flex; flex-direction: column; align-items: stretch; gap: 7px; list-style: none; padding: 0; margin: 0; }
@@ -3679,3 +3681,4 @@ html[data-theme] .printable-ticket .ticket-v2-stub, .printable-ticket .ticket-v2
  #visitorApp .visit-choose-page .entry-method-card:disabled .svc-go:empty { display:none; }
  #visitorApp .visit-choose-page .entry-method-card:disabled::after { content:none; }
 }
+

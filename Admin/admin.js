@@ -872,25 +872,17 @@ function renderDashboard() {
   const txns=db.transactions.filter(t=>!t.restricted&&t.createdAt&&dates.includes(OfficeCalendar.parts(new Date(t.createdAt)).date));
   const hourly=dates.length===1;
   const trend=hourly?{labels:Array.from({length:24},(_,i)=>String(i).padStart(2,'0')+':00'),values:Array.from({length:24},(_,i)=>txns.filter(t=>Number(OfficeCalendar.parts(new Date(t.createdAt)).time.slice(0,2))===i).length)}:{labels:dates.map(d=>d.slice(5)),values:dates.map(d=>txns.filter(t=>OfficeCalendar.parts(new Date(t.createdAt)).date===d).length)};
-  const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl dashboard-metric-label">'+dashboardMetricIcon(label)+label+'</div><div class="val">'+value+'</div><div class="metric-note">'+note+'</div></div>';
-  const task=(label,count,action,button)=>'<li><div><span>'+label+'</span><strong>'+count+'</strong></div><button type="button" class="analytics-link" onclick="'+action+'">'+button+'</button></li>';
+  const metric=(label,value)=>'<div class="stat-card"><div class="lbl dashboard-metric-label">'+dashboardMetricIcon(label)+label+'</div><div class="val">'+value+'</div></div>';
   document.getElementById('content').innerHTML='<div class="analytics-dashboard staff-overview admin-service-dashboard">'+
-    '<div class="analytics-heading"><div><h2>Today at OSS</h2><p>Queue status, scheduled arrivals, and items for review.</p></div><button type="button" class="btn btn-primary btn-sm" onclick="navigate(\'queue\')">Open queue</button></div>'+
-    '<section aria-label="Current queue summary"><div class="stat-grid analytics-metrics">'+
-    metric('Waiting',waiting.length,waiting.filter(q=>isDue(q)).length+' ready to be called')+
-    metric('Called',called,'Waiting for the visitor to respond')+
-    metric('Serving',serving,'Currently receiving service')+
-    metric('Completed today',completed,'Visits completed today')+'</div></section>'+
-    '<div class="admin-daily-work">'+dashboardScheduledVisitors(db)+
-    '<section class="card admin-review-card"><div class="card-head"><div><h3>Needs attention</h3><div class="desc">Current open items across all dates</div></div></div><div class="card-pad"><ul class="admin-review-list">'+
-    task('Appointment requests',requests,"openDashboardAppointments('Requested')",'Review requests')+
-    task('Schedule changes',changes,"openDashboardAppointments('Needs rescheduling')",'Review schedules')+
-    task('Unfinished visits',unfinished,"reviewRemainingVisits('Unfinished')",'Review visits')+
-    task('Documents for preparation',preparingDocuments,"openPendingDocuments()",'View documents')+
-    task('Documents ready for pickup',readyDocuments,"openReadyDocuments()",'View documents')+
-    task('Pending transactions',pending,"navigate('transactions')",'View transactions')+
-    '</ul></div><div class="analytics-footer"><button type="button" class="analytics-link" onclick="navigate(\'notifications\')">View notifications</button></div></section></div>'+
-    adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
+    '<section class="dash-section" aria-labelledby="adminLiveHeading"><h3 class="overview-section-title" id="adminLiveHeading">Current overview</h3><div class="stat-grid analytics-metrics">'+
+    metric('Waiting',waiting.length)+
+    metric('Called',called)+
+    metric('Serving',serving)+
+    metric('Completed today',completed)+'</div></section>'+
+    '<section class="dash-section" aria-label="Today and open work charts"><div class="dashboard-today-grid">'+
+    '<div class="card"><div class="card-head"><div><h3>Queue status</h3><div class="desc">Current queue and visits completed today</div></div></div><div class="card-pad">'+dashboardChart([{label:'Waiting',count:waiting.length},{label:'Called',count:called},{label:'Serving',count:serving},{label:'Completed today',count:completed}],'donut','Queue status: waiting '+waiting.length+', called '+called+', serving '+serving+', completed today '+completed)+'</div></div>'+
+    '<div class="card"><div class="card-head"><div><h3>Open work</h3><div class="desc">Current items across all dates</div></div></div><div class="card-pad">'+dashboardBarChart([{label:'Appointment requests',count:requests},{label:'Schedule changes',count:changes},{label:'Unfinished visits',count:unfinished},{label:'Preparing documents',count:preparingDocuments},{label:'Ready for pickup',count:readyDocuments},{label:'Pending transactions',count:pending}],'Open work by category')+'</div></div></div></section>'+
+    '<h3 class="overview-section-title">Activity and performance</h3>'+adminAnalyticsTabs()+'<section class="card admin-activity-card"><div class="card-head"><div><h3>Transaction activity</h3><div class="desc">'+dates[0]+' to '+dates[dates.length-1]+' &middot; '+(hourly?'Hourly':'Daily')+' records</div></div><button type="button" class="analytics-link" onclick="navigate(\'reports\')">Open reports</button></div><div class="card-pad">'+(txns.length?svgLineChart(trend,'Transactions in the selected period'):emptyChart('No transactions recorded in this period.'))+'</div></section>'+adminOfficeInsightsHtml(db,dates)+'</div>';
   window.adminDashboardTrendObserver?.disconnect();
   const plot=document.querySelector?.('.admin-activity-card .card-pad');
   if(plot&&txns.length){
@@ -909,15 +901,6 @@ function renderDashboard() {
     }
   }
 }
-function openDashboardAppointments(filter) {
-  apptFilter=filter;
-  appointmentView='list';
-  RANGES.appt={from:'',to:''};
-  staffViewMemory.appointments={...staffViewMemory.appointments,apptFilter:filter,appointmentView:'list'};
-  navigate('appointments');
-}
-
-
 let adminQueuePollTimer = null;
 let adminServiceClockTimer = null;
 function updateAdminServiceClocks() {
@@ -1164,16 +1147,8 @@ function appointmentViewSwitchHtml() {
   const calendarIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18M8 15h2M14 15h2"/></svg>';
   return `<div class="schedule-view-switch" role="group" aria-label="Schedule view">${[['list', 'List view', listIcon], ['calendar', 'Calendar view', calendarIcon]].map(([view, label, svg]) => `<button type="button" class="btn btn-ghost" title="${label}" aria-label="${label}" aria-pressed="${appointmentView === view}" onclick="setAppointmentView('${view}')">${svg}</button>`).join('')}</div>`;
 }
-function dashboardScheduledVisitors(db) {
-  const rows = db.appointments.filter(a => !a.restricted && a.date === OfficeCalendar.parts().date && a.status === 'Booked').sort(visitorTimeSort);
-  return `<section class="card scheduled-visitors-card"><div class="card-head"><div><h3>Today's scheduled visitors</h3><div class="desc">Confirmed visits awaiting check-in</div></div></div><div class="card-pad">${rows.length ? rows.slice(0, 4).map(r => arrivalVisitorHtml(r, { readOnly: true })).join('') : emptyChart('No visitors awaiting check-in today.')}</div><div class="analytics-footer"><span>${rows.length} awaiting check-in</span><button type="button" class="analytics-link" onclick="openVisitorSchedule()">View schedule</button></div></section>`;
-}
 function visitorTimeSort(a, b) {
   return String(UniServeUX.appointmentTime(a.time) || '99:99').localeCompare(String(UniServeUX.appointmentTime(b.time) || '99:99'));
-}
-function openVisitorSchedule() {
-  appointmentView = 'calendar'; visitorMonth = OfficeCalendar.parts().date.slice(0, 7); visitorDay = OfficeCalendar.parts().date;
-  navigate('appointments');
 }
 function setAppointmentView(view) {
   appointmentView = view; renderAppointments(true);
@@ -1712,7 +1687,6 @@ function renderTxnCard(keepSearch) {
 function setTxnService(key) { txnServiceFilter = key || undefined; txnFilter = 'all'; renderTxnCard(true); }
 function setTxnFilter(f) { txnFilter = f; document.querySelectorAll('#txnStatusNav button').forEach(b => b.classList.toggle('active', b.dataset.f === f)); renderTxnTable(); }
 async function openPendingDocuments() { navigate('transactions'); RANGES.txn={from:'',to:''};txnServiceFilter=undefined;staffViewMemory.transactions={fields:{},txnFilter:'preparing',txnServiceFilter:undefined};await renderTransactions();setTxnFilter('preparing'); }
-async function openReadyDocuments() { navigate('transactions'); RANGES.txn={from:'',to:''};txnServiceFilter=undefined;staffViewMemory.transactions={fields:{},txnFilter:'ready',txnServiceFilter:undefined};await renderTransactions();setTxnFilter('ready'); }
 function renderTxnTable() {
   const body = document.getElementById('txnBody');
   if (!body) return;

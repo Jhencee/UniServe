@@ -44,9 +44,9 @@ body #content .system-overview .oversight-alert p { font-size:.72rem; line-heigh
 body #content .system-overview .oversight-alert .analytics-link { font-size:.72rem; white-space:nowrap; }
 body #content .system-overview .oversight-timestamp { margin-top:8px; padding-top:10px; border-top:1px solid var(--border); font-size:.68rem; }
 body #content .system-overview .analytics-metrics { gap:16px; }
-body #content .system-overview .analytics-metrics > .stat-card { min-height:132px; padding:18px; }
-body #content .system-overview .analytics-metrics .lbl { min-height:34px; font-size:.75rem; line-height:1.5; }
-body #content .system-overview .analytics-metrics .val { margin-top:4px; font-size:1.85rem; line-height:1.2; }
+body #content .system-overview .analytics-metrics > .stat-card { min-height:96px; padding:16px 20px; }
+body #content .system-overview .analytics-metrics .lbl { min-height:0; font-size:.73rem; line-height:1.5; }
+body #content .system-overview .analytics-metrics .val { margin-top:10px; font-size:1.6rem; font-weight:500; line-height:1.2; }
 body #content .system-overview .analytics-metrics .metric-note { padding-top:10px; font-size:.7rem; line-height:1.5; }
 body #content .system-overview .dashboard-summary-grid { gap:16px; }
 body #content .system-overview .dashboard-summary-grid > .card { min-height:240px; }
@@ -64,8 +64,8 @@ body #content .system-overview .dashboard-trend-section .helper-empty { min-heig
 }
 @media(max-width:760px) {
  body #content .system-overview .analytics-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
- body #content .system-overview .analytics-metrics > .stat-card { min-height:138px; padding:16px; }
- body #content .system-overview .analytics-metrics .lbl { min-height:36px; padding-right:0; }
+ body #content .system-overview .analytics-metrics > .stat-card { min-height:96px; padding:16px; }
+ body #content .system-overview .analytics-metrics .lbl { min-height:0; padding-right:0; }
  body #content .system-overview .dashboard-summary-grid > .card { min-height:0; }
  body #content .system-overview .dashboard-summary-grid .card-head { min-height:0; }
  body #content .system-overview .oversight-attention { padding:14px 16px; }
@@ -451,7 +451,9 @@ body #content .system-overview .dashboard-today-grid .trend-chart-scroll svg { d
 .system-overview .segment-track { height:12px; border-radius:3px; }
 .system-overview .dashboard-bars { gap:12px; font-size:.74rem; }
 .system-overview .dashboard-bar-track { height:8px; border-radius:3px; overflow:hidden; }
-.system-overview .dashboard-bar-fill { border-radius:3px; }
+.system-overview .dashboard-bar-track { background:color-mix(in srgb,var(--border) 65%,var(--surface)); }
+.system-overview .dashboard-bar-fill { border-radius:3px; transition:filter .18s ease; }
+.system-overview .dashboard-bar-row:hover .dashboard-bar-fill { filter:brightness(1.12); }
 @media(max-width:500px) { .system-overview .dashboard-donut { flex-direction:column; } .system-overview .dashboard-donut .chart-legend { max-width:none; } }
 
 body #content .system-overview .trend-chart-scroll svg { min-width:0 !important; }
@@ -535,14 +537,15 @@ body #content .system-overview .dashboard-rings { display:flex; flex-direction:c
 .system-overview .dashboard-rings .chart-legend { width:100%; }
 .system-overview .super-pie-chart svg path { stroke-width:3; }
 
-body #content .system-report-controls { display:grid; grid-template-columns:minmax(0,calc((100% - 36px)/2)) minmax(0,1fr) auto auto; align-items:center; gap:12px; padding:18px 20px; }
+body #content .system-report-controls { display:grid; grid-template-columns:minmax(0,calc((100% - 36px)/2)) minmax(0,1.3fr) repeat(2,minmax(0,1fr)); align-items:center; gap:12px; padding:18px 20px; }
 body #content .system-report-controls > .card-head, body #content .system-report-controls > .filter-bar, body #content .system-report-controls .toolbar { display:contents; }
 body #content .system-report-controls .date-range { grid-column:1; grid-row:1; width:100%; min-width:0; margin:0; box-sizing:border-box; }
 body #content .system-report-controls .filter-select { grid-column:2; grid-row:1; width:100%; min-width:0; max-width:none; margin:0; }
 body #content .system-report-controls .toolbar > button:first-child { grid-column:3; grid-row:1; }
 body #content .system-report-controls .toolbar > button:last-child { grid-column:4; grid-row:1; }
+body #content .system-report-controls .toolbar > button { width:100%; height:40px; min-width:0; justify-content:center; }
 @media(max-width:900px) {
- body #content .system-report-controls { grid-template-columns:minmax(0,1fr) auto auto; }
+ body #content .system-report-controls { grid-template-columns:minmax(0,1.3fr) repeat(2,minmax(0,1fr)); }
  body #content .system-report-controls .date-range { grid-column:1 / -1; grid-row:1; }
  body #content .system-report-controls .filter-select { grid-column:1; grid-row:2; }
  body #content .system-report-controls .toolbar > button:first-child { grid-column:2; grid-row:2; }
@@ -606,12 +609,12 @@ body #content .system-report-controls .toolbar > button:last-child { grid-column
 
 /* Dashboard chart colors, slightly deepened for contrast. */
 .system-overview {
-  --super-chart-1:#0068d9;
-  --super-chart-2:#009d91;
-  --super-chart-3:#ce3c80;
-  --super-chart-4:#d29c00;
-  --super-chart-5:#d86419;
-  --super-chart-6:#008e5a;
+  --super-chart-1:#53769a;
+  --super-chart-2:#5b9188;
+  --super-chart-3:#a35b71;
+  --super-chart-4:#bd9149;
+  --super-chart-5:#b77458;
+  --super-chart-6:#6f9277;
   --dashboard-chart-1:var(--super-chart-1);
   --dashboard-chart-2:var(--super-chart-2);
   --dashboard-chart-3:var(--super-chart-3);
@@ -626,12 +629,14 @@ body #content .system-report-controls .toolbar > button:last-child { grid-column
 }
 .system-overview .cl-line { stroke:var(--super-chart-1); }
 .system-overview .cl-dot { fill:var(--super-chart-1); }
+/* Vary the leading color by chart while retaining the shared Admin palette. */
+.system-overview [data-chart=security] { --super-chart-1:#bd9149; --super-chart-2:#a35b71; }
+.system-overview [data-chart=settings] { --super-chart-1:#a35b71; --super-chart-2:#5b9188; }
+.system-overview [data-chart=signins] { --super-chart-1:#5b9188; --super-chart-2:#a35b71; --super-chart-3:#bd9149; }
+.system-overview [data-chart=changes] { --super-chart-1:#b77458; --super-chart-2:#53769a; }
 .system-overview [data-chart=security] { --trend-color:var(--super-chart-4); }
 .system-overview [data-chart=security] .cl-line { stroke:var(--super-chart-4); }
 .system-overview [data-chart=security] .cl-dot { fill:var(--super-chart-4); }
-.system-overview .dashboard-columns g:nth-of-type(odd) rect { fill:var(--super-chart-1); }
-.system-overview .dashboard-columns g:nth-of-type(even) rect { fill:var(--super-chart-2); }
-.system-overview .dashboard-bar-track { background:#fffdf8; }
 
 /* Let the overview graph fill its wide card instead of letterboxing the SVG. */
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { align-items:stretch; }
@@ -670,14 +675,10 @@ html[data-theme] .system-overview .cl-dot { fill:var(--trend-color) !important; 
 .dashboard-status-list li strong { font-weight:500; color:var(--text); text-align:right; }
 .dashboard-status-list li > span { color:var(--text-soft); }
 
-/* Match the Admin reference's standalone full-width activity card. */
-body #content .system-overview .super-dashboard-grid [data-chart=overview] { grid-column:1/-1; }
-body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-head { min-height:58px; padding:16px 18px 0; }
-body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { flex:initial; min-height:0; justify-content:flex-start; padding:24px 18px 24px; }
+/* Activity chart proportions match the Admin chart grid. */
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .trend-chart-scroll { display:block; flex:initial; }
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .trend-chart-scroll svg { display:block; width:100% !important; height:220px !important; max-height:none !important; }
 
-/* Use Admin's chart-grid proportions and card layout on Super Admin. */
 body #content .system-overview .super-dashboard-grid [data-chart=overview] { grid-column:span 2; }
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-head { min-height:58px; padding:16px 18px 0; }
 body #content .system-overview .super-dashboard-grid [data-chart=overview] .card-pad { flex:1; min-height:190px; justify-content:center; padding:14px 18px 18px; }

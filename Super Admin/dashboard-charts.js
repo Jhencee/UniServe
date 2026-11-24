@@ -37,23 +37,24 @@ function superActivityHeatmap(entries){
 /* Comparisons use the same aggregate values in each chart form. */
 function superComparisonChart(labels,series,type,label){
   const safe=superChartEscape,colors=['var(--super-chart-1)','var(--super-chart-2)','var(--super-chart-3)','var(--super-chart-4, #c24e78)','var(--super-chart-5, #b58ec6)','var(--super-chart-6, #94a3b8)'];
+  series=series.map((item,index)=>({...item,color:item.color||colors[index%colors.length]}));
   const left=42,right=456,top=22,bottom=168;
   const max=Math.max(1,...labels.map((_,i)=>type==='stacked'?series.reduce((sum,s)=>sum+(s.values[i]||0),0):Math.max(...series.map(s=>s.values[i]||0))));
   const y=value=>bottom-value/max*(bottom-top),x=i=>left+(right-left)*i/Math.max(1,labels.length-1);
-  const key='<div class="super-chart-key">'+series.map((s,i)=>'<span><i style="background:'+colors[i%colors.length]+'"></i>'+safe(s.label)+'</span>').join('')+'</div>';
+  const key='<div class="super-chart-key">'+series.map(s=>'<span><i style="background:'+s.color+'"></i>'+safe(s.label)+'</span>').join('')+'</div>';
   const grid=[...new Set([0,Math.round(max/2),max])].map(value=>{const f=value/max;return '<line x1="'+left+'" x2="'+right+'" y1="'+y(max*f)+'" y2="'+y(max*f)+'" stroke="var(--border)"/><text x="34" y="'+(y(max*f)+4)+'" text-anchor="end">'+value+'</text>';}).join('');
   const ticks=labels.map((name,i)=>i===labels.length-1||(i%Math.max(1,Math.ceil(labels.length/4))===0&&labels.length-1-i>1)?'<text x="'+x(i)+'" y="192" text-anchor="middle">'+safe(name)+'</text>':'').join('');
   let shapes='';
   if(type==='grouped'){
     const step=(right-left)/Math.max(1,labels.length),barWidth=Math.min(24,step/(series.length+1));
-    shapes=labels.map((name,i)=>series.map((s,j)=>{const value=s.values[i]||0;return '<rect x="'+(left+step*(i+.5)+(j-series.length/2)*barWidth)+'" y="'+y(value)+'" width="'+Math.max(1,barWidth-2)+'" height="'+(bottom-y(value))+'" rx="2" fill="'+colors[j%colors.length]+'"><title>'+safe(name)+' · '+safe(s.label)+': '+value+'</title></rect>';}).join('')+'<text x="'+(left+step*(i+.5))+'" y="192" text-anchor="middle">'+(labels.length<=7||i%4===0?safe(name):'')+'</text>').join('');
+    shapes=labels.map((name,i)=>series.map((s,j)=>{const value=s.values[i]||0;return '<rect x="'+(left+step*(i+.5)+(j-series.length/2)*barWidth)+'" y="'+y(value)+'" width="'+Math.max(1,barWidth-2)+'" height="'+(bottom-y(value))+'" rx="2" fill="'+s.color+'"><title>'+safe(name)+' · '+safe(s.label)+': '+value+'</title></rect>';}).join('')+'<text x="'+(left+step*(i+.5))+'" y="192" text-anchor="middle">'+(labels.length<=7||i%4===0?safe(name):'')+'</text>').join('');
   }else if(type==='stacked'){
     const step=(right-left)/Math.max(1,labels.length);
-    shapes=labels.map((name,i)=>{let base=0;return series.map((s,j)=>{const value=s.values[i]||0,h=value/max*(bottom-top),result='<rect x="'+(left+step*(i+.5)-18)+'" y="'+y(base+value)+'" width="36" height="'+h+'" rx="2" fill="'+colors[j%colors.length]+'"><title>'+safe(name)+' � '+safe(s.label)+': '+value+'</title></rect>';base+=value;return result;}).join('')+'<text x="'+(left+step*(i+.5))+'" y="192" text-anchor="middle">'+safe(name)+'</text>';}).join('');
+    shapes=labels.map((name,i)=>{let base=0;return series.map((s,j)=>{const value=s.values[i]||0,h=value/max*(bottom-top),result='<rect x="'+(left+step*(i+.5)-18)+'" y="'+y(base+value)+'" width="36" height="'+h+'" rx="2" fill="'+s.color+'"><title>'+safe(name)+' � '+safe(s.label)+': '+value+'</title></rect>';base+=value;return result;}).join('')+'<text x="'+(left+step*(i+.5))+'" y="192" text-anchor="middle">'+safe(name)+'</text>';}).join('');
   }else{
     shapes=series.map((s,j)=>{
       const points=s.values.map((value,i)=>[x(i),y(value)]),path=points.map((p,i)=>{if(!i)return 'M'+p.join(' ');const prev=points[i-1],mid=(prev[0]+p[0])/2;return 'C'+mid+' '+prev[1]+' '+mid+' '+p[1]+' '+p.join(' ');}).join(' ');
-      return (type==='area'?'<path d="'+path+' L'+x(labels.length-1)+' '+bottom+' L'+left+' '+bottom+' Z" fill="'+colors[j%colors.length]+'" fill-opacity=".22"/>':'')+'<path d="'+path+'" fill="none" stroke="'+colors[j%colors.length]+'" stroke-width="2"/>'+points.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="'+colors[j%colors.length]+'"><title>'+safe(labels[i])+' � '+safe(s.label)+': '+s.values[i]+'</title></circle>').join('');
+      return (type==='area'?'<path d="'+path+' L'+x(labels.length-1)+' '+bottom+' L'+left+' '+bottom+' Z" fill="'+s.color+'" fill-opacity=".22"/>':'')+'<path d="'+path+'" fill="none" stroke="'+s.color+'" stroke-width="2"/>'+points.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3" fill="'+s.color+'"><title>'+safe(labels[i])+' � '+safe(s.label)+': '+s.values[i]+'</title></circle>').join('');
     }).join('');
   }
   return '<div class="super-comparison-chart super-grouped-chart super-'+type+'-chart"><svg viewBox="0 0 480 205" role="img" aria-label="'+safe(label)+'">'+grid+shapes+(['stacked','grouped'].includes(type)?'':ticks)+'</svg>'+key+'</div>';

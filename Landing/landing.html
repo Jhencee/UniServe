@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
     <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
     <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261123-compact-modals">
-    <link rel="stylesheet" href="landing-containers.css?v=20261123-service-descriptions">
+    <link rel="stylesheet" href="landing-containers.css?v=20261124-service-icon-restored">
 </head>
 
 <body>
@@ -107,27 +107,33 @@
                     aria-label="Search services" oninput="renderServicesPreview()">
             </div>
             <div class="svc-preview-grid" id="svcPreviewGrid"></div>
+            <div class="svc-preview-more"><button type="button" id="svcPreviewToggle" class="btn btn-ghost" aria-controls="svcPreviewGrid" aria-expanded="false" onclick="toggleServicesPreview()" hidden>See more services</button></div>
         </section>
 
         <section class="section-pad" id="how">
             <div class="section-head">
-                <h2>Three simple steps</h2>
+                <h2>Four simple steps</h2>
             </div>
             <ol class="steps">
                 <li class="step">
                     <span class="step-num">1</span>
                     <h3>Choose your service</h3>
-                    <p>Choose the OSS service you need and check which documents to prepare.</p>
+                    <p>Select an OSS service and check what to prepare.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">2</span>
                     <h3>Choose how to visit</h3>
-                    <p>Join the walk-in queue during office hours, or request an appointment and wait for OSS confirmation.</p>
+                    <p>Join the queue or request an appointment.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">3</span>
+                    <h3>Enter your details</h3>
+                    <p>Enter your information and verify your email.</p>
+                </li>
+                <li class="step">
+                    <span class="step-num">4</span>
                     <h3>Follow your visit</h3>
-                    <p>Keep your request reference or Visit ID. Use Check My Visit to track your status.</p>
+                    <p>Use your reference or Visit ID to check your status.</p>
                 </li>
             </ol>
         </section>
@@ -193,19 +199,13 @@
                         </svg></div>
 <div class="contact-details"><h3 class="c-lbl">Office</h3></div></div><div class="svc-bring">
                     <div class="desc" id="contactOrg">Office of Student Services</div>
-                    <div class="desc">Polytechnic University of the Philippines, Santa Maria Campus</div></div></article>
+                    <div class="desc">PUP Santa Maria Campus</div></div></article>
                 <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7" />
                         </svg></div>
-<div class="contact-details"><h3 class="c-lbl">Email</h3></div></div><div class="svc-bring">
-                    <div class="desc"><a id="contactEmail" href="#">&mdash;</a></div></div></article>
-                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path
-                                d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z" />
-                        </svg></div>
-<div class="contact-details"><h3 class="c-lbl">Phone</h3></div></div><div class="svc-bring">
+<div class="contact-details"><h3 class="c-lbl">Email &amp; phone</h3></div></div><div class="svc-bring">
+                    <div class="desc"><a id="contactEmail" href="#">&mdash;</a></div>
                     <div class="desc"><a id="contactPhone" href="#">&mdash;</a></div></div></article>
                 <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -238,9 +238,9 @@
                 </div>
                 <div class="footer-col">
                     <h4>Explore</h4>
-                    <a href="../User/user.html?flow=checkvisit">Check My Visit</a>
-                    <a href="#" onclick="openPublicDisplay(); return false;">Queue Display</a>
-                    <a href="#services">Services &amp; requirements</a>
+                    <a href="../User/user.html?flow=checkvisit">Check Visit</a>
+                    <a href="#" onclick="openPublicDisplay(); return false;">Queue</a>
+                    <a href="#services">Services</a>
                     <a href="#faq">FAQ</a>
                     <a href="#contact">Contact the office</a>
                 </div>
@@ -380,7 +380,7 @@
     <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261123-service-descriptions"></script>
+    <script src="landing.js?v=20261124-service-more-chevron"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
     <script src="../shared/portal-api.js?v=20261120-public-queue-isolation"></script>
