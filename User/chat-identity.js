@@ -4,6 +4,10 @@ function initChatFlow() {
 }
 function renderChatIdentity() {
   const closed=!isOfficeHours();
+  if(closed){
+    document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap chat-contact-card"><div class="chat-contact-head"><h3>Chat with OSS</h3><p role="status">New chats are available during office hours. You can still resume an existing chat.</p></div><div class="visit-pass-actions chat-contact-actions"><button class="btn btn-ghost" onclick="toggleChatResume()">Resume a chat</button></div></div>`;
+    return;
+  }
   document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap chat-contact-card"><div class="chat-contact-head"><h3>Your name</h3><p>Enter your name to start a conversation with OSS.</p></div><div class="form-row"><div class="field" id="fwChatFirst"><label for="chatFirst">First name *</label><input id="chatFirst" placeholder="Juan" autocomplete="given-name" maxlength="80" oninput="autoCapitalizeInput(this)" ${closed?'disabled':''}><div class="field-error"></div></div><div class="field" id="fwChatLast"><label for="chatLast">Last name *</label><input id="chatLast" placeholder="Dela Cruz" autocomplete="family-name" maxlength="80" oninput="autoCapitalizeInput(this)" ${closed?'disabled':''}><div class="field-error"></div></div></div><p id="chatHoursNotice" class="field-hint" role="status" ${closed?'':'hidden'}>New chats are available during office hours. You can still resume an existing chat.</p><div class="visit-pass-actions chat-contact-actions"><button class="btn btn-primary" onclick="startContactChat()" ${closed?'disabled':''}>Continue</button><button class="btn btn-ghost" onclick="toggleChatResume()">Resume a chat</button></div></div>`;
 }
 function chatProfileValidation(profile) {
