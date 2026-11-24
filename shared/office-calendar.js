@@ -60,7 +60,7 @@
       const date = new Date(new Date(p.date + 'T00:00:00Z').getTime() + offset * 86400000).toISOString().slice(0,10);
       for (const [start] of intervals(date, cfg)) if (offset || start > p.time) { next = {date, time: start}; break; }
     }
-    const openingDay = next ? new Date(next.date + 'T12:00:00+08:00').toLocaleDateString('en-PH', {timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric', ...(next.date.slice(0,4) !== p.date.slice(0,4) ? {year: 'numeric'} : {})}) : '';
+    const openingDay = next ? new Date(next.date + 'T12:00:00+08:00').toLocaleDateString('en-PH', {timeZone: 'Asia/Manila', ...(next.date === p.date ? {} : {weekday: 'long'}), month: 'long', day: 'numeric', ...(next.date.slice(0,4) !== p.date.slice(0,4) ? {year: 'numeric'} : {})}) : '';
     const nextLabel = next ? `${next.date === p.date ? 'Today, ' : ''}${openingDay} at ${clock(next.time)}` : 'No opening is scheduled within the next year';
     return {...state, next, nextLabel, message: state.lunch && next && next.date === p.date ? `Closed for lunch, back at ${clock(next.time)}` : state.reason};
   }
