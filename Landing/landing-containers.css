@@ -166,6 +166,112 @@ body #landing :is(#services, #how, #contact) :is(.svc-preview-card, .step, .feat
  box-shadow:none;
 }
 body #landing #contact .contact-card:hover { border-color:var(--border); background:transparent; }
+/* Contact details are informational groups, with only their links and calendar interactive. */
+body #landing #contact .contact-grid .contact-card,
+body #landing #contact .contact-grid .contact-card:hover { padding:8px 16px; border:0; border-radius:0; background:transparent; box-shadow:none; transform:none; }
+body #landing #contact .contact-grid .svc-preview-ic { width:24px; height:24px; border:0; border-radius:0; background:transparent; color:var(--accent-strong); }
+body #landing #contact .contact-grid .svc-preview-ic svg { width:22px; height:22px; }
+html[data-theme="dark"] body #landing #contact .contact-grid .svc-preview-ic { background:transparent; }
+body #landing .footer-contact { padding:0 6vw 36px; }
+body #landing .footer-contact .section-head { margin-bottom:20px; }
+body #landing .footer-contact .section-head h2, body #landing .footer-contact .contact-card h3 { color:#fff; }
+body #landing .footer-contact .contact-card :is(.desc,.office-hours,.svc-preview-ic) { color:rgba(255,255,255,.85); }
+body #landing .footer-contact .contact-card :is(a,.contact-calendar-button) { color:#fff; }
+body #landing .footer-contact .contact-card :is(a,.contact-calendar-button):hover { text-decoration:underline; }
+body #landing .footer-contact .contact-grid .contact-card,
+body #landing .footer-contact .contact-grid .contact-card:nth-child(n),
+body #landing .footer-contact .contact-grid .contact-card:hover { border:0; background:transparent; box-shadow:none; }
+body #landing .footer-contact .contact-grid .svc-preview-ic,
+body #landing .footer-contact .contact-grid .svc-preview-ic svg { color:rgba(255,255,255,.9); background:transparent; }
+body #landing .footer-contact .contact-grid { gap:24px; }
+body #landing .footer-contact .contact-grid .contact-card { padding:0; }
+body #landing .footer-contact .section-head h2::before { background:rgba(255,255,255,.65); }
+body #landing .footer-contact .contact-card :is(a,.contact-calendar-button) { text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:600px) { body #landing .footer-contact { padding:0 6vw 30px; } }
+/* Footer contact details share a clean, unboxed layout. */
+body #landing #contact.footer-contact { padding:8px 6vw 40px; }
+body #landing #contact.footer-contact .section-head { margin:0 0 24px; }
+body #landing #contact.footer-contact .section-head h2 { margin:0; color:#fff; font-size:1.15rem; line-height:1.4; }
+body #landing #contact.footer-contact .contact-grid { gap:28px; }
+body #landing #contact.footer-contact .contact-grid .contact-card,
+body #landing #contact.footer-contact .contact-grid .contact-card + .contact-card,
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(even),
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(n+3) { grid-template-columns:24px minmax(0,1fr); gap:6px 12px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+body #landing #contact.footer-contact .contact-grid .svc-preview-ic { width:24px; height:24px; color:#fff; background:transparent; }
+body #landing #contact.footer-contact .contact-grid .svc-preview-ic svg { width:20px; height:20px; color:inherit; }
+body #landing #contact.footer-contact .contact-grid h3 { margin:0; color:#fff; font-size:.9rem; line-height:24px; }
+body #landing #contact.footer-contact .contact-grid :is(.desc,.office-hours) { color:rgba(255,255,255,.86); font-size:.85rem; line-height:1.65; }
+body #landing #contact.footer-contact .contact-grid :is(a,.contact-calendar-button) { color:#fff; text-decoration:underline; text-underline-offset:3px; }
+body #landing #contact.footer-contact .contact-calendar-button { margin-top:8px; padding:0; min-height:32px; }
+@media(max-width:600px) { body #landing #contact.footer-contact { padding:0 6vw 32px; } body #landing #contact.footer-contact .contact-grid { gap:22px; } }
+/* Footer columns keep navigation and contact details together. */
+body #landing .landing-footer .footer-grid { grid-template-columns:minmax(220px,1.3fr) minmax(120px,.65fr) minmax(130px,.7fr) minmax(300px,1.5fr); gap:36px; align-items:start; }
+body #landing .landing-footer .footer-brand p { text-align:left; }
+body #landing .landing-footer .footer-col h4 { border:0; padding:0; margin:0 0 16px; }
+body #landing #contact.footer-contact { min-width:0; padding:0; }
+body #landing #contact.footer-contact .section-head { margin:0 0 16px; }
+body #landing #contact.footer-contact .section-head h2 { font-size:.78rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+body #landing #contact.footer-contact .section-head h2::before { display:none; }
+body #landing #contact.footer-contact .contact-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px 24px; }
+body #landing #contact.footer-contact .contact-grid .contact-card { grid-template-columns:1fr; gap:2px; }
+body #landing #contact.footer-contact .contact-grid .svc-preview-ic { display:none; }
+body #landing #contact.footer-contact .contact-grid .contact-details, body #landing #contact.footer-contact .contact-grid .svc-bring { grid-column:1; }
+body #landing #contact.footer-contact .contact-grid .contact-card .contact-details,
+body #landing #contact.footer-contact .contact-grid .contact-card .svc-bring { grid-column:1 / -1; width:100%; }
+body #landing #contact.footer-contact .contact-grid h3 { font-size:.82rem; line-height:1.5; }
+body #landing #contact.footer-contact .contact-grid :is(.desc,.office-hours) { font-size:.8rem; }
+@media(max-width:1100px) { body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:28px 20px; } body #landing .landing-footer .footer-brand, body #landing #contact.footer-contact { grid-column:1 / -1; } }
+/* Two-column footer, with contact details beneath the main links. */
+body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:32px 48px; padding-bottom:32px; }
+body #landing .landing-footer .footer-brand { grid-column:1; }
+body #landing #contact.footer-contact { grid-column:1 / -1; }
+body #landing #contact.footer-contact .contact-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 48px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:2; grid-row:1 / span 2; }
+body #landing .landing-footer .footer-col h4,
+body #landing #contact.footer-contact .section-head h2 { text-transform:none; letter-spacing:0; font-size:.95rem; }
+body #landing .footer-information { display:flex; flex-wrap:wrap; gap:8px 20px; margin-top:14px; }
+body #landing .footer-information h4 { display:none; }
+body #landing .footer-information a { padding:0; text-decoration:underline; text-underline-offset:3px; }
+@media(max-width:600px) {
+ body #landing .landing-footer .footer-grid { grid-template-columns:1fr; gap:28px; }
+ body #landing .landing-footer .footer-brand, body #landing #contact.footer-contact { grid-column:1; }
+ body #landing #contact.footer-contact .contact-grid { grid-template-columns:1fr; gap:18px; }
+ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:1; grid-row:auto; }
+}
+/* Compact footer: identity, navigation and contact align in one row. */
+body #landing .landing-footer .footer-grid { max-width:1280px; margin:0 auto; grid-template-columns:minmax(220px,1fr) minmax(140px,.65fr) minmax(340px,1.35fr); gap:40px; padding:44px 6vw 36px; }
+body #landing .landing-footer .footer-brand, body #landing #contact.footer-contact { grid-column:auto; }
+body #landing #contact.footer-contact .contact-grid { gap:18px 28px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:2; grid-row:1 / span 2; }
+body #landing .landing-footer .footer-bottom { padding:20px 6vw 28px; }
+body #landing .landing-footer .footer-information { margin-top:10px; }
+body #landing .landing-footer .privacy-note { margin-top:14px; max-width:900px; }
+@media(max-width:850px) {
+ body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px; }
+ body #landing #contact.footer-contact { grid-column:1 / -1; }
+}
+@media(max-width:520px) {
+ body #landing .landing-footer .footer-grid { grid-template-columns:1fr; gap:26px; padding:36px 6vw 30px; }
+ body #landing #contact.footer-contact { grid-column:1; }
+ body #landing #contact.footer-contact .contact-grid { grid-template-columns:1fr; gap:16px; }
+ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:1; grid-row:auto; }
+}
+/* Shared alignment and readable footer typography. */
+body #landing .landing-footer .footer-grid,
+body #landing .landing-footer .footer-bottom { box-sizing:border-box; width:100%; max-width:1280px; margin:0 auto; padding-left:32px; padding-right:32px; }
+body #landing .landing-footer .footer-grid { grid-template-columns:minmax(200px,1fr) minmax(130px,.65fr) minmax(390px,1.6fr); gap:48px; }
+body #landing .landing-footer .footer-col h4,
+body #landing #contact.footer-contact .section-head h2 { font-size:1rem; line-height:1.5; margin-bottom:16px; }
+body #landing .landing-footer .footer-col a { font-size:.95rem; line-height:1.6; }
+body #landing #contact.footer-contact .contact-grid h3 { font-size:.9rem; line-height:1.5; }
+body #landing #contact.footer-contact .contact-grid :is(.desc,.office-hours) { font-size:.9rem; line-height:1.6; }
+body #landing .landing-footer .footer-main, body #landing .landing-footer .privacy-note { font-size:.875rem; line-height:1.65; }
+body #landing .landing-footer .footer-bottom { border:0; }
+body #landing .landing-footer { position:relative; }
+body #landing .landing-footer .footer-bottom::before { content:''; display:block; border-top:1px solid rgba(255,255,255,.25); margin-bottom:20px; }
+@media(max-width:850px) { body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px; } body #landing #contact.footer-contact { grid-column:1 / -1; } }
+@media(max-width:520px) { body #landing .landing-footer .footer-grid { grid-template-columns:1fr; gap:26px; } body #landing #contact.footer-contact { grid-column:1; } body #landing .landing-footer .footer-grid, body #landing .landing-footer .footer-bottom { padding-left:20px; padding-right:20px; } }
 body #landing #services .svc-preview-card::before { display:none; }
 @media(hover:hover) and (prefers-reduced-motion:no-preference) {
  body #landing :is(#services, #how) :is(.svc-preview-card, .step, .feat-card) { transition:transform .2s ease; }
@@ -213,7 +319,95 @@ body #landing .footer-bottom a {
 }
 body #landing .footer-bottom a:hover { text-decoration:underline; }
 body #landing .footer-bottom a:focus-visible { outline:2px solid #fff; outline-offset:4px; }
+body #landing .landing-footer :is(a,.contact-calendar-button) { text-decoration:none; }
+body #landing .landing-footer :is(a,.contact-calendar-button):hover { text-decoration:none; opacity:.8; }
+body #landing #contact.footer-contact .contact-grid :is(a,.contact-calendar-button),
+body #landing #contact.footer-contact .contact-grid :is(a,.contact-calendar-button):hover,
+body #landing .landing-footer .footer-information a,
+body #landing .landing-footer .footer-information a:hover { text-decoration:none; }
 body #landing .privacy-note { text-align:left; }
+/* Match the horizontal inset of the page sections above the footer. */
+body #landing .landing-footer .footer-grid,
+body #landing .landing-footer .footer-bottom { max-width:none; padding-left:6vw; padding-right:6vw; }
+body #landing .landing-footer .footer-grid { grid-template-columns:minmax(220px,1fr) minmax(150px,.7fr) minmax(400px,1.5fr); gap:clamp(32px,4vw,64px); }
+body #landing #contact.footer-contact .contact-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+body #landing .landing-footer .footer-information a { text-decoration:none; }
+@media(max-width:850px) { body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { body #landing .landing-footer .footer-grid, body #landing .landing-footer .footer-bottom { padding-left:20px; padding-right:20px; } }
+@media(max-width:520px) { body #landing .landing-footer .footer-grid { grid-template-columns:1fr; } body #landing #contact.footer-contact .contact-grid { grid-template-columns:1fr; } }
+/* Align contact details with the other footer columns. */
+body #landing .landing-footer .footer-grid { grid-template-columns:minmax(200px,1.2fr) minmax(140px,.8fr) minmax(420px,2fr); align-items:start; }
+body #landing #contact.footer-contact .contact-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 32px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:2; grid-row:1 / span 2; }
+body #landing .landing-footer .footer-bottom { display:grid; grid-template-columns:1fr auto; gap:12px 24px; align-items:start; }
+body #landing .landing-footer .footer-bottom::before { grid-column:1 / -1; margin-bottom:4px; }
+body #landing .landing-footer .footer-information { margin:0; justify-content:flex-end; }
+body #landing .landing-footer .privacy-note { grid-column:1 / -1; margin:0; }
+@media(max-width:850px) { body #landing .landing-footer .footer-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { body #landing .landing-footer .footer-bottom { grid-template-columns:1fr; } body #landing .landing-footer .footer-bottom::before, body #landing .landing-footer .privacy-note { grid-column:1; } body #landing .landing-footer .footer-information { justify-content:flex-start; } }
+@media(max-width:520px) { body #landing .landing-footer .footer-grid { grid-template-columns:1fr; } body #landing #contact.footer-contact .contact-grid { grid-template-columns:1fr; } body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:1; grid-row:auto; } }
+/* Keep footer navigation and contact details aligned on the same baseline. */
+body #landing #contact.footer-contact .section-head { display:block; }
+body #landing #contact.footer-contact .contact-grid h3 { font-size:.95rem; line-height:1.6; }
+body #landing #contact.footer-contact .contact-grid :is(.desc,.office-hours) { font-size:.95rem; line-height:1.6; }
+body #landing #contact.footer-contact .contact-calendar-button { font-size:.95rem; font-weight:400; line-height:1.6; }
+body #landing #contact.footer-contact .contact-grid :is(.desc,.office-hours,.contact-calendar-button) { font-size:.95rem; font-weight:400; line-height:1.6; }
+body #landing #contact.footer-contact .contact-grid .desc { padding:4px 0; }
+body #landing #contact.footer-contact .contact-calendar-button { margin-top:4px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(3) { grid-column:1; grid-row:auto; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { grid-column:2; grid-row:1 / span 3; }
+body #landing #contact.footer-contact .contact-grid { row-gap:14px; }
+body #landing #contact.footer-contact .contact-grid .contact-card { row-gap:2px; }
+body #landing #contact.footer-contact .contact-grid .desc { padding:0; }
+body #landing #contact.footer-contact .contact-calendar-button { margin-top:2px; }
+@media(max-width:520px) { body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { grid-column:1; grid-row:auto; } }
+/* Compact contact rows, aligned beside the brand and navigation on desktop. */
+body #landing #contact.footer-contact .contact-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px 24px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) .contact-details { display:none; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) { gap:0; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) .contact-details h3 { font-weight:600; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { grid-column:2; grid-row:1 / span 3; }
+@media(max-width:520px) { body #landing #contact.footer-contact .contact-grid { grid-template-columns:1fr; } body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { grid-column:1; grid-row:auto; } }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) { display:grid; grid-template-columns:20px minmax(0,1fr); column-gap:10px; align-items:start; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) .svc-preview-ic { display:flex; width:20px; height:20px; grid-column:1; grid-row:1; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) .svc-preview-ic svg { width:18px; height:18px; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) .svc-bring { grid-column:2; width:auto; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(2) > .svc-preview-ic { display:flex; grid-column:1; grid-row:1; }
+body #landing #contact.footer-contact .office-hours .desc { display:flex; align-items:center; gap:10px; }
+body #landing #contact.footer-contact .footer-hours-icon { flex:0 0 18px; }
+body #landing #contact.footer-contact .contact-grid { row-gap:0; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) { min-height:32px; align-items:start; }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(-n+3) .svc-preview-ic { align-self:start; margin-top:4px; }
+body #landing #contact.footer-contact .office-hours .desc { min-height:32px; }
+body #landing #contact.footer-contact .contact-calendar-button { min-height:32px; margin:0; gap:10px; }
+body #landing #contact.footer-contact .contact-map-link { display:inline-flex; align-items:center; gap:6px; }
+body #landing .landing-footer .footer-grid > .footer-col h4,
+body #landing #contact.footer-contact .section-head h2,
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) .contact-details h3 { font-weight:700; }
+/* Use the same page inset for sections and both footer rows. */
+body #landing { --page-inset:6vw; }
+body #landing .section-pad,
+body #landing .landing-footer .footer-grid,
+body #landing .landing-footer .footer-bottom { box-sizing:border-box; width:100%; max-width:none; margin-left:0; margin-right:0; padding-left:var(--page-inset); padding-right:var(--page-inset); }
+@media(min-width:851px) {
+ body #landing .landing-footer .footer-grid { grid-template-columns:minmax(260px,1.2fr) minmax(120px,.65fr) minmax(420px,1.8fr); gap:clamp(32px,4vw,64px); }
+ body #landing #contact.footer-contact { grid-column:auto; }
+ body #landing #contact.footer-contact .contact-grid { grid-template-columns:minmax(0,1fr) max-content; gap:0 40px; }
+ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { justify-self:end; }
+}
+@media(max-width:600px) { body #landing { --page-inset:20px; } }
+body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { margin-top:-40px; }
+@media(max-width:520px) { body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { margin-top:4px; } }
+@media(max-width:600px) {
+ body #landing .landing-footer .footer-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:28px; padding-top:36px; padding-bottom:28px; }
+ body #landing .landing-footer .footer-brand, body #landing #contact.footer-contact { grid-column:1; }
+ body #landing #contact.footer-contact .contact-grid { grid-template-columns:minmax(0,1fr); row-gap:6px; }
+ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(n) { grid-column:1; grid-row:auto; }
+ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) { margin-top:16px; }
+ body #landing .landing-footer .footer-bottom { display:grid; grid-template-columns:minmax(0,1fr); gap:12px; }
+ body #landing .landing-footer .footer-bottom::before, body #landing .landing-footer .privacy-note { grid-column:1; }
+ body #landing .landing-footer .footer-information { justify-content:flex-start; }
+}
 @media(max-width:600px) {
  body #landing .footer-main { align-items:flex-start; gap:14px; font-size:.78rem; }
  body #landing .footer-main > span { flex-basis:100%; }

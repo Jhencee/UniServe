@@ -580,7 +580,7 @@ function resetVisit() {
 
 let portalWasOpen = isOfficeHours();
 function hideClosedScreen() { const el = document.getElementById('closedScreen'); if (el) el.remove(); document.body.style.overflow = ''; }
-function visitTrackingAvailable() { return ["visit", "checkvisit", "history"].includes(visitorView); }
+function visitTrackingAvailable() { return ["visit", "checkvisit", "history", "chat"].includes(visitorView); }
 function renderClosedScreen() {
   if (visitorHubOpen) { hideClosedScreen(); return; }
   if (visitTrackingAvailable()) { hideClosedScreen(); return; }
@@ -649,7 +649,13 @@ function visitorSectionBack() {
   if(window.historyVisitOpen){
     window.historyVisitOpen=false;stopTicketPolling();myActiveQueueId=null;
     sessionStorage.removeItem('oss_activeAppointmentId');persistSession();updateVisitorBackButton();navigateVisitor('history');
-  }else showVisitorHub();
+  }else {
+    if(myActiveQueueId || visitStep==='pass'){
+      myActiveQueueId=null;visitStep='pick';visitSelectedService=null;
+      sessionStorage.removeItem('oss_activeAppointmentId');persistSession();
+    }
+    showVisitorHub();
+  }
 }
 function showVisitorHub() {
   visitorNavigationVersion++;
@@ -681,11 +687,6 @@ function navigateVisitor(key) {
     else {window.pendingVisitorHistory=true;showVisitorHub();}
     return;
   }
-  if(key==='chat'&&typeof window!=='undefined'&&!window.visitorChatGateEntering){
-    if(typeof window.openVerifiedVisitorChat==='function')window.openVerifiedVisitorChat();
-    else {window.pendingVisitorChat=true;showVisitorHub();}
-    return;
-  }
   visitorNavigationVersion++;
   if(typeof setVisitorHubState==='function')setVisitorHubState(false);
   captureVisitorDraft();
@@ -702,28 +703,15 @@ function navigateVisitor(key) {
   portalWasOpen = isOfficeHours();
   if (!portalWasOpen && !visitTrackingAvailable()) { renderClosedScreen(); return; }
   hideClosedScreen();
-  if (key === 'visit' && sessionStorage.getItem?.('ossuniserve_visitor_token')) {
-    const navigation = visitorNavigationVersion;
-    activeWalkInLookupNavigation = navigation;
-    document.getElementById('visitorContent').innerHTML = '';
-    resumeActiveWalkIn().then(found => {
-      if (activeWalkInLookupNavigation === navigation) activeWalkInLookupNavigation = null;
-      if (!found && visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
-    }).catch(() => {
-      if (activeWalkInLookupNavigation === navigation) activeWalkInLookupNavigation = null;
-      if (visitorNavigationVersion === navigation && !visitorHubOpen) renderVisitScreen();
-    });
-    return;
-  }
   ({ visit: renderVisitScreen, checkvisit: renderCheckVisitScreen, history: renderHistoryScreen, chat: renderChatScreen })[key]();
 }
 function renderVisitorSidebar() {
   const db = loadDB();
   const unread = currentPublicChatId ? (db.chats.find(c => c.id === currentPublicChatId)?.visitorUnread || 0) : 0;
-  const descriptions={visit:'Choose a service and plan your visit.',checkvisit:'Track your queue or appointment.',history:'View your previous visits securely.',chat:'Ask a question or follow up with OSS.'};
+  const descriptions={visit:'Request an OSS service or transaction.',checkvisit:'View your visit status.',history:'View your previous visits.',chat:'Ask a question or follow up with OSS.'};
   document.getElementById('visitorNavList').innerHTML = VISITOR_NAV.map(n => {
     const badge = n.key === 'chat' ? unread : 0;
-    return `<li><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,21)}</span><span class="visitor-hub-label"><b>${n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}</button></li>`;
+    return `<li class="visitor-nav-${n.key}"><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,16)}</span><span class="visitor-hub-label"><b>${n.key==='chat'?'Need help?':n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}${n.key==='chat'?'<span class="visitor-help-chevron" aria-hidden="true">&#8250;</span>':''}</button></li>`;
   }).join('');
 }
 
@@ -819,7 +807,7 @@ function renderVisitChoose() {
     ${stepperHtml(2)}
     <div class="svc-selected-bar">
       <div class="lbl">${escapeHtml(svc.label)}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; Selected service</small></div>
-      <button class="btn btn-ghost btn-sm" onclick="uxGoStep(1)">Change service</button>
+      <button class="btn btn-ghost btn-sm change-service-button" onclick="uxGoStep(1)">Change service</button>
     </div>
     ${serviceNoticeHtml(svc)}${requirementsBoxHtml(svc)}${templatesBoxHtml(svc)}
     <div class="visit-entry-heading visitor-page-wrap"><h3>How would you like to visit?</h3><p>Review the documents above, then choose an entry method.</p></div>
@@ -983,7 +971,7 @@ function renderVisitScheduleForm() {
         ${templatesBoxHtml(svc)}
         ${reqs.length ? `<ul class="visitor-requirements">${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
         <label class="dropzone" for="bkFiles" ondragover="event.preventDefault(); this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="uxDropFiles(event)">
-          ${icon('paperclip', 20)}<span><b>Choose files</b> or drag them here</span><small>PDF, JPG or PNG &middot; up to 5 MB each</small>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span><b>Choose files</b> or drag them here</span><small>PDF, JPG or PNG &middot; up to 5 MB each</small>
         </label>
         <input id="bkFiles" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg" onchange="handleScheduleFilesChange(this)">
         <p class="field-hint">Uploads are optional. Bring the required documents when you visit OSS.</p><div id="bkReadiness"></div><div id="bkAttachPreview"></div>
@@ -1278,7 +1266,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':q.feedback?'Your visit is complete. Thank you for your feedback.':(q.pickupOfVisitId||q.pickupTransactionId)?'Your pickup visit is complete.':'Your visit is complete. You may share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
   const progressOpen=lastTicketRender.id===q.id ? (document.querySelector('.queue-visit-journey')?.open ?? !isDone) : !isDone;
   document.getElementById('visitorContent').innerHTML = `
-    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Keep your Visit ID to return to this status screen.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
+    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Save your Visit ID. You can reopen this pass using Check My Visit.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
       ${waitBanner}
       <div class="qt-layout">
         <div class="qt-main ${isDone ? 'qt-main-complete' : ''}">
@@ -1460,7 +1448,7 @@ function showPassModalReadonly(apptIn, embedded = false) {
     const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" ${button.label==='Refresh status'?'data-refresh-status':''} ${button.disabled ? 'disabled title="Available after OSS approves your schedule"' : ''} onclick="runVisitorPassAction(${i})">${button.label}</button>`;
     const secondaryActions = visitorPassActions.map((button,i)=>i!==primaryIndex&&!button.cls.includes('danger')?actionButton(button,i):'').join('');
     const cancelActions = visitorPassActions.map((button,i)=>button.cls.includes('danger')?actionButton(button,i):'').join('');
-    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Keep your ${appt.visitId ? 'Visit ID' : 'request reference'} to return to this status screen.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" aria-label="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" title="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
+    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Save your ${appt.visitId ? 'Visit ID' : 'request reference'}. You can reopen this status in Check My Visit.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" aria-label="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" title="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
   } else {
     openModal(`Visit Pass &mdash; ${escapeHtml(appt.visitId || appt.code)}`, body, buttons);
     if(buttons[0]?.disabled)document.getElementById('modalBtn0')?.setAttribute('disabled','');
@@ -1547,7 +1535,7 @@ function clearVisitorIdentity() {
   window.visitorIdentityVersion=(window.visitorIdentityVersion||0)+1;
   visitorNavigationVersion++;
   stopTicketPolling();stopChatPolling();closeModal();
-  for(const key of Object.keys(sessionStorage))if(/^(?:ossuniserve_visitor_token|visit-token:|chat-token:|oss_(?:visit|visitor|myActiveQueueId|chat_id|activeAppointmentId|appointment_submission))/.test(key))sessionStorage.removeItem(key);
+  for(const key of Object.keys(sessionStorage))if(/^(?:ossuniserve_visitor_token|visit-token:|chat-token:|chat-code:|oss_(?:visit|visitor|myActiveQueueId|chat_id|activeAppointmentId|appointment_submission))/.test(key))sessionStorage.removeItem(key);
   sessionStorage.removeItem('ossuniserve_visitor_token');
   if(typeof clearVisitorDraft==='function')clearVisitorDraft();
   window.SecureState?.clear();window.SharedAppointments?.clearPrivateCache?.();
@@ -1591,10 +1579,10 @@ function submitChatFlowText() {
 function renderChatFlowInput(openNow) {
   const isMessage = chatFlow.step === 'message';
   return `<div class="chx-composer-row">
-    ${isMessage ? `<label class="chx-attach" for="cfFiles" title="Attach files">${icon('paperclip', 18)}<span class="chx-attach-count" id="cfAttachCount"></span></label>
+    ${isMessage ? `<label class="chx-attach" for="cfFiles" title="Attach files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span class="chx-attach-count" id="cfAttachCount"></span></label>
       <input id="cfFiles" type="file" multiple hidden onchange="var n=this.files.length; var b=document.getElementById('cfAttachCount'); b.textContent=n; b.classList.toggle('on', n>0)">` : ''}
     <textarea id="cfText" rows="1" placeholder="${isMessage ? 'Type your message...' : 'VIS-XXXXXXXX'}" ${openNow ? '' : 'disabled'} ${isMessage ? '' : 'style="text-transform:uppercase"'} onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); submitChatFlowText();}"></textarea>
-    <button class="btn btn-gold chx-send" ${openNow ? '' : 'disabled'} onclick="submitChatFlowText()">${openNow ? 'Send' : 'Closed'}</button></div>`;
+    <button type="button" class="chx-send" aria-label="Send message" title="Send message" ${openNow ? '' : 'disabled'} onclick="submitChatFlowText()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l16 8-16 8 3-8-3-8zm3 8h13"/></svg></button></div>`;
 }
 function chatOfficeHoursHtml() {
   return '<button type="button" class="chat-calendar-button" onclick="UniServeUX.visitorCalendar()" aria-label="View office hours and calendar" title="Office hours and calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4m10-4v4M3 11h18m-11 4h4"/></svg></button>';
@@ -1606,7 +1594,6 @@ function renderChatFlowScreen() {
       <header class="chx-win-head">
         <div class="chx-win-who"><span class="chx-avatar">${icon('chat', 20)}</span><div><h3>Office of Student Services</h3>
           <div class="chs-sub"><span class="chs-dot ${openNow ? 'open' : 'closed'}"></span>${openNow ? 'Open now' : 'Closed'} · Questions and concerns</div></div></div>
-        <div class="chx-win-actions">${chatOfficeHoursHtml()}<button type="button" class="btn btn-ghost btn-sm" onclick="toggleChatResume()">Resume a chat</button></div>
       </header>
       <div class="chat-messages chx-msgs" id="chatFlowMsgs">${chatFlow.bubbles.map(b => `<div class="bubble ${b.sender}"><div class="who">${b.sender === 'staff' ? 'OSS UniServe' : 'You'}</div><div>${escapeHtml(b.text)}</div></div>`).join('')}</div>
       <div class="chx-composer">${openNow ? '' : officeHoursBannerHtml('chat')}${renderChatFlowInput(openNow)}</div>
@@ -1617,7 +1604,6 @@ function renderChatFlowScreen() {
   if (inp) inp.focus();
 }
 function renderChatScreen() {
-  if (!isOfficeHours()) { renderClosedScreen(); return; }
   if (currentPublicChatId) {
     const c = loadDB().chats.find(x => x.id === currentPublicChatId);
     if (c) { renderPublicChatThread(c); return; }
@@ -1627,7 +1613,10 @@ function renderChatScreen() {
 }
 function renderBubbles(c) {
   if (!c.messages.length) return `<div class="muted" style="font-size:.8rem; padding:10px;">No messages yet.</div>`;
-  return c.messages.map(m => `<div class="bubble ${m.sender}"><div class="who">${m.sender === 'staff' ? 'OSS Staff' : 'Visitor'}</div><div>${escapeHtml(m.text)}</div>${m.attachments && m.attachments.length ? `<div class="attach-list">${m.attachments.map(attachChip).join('')}</div>` : ''}<div class="ts">${fmtDateTime(m.ts)}</div></div>`).join('');
+  const code = sessionStorage.getItem('chat-code:'+c.id);
+  const intro = `<div class="bubble staff"><div class="who">OSS</div><div>Hi ${escapeHtml((c.visitorName || 'there').split(' ')[0])}! What would you like to ask or report to OSS?</div></div>`;
+  const codeReply = code ? `<div class="bubble staff"><div class="who">OSS</div><div>Your chat code: <strong>${escapeHtml(code)}</strong><br>Save it to reopen this chat. Keep it private.</div></div>` : '';
+  return intro + c.messages.map((m,i) => `<div class="bubble ${m.sender}"><div class="who">${m.sender === 'staff' ? 'OSS Staff' : 'Visitor'}</div><div>${escapeHtml(m.text)}</div>${m.attachments && m.attachments.length ? `<div class="attach-list">${m.attachments.map(attachChip).join('')}</div>` : ''}<div class="ts">${fmtDateTime(m.ts)}</div></div>${i===0 ? codeReply : ''}`).join('');
 }
 function renderPublicChatThread(c) {
   const db = loadDB(), fresh = db.chats.find(x => x.id === c.id);
@@ -1638,26 +1627,25 @@ function renderPublicChatThread(c) {
     <div class="chx-window" data-chat-status="${c.status}">
       <header class="chx-win-head">
         <div class="chx-win-who"><span class="chx-avatar">${icon('chat', 20)}</span><div><h3>Your conversation</h3><div class="chx-win-code">${escapeHtml(c.email || c.visitorName || '')}</div></div></div>
-        <div class="chx-win-actions">${chatOfficeHoursHtml()}${statusPill(c.status)}<button class="btn btn-ghost btn-sm" onclick="currentPublicChatId=null; persistSession(); renderChatScreen(); renderVisitorSidebar();">New conversation</button></div>
+        <div class="chx-win-actions">${statusPill(c.status)}<button class="btn btn-ghost btn-sm" onclick="currentPublicChatId=null; persistSession(); renderChatScreen(); renderVisitorSidebar();">New conversation</button></div>
       </header>
-      <div class="chx-code-bar"><span><b>${escapeHtml(c.visitorName)}</b> &middot; ${escapeHtml(c.email || '')}</span></div>
       <div class="chat-messages chx-msgs" id="chatMsgArea">${renderBubbles(c)}</div>
       ${c.status === 'Open' ? `<div class="chx-composer">${openNow ? '' : officeHoursBannerHtml('chat')}
         <div class="chx-composer-row">
-          <label class="chx-attach" for="chReplyFiles" title="Attach files">${icon('paperclip', 18)}<span class="chx-attach-count" id="chAttachCount"></span></label>
+          <label class="chx-attach" for="chReplyFiles" title="Attach files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span class="chx-attach-count" id="chAttachCount"></span></label>
           <input id="chReplyFiles" type="file" multiple hidden onchange="var n=this.files.length; var b=document.getElementById('chAttachCount'); b.textContent=n; b.classList.toggle('on', n>0)">
           <textarea id="chReply" rows="1" placeholder="Type a message..." onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); sendVisitorMessage('${c.id}');}"></textarea>
-          <button class="btn btn-gold chx-send" id="chReplyBtn" ${openNow ? '' : 'disabled'} onclick="sendVisitorMessage('${c.id}')">${openNow ? `Send` : 'Closed'}</button>
+          <button type="button" class="chx-send" id="chReplyBtn" aria-label="Send message" title="Send message" ${openNow ? '' : 'disabled'} onclick="sendVisitorMessage('${c.id}')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l16 8-16 8 3-8-3-8zm3 8h13"/></svg></button>
         </div></div>` : `<p class="chx-closed">This conversation has been closed by OSS staff.</p>`}
     </div>
-    <p class="field-hint chx-save-hint">Use your email and its verification code to resume this conversation.</p>`;
+    `;
   const area = document.getElementById('chatMsgArea');
   if (area) area.scrollTop = area.scrollHeight;
   startChatPolling(c.id);
 }
 function startChatPolling(chatId) {
   stopChatPolling();
-  chatPollTimer = setInterval(() => { if (!window.UniServeRealtime?.connected && visitorView === 'chat' && currentPublicChatId === chatId && isOfficeHours()) refreshChatIfNeeded(chatId); }, 4000);
+  chatPollTimer = setInterval(() => { if (!window.UniServeRealtime?.connected && visitorView === 'chat' && currentPublicChatId === chatId) refreshChatIfNeeded(chatId); }, 4000);
 }
 function stopChatPolling() { if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; } }
 

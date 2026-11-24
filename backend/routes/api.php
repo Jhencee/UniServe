@@ -26,6 +26,7 @@ Route::post('/backup/restore',[\App\Http\Controllers\BackupController::class,'re
 Route::put('/settings',[SharedFlowController::class,'saveSettings'])->middleware('throttle:20,1,api-route-5');
 Route::get('/chats',[SharedFlowController::class,'chats'])->middleware('throttle:120,1,api-route-6');
 Route::post('/chats',[SharedFlowController::class,'createChat'])->middleware('throttle:10,1,api-route-7');
+Route::post('/chats/resume',[SharedFlowController::class,'resumeChat'])->middleware('throttle:10,1');
 Route::get('/chats/{id}',[SharedFlowController::class,'chat'])->middleware('throttle:120,1,api-route-8');
 Route::post('/chats/{id}/messages',[SharedFlowController::class,'message'])->middleware('throttle:30,1,api-route-9');
 Route::post('/chats/{id}/read',[SharedFlowController::class,'readChat'])->middleware('throttle:120,1,api-route-10');

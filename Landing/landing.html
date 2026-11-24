@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="light">
 
 <head>
@@ -27,7 +27,7 @@
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
     <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
     <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261123-compact-modals">
-    <link rel="stylesheet" href="landing-containers.css?v=20261124-service-icon-restored">
+    <link rel="stylesheet" href="landing-containers.css?v=20261124-footer-animation-restored">
 </head>
 
 <body>
@@ -48,7 +48,6 @@
                 <a href="#services" class="nav-link">Services</a>
                 <a href="#how" class="nav-link">How it works</a>
                 <a href="#faq" class="nav-link">FAQ</a>
-                <a href="#contact" class="nav-link">Contact</a>
                 <button class="nav-link nav-link-btn nav-link-live" type="button" onclick="openPublicDisplay()">
                     Queue
                 </button>
@@ -82,11 +81,11 @@
                 <span class="eyebrow">Student &amp; Guest</span>
                 <h1>One Place to Begin. <br> <em>Every</em> Step Made Within.</h1>
                 <p>Find a service, join the queue or request an appointment, and track your visit.</p>
+                <div id="heroFeedback" class="hero-feedback" hidden></div>
                 <div class="hero-actions" aria-label="Visitor actions">
                     <a class="btn btn-primary" href="../User/user.html"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>Get Started</a>
                     <a class="btn btn-ghost" href="../User/user.html?flow=checkvisit"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5"/><path d="m16 16 5 5"/></svg>Check My Visit</a>
                 </div>
-                <div id="heroFeedback" class="hero-feedback" hidden></div>
             </div>
         </header>
 
@@ -188,42 +187,6 @@
             </div>
         </section>
 
-        <section class="section-pad" id="contact">
-            <div class="section-head">
-                <h2>Contact</h2>
-            </div>
-            <div class="contact-grid">
-                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
-                        </svg></div>
-<div class="contact-details"><h3 class="c-lbl">Office</h3></div></div><div class="svc-bring">
-                    <div class="desc" id="contactOrg">Office of Student Services</div>
-                    <div class="desc">PUP Santa Maria Campus</div></div></article>
-                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7" />
-                        </svg></div>
-<div class="contact-details"><h3 class="c-lbl">Email &amp; phone</h3></div></div><div class="svc-bring">
-                    <div class="desc"><a id="contactEmail" href="#">&mdash;</a></div>
-                    <div class="desc"><a id="contactPhone" href="#">&mdash;</a></div></div></article>
-                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z" />
-                        </svg></div>
-<div class="contact-details"><h3 class="c-lbl">Location</h3></div></div><div class="svc-bring">
-                    <div class="desc">Santa Maria, Bulacan</div>
-                    <div class="desc"><a class="contact-map-link" target="_blank" rel="noopener"
-                            href="https://www.google.com/maps/search/?api=1&query=PUP+Santa+Maria+Campus+Bulacan">Open
-                            in Google Maps</a></div></div></article>
-                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
-                        </svg></div>
-<div class="contact-details"><h3>Office hours</h3></div></div><div class="svc-bring"><div class="office-hours" id="contactOfficeHours"></div><button class="btn btn-primary btn-sm contact-calendar-button" onclick="UniServeUX.visitorCalendar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Office calendar</span></button></div></article>
-            </div>
-        </section>
-
         <footer class="landing-footer">
             <div class="footer-grid">
                 <div class="footer-brand">
@@ -234,25 +197,54 @@
                             <div class="fb-sub">Office of Student Services</div>
                         </div>
                     </div>
-                    <p>The visitor portal for PUP Santa Maria's Office of Student Services.</p>
+                    <p>UniServe helps PUP Santa Maria Campus visitors access OSS services, request appointments, and track their visits online.</p>
                 </div>
                 <div class="footer-col">
-                    <h4>Explore</h4>
+                    <h4>Quick links</h4>
                     <a href="../User/user.html?flow=checkvisit">Check Visit</a>
                     <a href="#" onclick="openPublicDisplay(); return false;">Queue</a>
                     <a href="#services">Services</a>
                     <a href="#faq">FAQ</a>
-                    <a href="#contact">Contact the office</a>
                 </div>
-                <div class="footer-col">
-                    <h4>Information</h4>
-                    <a href="terms.html">Terms &amp; Conditions</a>
-                    <a href="#" onclick="showLogin(); return false;">Login</a>
-                </div>
+
+            <div id="contact" class="footer-contact">
+            <div class="section-head">
+                <h2>Contact</h2>
+            </div>
+            <div class="contact-grid">
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM3 6l9 7 9-7" />
+                        </svg></div>
+<div class="contact-details"><h3 class="c-lbl">Email</h3></div></div><div class="svc-bring">
+                    <div class="desc"><a id="contactEmail" href="#">&mdash;</a></div>
+                    </div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7l.5 2.8a2 2 0 0 1-.6 1.8L7.7 9.6a16 16 0 0 0 6.7 6.7l1.3-1.3a2 2 0 0 1 1.8-.6l2.8.5a2 2 0 0 1 1.7 2z"/></svg></div><div class="contact-details"><h3 class="c-lbl">Phone</h3></div><div class="svc-bring"><div class="desc"><a id="contactPhone" href="#">&mdash;</a></div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 13a3 3 0 100-6 3 3 0 000 6z" />
+                        </svg></div>
+<div class="contact-details"><h3 class="c-lbl">Location</h3></div></div><div class="svc-bring">
+                    <div class="desc">Santa Maria, Bulacan</div>
+                    <div class="desc"><a class="contact-map-link" target="_blank" rel="noopener"
+                            href="https://www.google.com/maps/search/?api=1&query=PUP+Santa+Maria+Campus+Bulacan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg> Open
+                            in Google Maps</a></div></div></article>
+                <article class="svc-preview-card contact-card"><div class="svc-preview-head"><div class="svc-preview-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2" />
+                        </svg></div>
+<div class="contact-details"><h3>Office hours</h3></div></div><div class="svc-bring"><div class="office-hours" id="contactOfficeHours"></div><button class="btn btn-primary btn-sm contact-calendar-button" onclick="UniServeUX.visitorCalendar()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg><span>Office calendar</span></button></div></article>
+            </div>
+            </div>
             </div>
             <div class="footer-bottom">
                 <div class="footer-main">
                     <span>&copy; <span id="yearNow"></span> Office of Student Services, PUP Santa Maria Campus</span>
+                </div>
+                <div class="footer-col footer-information">
+                    <h4>Information</h4>
+                    <a href="terms.html">Terms &amp; Conditions</a>
+                    <a href="#" onclick="showLogin(); return false;">Login</a>
                 </div>
                 <p class="privacy-note" id="privacy">
                     <b>Data privacy notice.</b> UniServe uses your name, ID details, contact number, email address,
@@ -380,7 +372,7 @@
     <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261124-service-more-chevron"></script>
+    <script src="landing.js?v=20261124-rating-display"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
     <script src="../shared/portal-api.js?v=20261120-public-queue-isolation"></script>

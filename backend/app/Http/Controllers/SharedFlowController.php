@@ -26,11 +26,17 @@ class SharedFlowController extends Controller {
  public function createChat(Request $r){
   $r->merge(['contact'=>\App\Support\PhilippineContact::normalize($r->input('contact',''))]);
   \App\Support\Availability::requireOpen();
-  $d=$r->validate(['visitorName'=>'required|string|min:2|max:150','email'=>['required','email','max:120'],'contact'=>['required','regex:/^09[0-9]{9}$/']]);$message=$this->body($r);$id='C'.bin2hex(random_bytes(8));
-  abort_unless(VisitorAccess::email($r)===strtolower($d['email']),403,'Verify the email used for this conversation.');
+  $d=$r->validate(['visitorName'=>'required|string|min:2|max:150']);$d+=['email'=>'','contact'=>''];$message=$this->body($r);$id='C'.bin2hex(random_bytes(8));$alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';do{$code='';for($i=0;$i<6;$i++)$code.=$alphabet[random_int(0,strlen($alphabet)-1)];$codeHash=hash_hmac('sha256','chat-code:'.$code,config('app.key'));}while(DB::table('shared_chats')->where('email',$codeHash)->exists());
   $c=$d+['id'=>$id,'status'=>'Open','messages'=>[['id'=>bin2hex(random_bytes(8)),'sender'=>'visitor','senderName'=>$d['visitorName'],'text'=>$message['text']??'','attachments'=>$message['attachments']??[],'ts'=>now()->toIso8601String()]],'staffUnread'=>1,'visitorUnread'=>0,'createdAt'=>now()->toIso8601String(),'updatedAt'=>now()->toIso8601String(),'shared'=>true];
-  DB::table('shared_chats')->insert(['id'=>$id,'email'=>\App\Support\EmailIndex::key(strtolower($d['email'])),'payload'=>Crypt::encryptString(json_encode($c)),'created_at'=>now(),'updated_at'=>now()]);
-  return response()->json(['chat'=>$c,'chatToken'=>Crypt::encryptString(json_encode(['id'=>$id,'purpose'=>'chat','expires'=>time()+3600]))],201);
+  DB::table('shared_chats')->insert(['id'=>$id,'email'=>$codeHash,'payload'=>Crypt::encryptString(json_encode($c)),'created_at'=>now(),'updated_at'=>now()]);
+  return response()->json(['chat'=>$c,'chatCode'=>$code,'chatToken'=>Crypt::encryptString(json_encode(['id'=>$id,'purpose'=>'chat','expires'=>time()+3600]))],201);
+ }
+ public function resumeChat(Request $r){
+  $d=$r->validate(['code'=>'required|string|max:64']);$code=strtoupper(str_replace(['-',' '],'',$d['code']));
+  abort_unless(preg_match('/^(?:[A-HJ-NP-Z2-9]{6}|[A-F0-9]{20}|[A-F0-9]{32})$/',$code),422,'Enter a valid chat code.');
+  $hash=strlen($code)===6?hash_hmac('sha256','chat-code:'.$code,config('app.key')):hash('sha256','chat-code:'.$code);
+  $row=DB::table('shared_chats')->where('email',$hash)->first();abort_unless($row,404,'Chat code not found.');
+  return response()->json(['chat'=>json_decode(Crypt::decryptString($row->payload),true),'chatToken'=>Crypt::encryptString(json_encode(['id'=>$row->id,'purpose'=>'chat','expires'=>time()+3600]))]);
  }
  public function chat(Request $r,string $id){$row=DB::table('shared_chats')->where('id',$id)->first();abort_unless($row,404);$this->chatAccess($r,$row);return response()->json(['chat'=>json_decode(Crypt::decryptString($row->payload),true)]);}
  public function readChat(Request $r,string $id){$c=DB::transaction(function()use($r,$id){$row=DB::table('shared_chats')->where('id',$id)->lockForUpdate()->first();abort_unless($row,404);$u=$this->chatAccess($r,$row);$c=json_decode(Crypt::decryptString($row->payload),true);$c[$u?'staffUnread':'visitorUnread']=0;DB::table('shared_chats')->where('id',$id)->update(['payload'=>Crypt::encryptString(json_encode($c))]);return $c;});return response()->json(['chat'=>$c]);}

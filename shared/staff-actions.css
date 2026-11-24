@@ -206,6 +206,10 @@ body .assisted-intake-form .ph-phone-input:focus-within { border-color:var(--con
 #content .staff-messages .staff-chat-send { border-radius:6px; background:var(--chat-accent); color:#fff; }
 #content .staff-messages .staff-chat-send:hover:not(:disabled) { background:var(--accent-strong); }
 #content .staff-messages .staff-chat-send:disabled { background:var(--surface-2); color:var(--text-soft); opacity:1; }
+#content .staff-messages .chat-input-row textarea { border-radius:24px; background:var(--surface-2); }
+#content .staff-messages .chat-input-row > .icon-btn { border:0; border-radius:6px; background:transparent; color:var(--chat-accent); }
+#content .staff-messages .staff-chat-send { border-radius:6px; background:transparent; color:var(--chat-accent); }
+#content .staff-messages .staff-chat-send:hover:not(:disabled) { background:var(--surface-2); }
 @media(max-width:760px) {
  #content .staff-messages .chat-shell { display:flex; }
  #content .staff-messages .chat-messages { padding:16px; }

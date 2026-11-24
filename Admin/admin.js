@@ -1589,9 +1589,9 @@ function openStaffChat(id) {
     <div id="staffAttachPreview" style="padding:${closed ? '0' : '10px 18px 0'};"></div>
     <div class="chat-input-row">
       <input type="file" id="staffAttachInput" multiple style="display:none" onchange="handleStaffFileSelect(this)" ${closed ? 'disabled' : ''}>
-      <button class="icon-btn" aria-label="Attach files" title="Attach files" onclick="document.getElementById('staffAttachInput').click()" ${closed ? 'disabled' : ''}>${icon('paperclip', 16)}</button>
+      <button class="icon-btn" aria-label="Attach files" title="Attach files" onclick="document.getElementById('staffAttachInput').click()" ${closed ? 'disabled' : ''}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg></button>
       <textarea id="staffReplyBox" aria-label="Message" rows="1" placeholder="${closed ? 'Conversation is closed' : 'Write a message'}" ${closed ? 'disabled' : ''}></textarea>
-      <button type="button" class="staff-chat-send" aria-label="Send message" title="Send message" onclick="sendStaffReply('${c.id}')" ${closed ? 'disabled' : ''}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button></div>`;
+      <button type="button" class="staff-chat-send" aria-label="Send message" title="Send message" onclick="sendStaffReply('${c.id}')" ${closed ? 'disabled' : ''}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l16 8-16 8 3-8-3-8zm3 8h13"/></svg></button></div>`;
   const area = document.getElementById('chatMsgArea');
   if (area) area.scrollTop = area.scrollHeight;
 }

@@ -644,7 +644,7 @@ function renderFeedbackSection() {
   if(hero){
     const count=landingFeedbackSummary?.total||0;
     hero.hidden=!count;
-    hero.innerHTML=count?`<div class="hero-feedback-rating"><span class="hero-feedback-stars" aria-hidden="true">${STARS(Math.round(landingFeedbackSummary.average))}</span><strong>${landingFeedbackSummary.average.toFixed(1)} <span class="hero-feedback-scale">/ 5</span></strong></div>`:'';
+    hero.innerHTML=count?`<div class="hero-feedback-rating"><span class="hero-feedback-stars" aria-hidden="true">${STARS(Math.round(landingFeedbackSummary.average))}</span><strong>${landingFeedbackSummary.average.toFixed(1)}</strong></div>`:'';
     if(count)hero.setAttribute('aria-label',`Average visitor rating: ${landingFeedbackSummary.average.toFixed(1)} out of 5`);
   }
 }
@@ -743,7 +743,5 @@ function contactHoursHtml() {
   if (!OfficeCalendar.ready()) return '<p class="desc">Hours temporarily unavailable.</p>';
   const date = OfficeCalendar.parts().date, day = OfficeCalendar.day(date);
   const hours = day.open ? OfficeCalendar.clock(day.start).replace(':00', '') + ' \u2013 ' + OfficeCalendar.clock(day.end).replace(':00', '') : 'Closed';
-  const intervals = OfficeCalendar.intervals(date);
-  const lunch = intervals.length > 1 ? '<div class="desc">Lunch: '+escapeHtml(OfficeCalendar.clock(intervals[0][1]).replace(':00', '')+' \u2013 '+OfficeCalendar.clock(intervals[1][0]).replace(':00', ''))+'</div>' : '';
-  return '<div class="desc">Today: '+escapeHtml(hours)+'</div>'+lunch;
+  return '<div class="desc"><svg class="footer-hours-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Today: '+escapeHtml(hours)+'</span></div>';
 }

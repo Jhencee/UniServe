@@ -438,12 +438,17 @@ it('requires staff authorization for chat management and settings changes',funct
  $this->patchJson('/api/chats/'.$c['id'],['status'=>'Closed'],appointmentHeaders())->assertOk();
  $this->putJson('/api/settings',['settings'=>[],'revision'=>0],appointmentHeaders())->assertForbidden();
 });
-it('requires mailbox verification before chat creation and blocks forged attachments',function(){
- $d=['visitorName'=>'Visitor Name','email'=>'student@gmail.com','contact'=>'09123456789','text'=>'Hello'];
- $this->postJson('/api/chats',$d)->assertUnauthorized();
- $this->postJson('/api/chats',$d,['X-Visitor-Token'=>VisitorAccess::token('wrong@gmail.com')])->assertForbidden();
+it('creates chats without mailbox verification while protecting conversation access and attachments',function(){
+ $d=['visitorName'=>'Visitor Name','text'=>'Hello'];
+ $result=$this->postJson('/api/chats',$d)->assertCreated();
+ $id=$result->json('chat.id'); $token=$result->json('chatToken');
+ $this->getJson('/api/chats/'.$id)->assertUnauthorized();
+ $this->getJson('/api/chats/'.$id,['X-Chat-Token'=>$token])->assertOk();
+ $code=$result->json('chatCode');
+ $this->postJson('/api/chats/resume',['code'=>$code])->assertOk()->assertJsonPath('chat.id',$id);
+ $this->postJson('/api/chats/resume',['code'=>str_repeat('A',32)])->assertNotFound();
  $d['attachments']=[['name'=>'test.html','dataUrl'=>'javascript:alert(1)']];
- $this->postJson('/api/chats',$d,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertUnprocessable();
+ $this->postJson('/api/chats',$d)->assertUnprocessable();
 });
 it('allows feedback once only after completion and for the correct visitor',function(){
  $q=['id'=>'feedback-q','visitId'=>'VIS-FEEDBACK','email'=>'student@gmail.com','name'=>'Student','status'=>'Completed'];

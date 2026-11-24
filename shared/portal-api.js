@@ -39,10 +39,15 @@
   async function request(path,method='GET',body,options={}){
     const headers={Accept:'application/json','Content-Type':'application/json'};
     if(staff){const session=JSON.parse(sessionStorage.getItem('ossuniserve_session')||'{}');headers.Authorization='Bearer '+(session.token||'');}
-    const chat=path.match(/^\/chats\/([^/]+)/)?.[1];if(chat&&visitor&&!sessionStorage.getItem('ossuniserve_visitor_token')){const token=sessionStorage.getItem('chat-token:'+chat);if(token)headers['X-Chat-Token']=token;}
+    const chat=path.match(/^\/chats\/([^/]+)/)?.[1];if(chat&&visitor){const token=sessionStorage.getItem('chat-token:'+chat);if(token)headers['X-Chat-Token']=token;}
     const feedbackId=path.match(/^\/queue\/([^/]+)\/feedback$/)?.[1];
     if(feedbackId&&visitor){const q=loadDB().queues.find(q=>q.id===feedbackId),token=q&&sessionStorage.getItem('visit-token:'+q.visitId);if(token)headers['X-Visit-Token']=token;}
-    const response=await fetch(API+path,{method,headers,signal:AbortSignal.timeout(15000),...options,...(body?{body:JSON.stringify(body)}:{})});const data=await response.json();if(!response.ok){const e=Error(Object.values(data.errors||{}).flat().join(' ')||data.message||'Request failed.');e.status=response.status;throw e;}return data;
+    let response=await fetch(API+path,{method,headers,signal:AbortSignal.timeout(15000),...options,...(body?{body:JSON.stringify(body)}:{})});
+    if(response.status===401&&chat&&visitor&&sessionStorage.getItem('chat-code:'+chat)){
+      const renewed=await request('/chats/resume','POST',{code:sessionStorage.getItem('chat-code:'+chat)});
+      if(renewed.chat.id===chat){sessionStorage.setItem('chat-token:'+chat,renewed.chatToken);headers['X-Chat-Token']=renewed.chatToken;response=await fetch(API+path,{method,headers,signal:AbortSignal.timeout(15000),...options,...(body?{body:JSON.stringify(body)}:{})});}
+    }
+    const data=await response.json();if(!response.ok){const e=Error(Object.values(data.errors||{}).flat().join(' ')||data.message||'Request failed.');e.status=response.status;throw e;}return data;
   }
   if(staff){
     let activitySentAt=0,activityPending=false;
@@ -255,10 +260,10 @@
     if(window.pendingVisitorChat){window.pendingVisitorChat=false;window.openVerifiedVisitorChat();}
     window.finalizeChatFlow=async function(){
       if(contactChatPending)return;contactChatPending=true;
-      try{const p=chatFlow.profile,files=document.getElementById('cfFiles')?.files||[];const errors=validateAttachments(files);if(errors.length)throw Error(errors.join(' '));const result=await request('/chats','POST',{visitorName:joinName(p.first,p.last),email:p.email,contact:p.contact.replace(/\D/g,''),text:chatFlow.message,attachments:await readFilesAsAttachments(files)});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){if(e.status===401||e.status===403)SharedAppointments.verify(()=>finalizeChatFlow(),{purpose:'chat',email:chatFlow?.profile?.email||''});else toast(escapeHtml(e.message),'err');}finally{contactChatPending=false;}
+      try{const p=chatFlow.profile,files=document.getElementById('cfFiles')?.files||[];const errors=validateAttachments(files);if(errors.length)throw Error(errors.join(' '));const result=await request('/chats','POST',{visitorName:joinName(p.first,p.last),text:chatFlow.message,attachments:await readFilesAsAttachments(files)});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);sessionStorage.setItem('chat-code:'+result.chat.id,result.chatCode);cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){toast(escapeHtml(e.message),'err');}finally{contactChatPending=false;}
     };
-    window.resumeChatByEmail=function(){SharedAppointments.verify(async()=>{await refreshChats();if(!chats.length){toast('No conversations found.','err');return;}currentPublicChatId=chats[0].id;chatFlow=null;persistSession();renderChatScreen();},{purpose:'chat'});};
-    window.sendVisitorMessage=async function(id){try{cache(await request('/chats/'+id+'/messages','POST',{text:document.getElementById('chReply').value.trim(),attachments:await readFilesAsAttachments(document.getElementById('chReplyFiles')?.files)}));renderPublicChatThread(loadDB().chats.find(c=>c.id===id));}catch(e){if(e.status===401)SharedAppointments.verify(()=>sendVisitorMessage(id),{purpose:'chat'});else toast(escapeHtml(e.message),'err');}};
+    window.resumeChatByCode=async function(){try{const code=document.getElementById('chatResumeCode').value.trim();const result=await request('/chats/resume','POST',{code});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);sessionStorage.setItem('chat-code:'+result.chat.id,code.toUpperCase().replace(/[\s-]/g,''));cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){toast(escapeHtml(e.message),'err');}};
+    window.sendVisitorMessage=async function(id){try{cache(await request('/chats/'+id+'/messages','POST',{text:document.getElementById('chReply').value.trim(),attachments:await readFilesAsAttachments(document.getElementById('chReplyFiles')?.files)}));renderPublicChatThread(loadDB().chats.find(c=>c.id===id));}catch(e){toast(escapeHtml(e.message),'err');}};
     window.refreshChatIfNeeded=async function(id){try{const result=cache(await request('/chats/'+id+'/read','POST',{}));const area=document.getElementById('chatMsgArea');if(area)area.innerHTML=renderBubbles(result.chat);}catch(_){};};
     let feedbackBusy=false;
     submitVisitFeedback=async function(id,draft){
