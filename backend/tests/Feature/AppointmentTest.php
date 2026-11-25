@@ -411,7 +411,8 @@ it('reuses submission keys instead of creating duplicate requests on retry',func
  expect(DB::table('shared_appointments')->count())->toBe(1);
 });
 it('protects chat ownership and rejects forged chat tokens',function(){
- $data=['visitorName'=>'Visitor Name','email'=>'student@gmail.com','contact'=>'09123456789','text'=>'Hello office'];
+ \Illuminate\Support\Facades\Queue::fake();
+ $data=['visitorName'=>'Visitor Name','visitorType'=>'Guest','email'=>'student@gmail.com','text'=>'Hello office'];
  $first=$this->postJson('/api/chats',$data,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertCreated()->json();
  $second=$this->postJson('/api/chats',$data,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertCreated()->json();
  $path='/api/chats/'.$first['chat']['id'];
@@ -435,22 +436,28 @@ it('keeps personal details off the public queue and protects visit endpoints',fu
  $this->getJson('/api/visits/'.$a['visitId'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertHeader('Cache-Control','no-store, private');
 });
 it('requires staff authorization for chat management and settings changes',function(){
- $c=$this->postJson('/api/chats',['visitorName'=>'Visitor Name','email'=>'student@gmail.com','contact'=>'09123456789','text'=>'Hello'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->json('chat');
+ \Illuminate\Support\Facades\Queue::fake();
+ $c=$this->postJson('/api/chats',['visitorName'=>'Visitor Name','visitorType'=>'Guest','email'=>'student@gmail.com','text'=>'Hello'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->json('chat');
  $this->deleteJson('/api/chats/'.$c['id'])->assertUnauthorized();
  $this->patchJson('/api/chats/'.$c['id'],['status'=>'Closed'],appointmentHeaders())->assertOk();
  $this->putJson('/api/settings',['settings'=>[],'revision'=>0],appointmentHeaders())->assertForbidden();
 });
-it('creates chats without mailbox verification while protecting conversation access and attachments',function(){
- $d=['visitorName'=>'Visitor Name','text'=>'Hello'];
- $result=$this->postJson('/api/chats',$d)->assertCreated();
+it('requires verified chat email and queues the private code without returning it',function(){
+ \Illuminate\Support\Facades\Queue::fake();
+ $d=['visitorName'=>'Visitor Name','visitorType'=>'Guest','email'=>'student@gmail.com','text'=>'Hello'];
+ $this->postJson('/api/chats',$d)->assertUnauthorized();
+ $this->postJson('/api/chats',$d,['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
+ $headers=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];
+ $result=$this->postJson('/api/chats',$d,$headers)->assertCreated()->assertJsonMissingPath('chatCode');
  $id=$result->json('chat.id'); $token=$result->json('chatToken');
  $this->getJson('/api/chats/'.$id)->assertUnauthorized();
  $this->getJson('/api/chats/'.$id,['X-Chat-Token'=>$token])->assertOk();
- $code=$result->json('chatCode');
- $this->postJson('/api/chats/resume',['code'=>$code])->assertOk()->assertJsonPath('chat.id',$id);
+ $jobs=\Illuminate\Support\Facades\Queue::pushed(\App\Jobs\SendChatCode::class);expect($jobs)->toHaveCount(1);
+ $code=$jobs->first()->code;expect($jobs->first()->email)->toBe('student@gmail.com');
+ $this->postJson('/api/chats/resume',['code'=>$code])->assertOk()->assertJsonPath('chat.id',$id)->assertJsonStructure(['chatToken']);
  $this->postJson('/api/chats/resume',['code'=>str_repeat('A',32)])->assertNotFound();
  $d['attachments']=[['name'=>'test.html','dataUrl'=>'javascript:alert(1)']];
- $this->postJson('/api/chats',$d)->assertUnprocessable();
+ $this->postJson('/api/chats',$d,$headers)->assertUnprocessable();
 });
 it('allows feedback once only after completion and for the correct visitor',function(){
  $q=['id'=>'feedback-q','visitId'=>'VIS-FEEDBACK','email'=>'student@gmail.com','name'=>'Student','status'=>'Completed'];

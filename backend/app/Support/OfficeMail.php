@@ -3,14 +3,14 @@ namespace App\Support;
 
 class OfficeMail
 {
-    public static function send(string $recipient,string $subject,string $body,?string $code=null):void
+    public static function send(string $recipient,string $subject,string $body,?string $code=null,?string $codeNotice=null):void
     {
-        $html=self::html($subject,$body,$code);
+        $html=self::html($subject,$body,$code,$codeNotice);
         \Illuminate\Support\Facades\Mail::html($html,function($mail)use($recipient,$subject){
             $mail->to($recipient)->subject($subject);
         });
     }
-    public static function html(string $title,string $body,?string $code=null):string
+    public static function html(string $title,string $body,?string $code=null,?string $codeNotice=null):string
     {
         $details=[];$intro=$body;$closing='';
         if(preg_match_all('/^(Service|Date|Time|Visit ID):[ \t]*(.+)$/m',$body,$matches,PREG_OFFSET_CAPTURE)){
@@ -26,6 +26,6 @@ class OfficeMail
         $intro=preg_replace('/\n{3,}/',"\n\n",$intro);
         $pickup=$title==='Document ready for pickup';
         if($pickup)$closing='';
-        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'details'=>$details,'rules'=>$rules,'pickup'=>$pickup])->render();
+        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'codeNotice'=>$codeNotice ?? 'This code expires in five minutes. Never share it with anyone.','details'=>$details,'rules'=>$rules,'pickup'=>$pickup])->render();
     }
 }

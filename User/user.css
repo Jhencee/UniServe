@@ -3204,6 +3204,8 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
   .visitor-welcome h1 { max-width:none; margin:14px 0 10px; font-size:1.85rem; }
 }
 .visitor-help-chevron { color:var(--accent-strong); font-size:1.3rem; line-height:1; }
+body #activeModal .visit-instructions-modal { width:min(100% - 32px,420px); }
+body #activeModal .visit-instructions-modal .modal-body { line-height:1.6; }
 #visitorApp.visitor-hub-layout .content { margin:0 auto; padding-top:28px; }
 #visitorApp.visitor-hub-layout .visit-start-page { max-width:none; }
 .visitor-actions { position:relative; }

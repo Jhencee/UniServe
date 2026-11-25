@@ -375,12 +375,7 @@ function duplicateWarningHtml(dup) {
   const desc = dup.type === 'queue'
     ? `You already have an active visit (${escapeHtml(queueRef(dup.entry))}) for this same service.`
     : `You already have a pending scheduled request (${escapeHtml(dup.entry.code)}) for this same service.`;
-  return `<div class="dup-warn">${icon('alert', 13)} Possible duplicate visit: ${desc} Open your existing request first, or continue only if you need a separate visit. <button class="btn btn-ghost btn-sm" onclick="openExistingDuplicate('${dup.type}','${dup.entry.id}')">Open existing request</button></div>`;
-}
-function openExistingDuplicate(type,id) {
-  const db=loadDB();closeModal();
-  if(type==='queue'){const q=db.queues.find(q=>q.id===id);if(q){myActiveQueueId=q.id;persistSession();renderQueueTicket();}}
-  else {const a=db.appointments.find(a=>a.id===id);if(a)showPassModalReadonly(a,true);}
+  return `<div class="dup-warn">${icon('alert', 13)} Possible duplicate visit: ${desc} Use Check My Visit to view it, or continue only if you need a separate visit. <button class="btn btn-ghost btn-sm" onclick="closeModal();navigateVisitor('checkvisit')">Check My Visit</button></div>`;
 }
 function visitorHistoryFor(db, email) {
   const em = normEmail(email);
@@ -650,12 +645,17 @@ function visitorSectionBack() {
     window.historyVisitOpen=false;stopTicketPolling();myActiveQueueId=null;
     sessionStorage.removeItem('oss_activeAppointmentId');persistSession();updateVisitorBackButton();navigateVisitor('history');
   }else {
+    if(visitorView==='chat')clearChatSelection();
     if(myActiveQueueId || visitStep==='pass'){
       myActiveQueueId=null;visitStep='pick';visitSelectedService=null;
       sessionStorage.removeItem('oss_activeAppointmentId');persistSession();
     }
     showVisitorHub();
   }
+}
+function clearChatSelection() {
+  if(currentPublicChatId){sessionStorage.removeItem('chat-token:'+currentPublicChatId);sessionStorage.removeItem('chat-code:'+currentPublicChatId);}
+  currentPublicChatId=null;chatFlow=null;persistSession();
 }
 function showVisitorHub() {
   visitorNavigationVersion++;
@@ -674,14 +674,25 @@ async function resumeActiveWalkIn() {
   const result = await response.json();
   if (visitorNavigationVersion !== navigation || visitorHubOpen || visitorView !== 'visit') return true;
   if (!result.queue) return false;
-  const db = loadDB();
-  db.queues = db.queues.filter(q => q.id !== result.queue.id).concat(result.queue);
-  saveDB(db);
-  myActiveQueueId = result.queue.id; visitStep = 'ticket'; persistSession();
-  renderQueueTicket();
+  showActiveWalkInNotice();
   return true;
 }
+function showActiveWalkInNotice() {
+  openModal('Active walk-in', '<p>You already have an active walk-in visit. Use Check My Visit to view your Visit Pass.</p>', [
+    {label:'Stay here',cls:'btn-ghost',action:closeModal},
+    {label:'Check My Visit',cls:'btn-primary',action:()=>{closeModal();navigateVisitor('checkvisit');}}
+  ]);
+  document.querySelector('#activeModal .modal')?.classList.add('visit-instructions-modal');
+}
+function showVisitPassInstructions(kind) {
+  const text=kind==='walkin'
+    ? 'Download your ticket and save your Visit ID. After leaving, use Check My Visit to view your pass again.'
+    : 'Save your request reference and use Check My Visit to follow your request. Download your ticket after OSS confirms your appointment.';
+  openModal(kind==='walkin'?'Your Visit Pass':'Appointment request submitted', `<p>${text}</p>`, [{label:'Got it',cls:'btn-primary',action:closeModal}]);
+  document.querySelector('#activeModal .modal')?.classList.add('visit-instructions-modal');
+}
 function navigateVisitor(key) {
+  if(key!=='chat' && visitorView==='chat')clearChatSelection();
   if(key==='history'&&typeof window!=='undefined'&&!window.visitorHistoryGateEntering){
     if(typeof window.openVerifiedVisitorHistory==='function')window.openVerifiedVisitorHistory();
     else {window.pendingVisitorHistory=true;showVisitorHub();}
@@ -885,7 +896,7 @@ function renderVisitWalkinForm() {
       ${disabilityPriorityHtml('q')}</fieldset>
       <fieldset class="visitor-form-section"><legend>Contact details</legend><div class="form-row">
       <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
-      <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}" required><p class="field-hint">${isStudent ? 'Use your PUP student email. We’ll send you a verification code.' : 'We’ll send a verification code to this email.'}</p><div class="field-error"></div></div>
+      <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}" required><div class="field-error"></div></div>
       </div></fieldset><p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch for it under &ldquo;Now calling&rdquo; and proceed to the assigned counter when called.</p>
       ${visitorTermsHtml('q')}
       <button class="btn btn-gold btn-block" onclick="confirmWalkInPrompt()">${icon('check', 16)} Review details</button>
@@ -940,13 +951,15 @@ async function confirmWalkIn(possibleDuplicate, vals, name, isSenior) {
     entry = result.queue; existing = !!result.existing;
   } catch (error) { toast(escapeHtml(error instanceof TypeError ? 'We could not start your visit. Check your connection and try again.' : error.message), 'err'); return; }
   finally { walkInPending = false; }
+  if(existing){showActiveWalkInNotice();return;}
   db.queues = db.queues.filter(q => q.id !== entry.id).concat(entry);
   if (!existing) logActivity(db, VISITOR_ACTOR, `Joined queue ${entry.number} (${entry.visitId}) &mdash; walk-in, ${entry.serviceLabel}`, { category: 'Queue', target: entry.visitId });
   saveDB(db);
   clearVisitorDraft();
   myActiveQueueId = entry.id; visitStep = 'ticket'; persistSession();
-  toast(existing ? 'You already have an active walk-in. Showing your existing ticket.' : `Visit ${entry.visitId} started &mdash; queue number ${entry.number}.`, 'ok');
-  renderQueueTicket();
+  toast(`Visit ${entry.visitId} started &mdash; queue number ${entry.number}.`, 'ok');
+  await renderQueueTicket();
+  if(myActiveQueueId===entry.id && !visitorHubOpen)showVisitPassInstructions('walkin');
 }
 
 function startSchedule() { captureVisitorDraft(); visitStep = 'schedule'; persistSession(); renderVisitScheduleForm(); }
@@ -957,13 +970,13 @@ function renderVisitScheduleForm() {
     ${selectedBarHtml('Request an appointment', svc)}
     <div class="card card-pad visitor-page-wrap visit-details-form" onkeydown="uxEnter(event,'confirmSchedulePrompt')"><div class="chat-contact-head"><h3>Your appointment details</h3><p>Choose a date and time. OSS will confirm or reschedule your request.</p></div>
       <fieldset class="visitor-form-section"><legend>Schedule</legend><input id="bkOffice" type="hidden" value="">
-      <div class="form-row"><div class="field"><label for="bkDate">Preferred date *</label><input id="bkDate" type="date" min="${OfficeCalendar.parts().date}" onchange="refreshBookingSlots()" required></div><div class="field"><label for="bkTime">Available time slot *</label><select id="bkTime" required disabled><option value="">Choose a date first</option></select></div></div><p id="bkSlotStatus" class="field-hint" role="status" aria-live="polite"></p>
+      <div class="form-row"><div class="field"><label for="bkDate">Preferred date ${uxReq}</label><input id="bkDate" type="date" min="${OfficeCalendar.parts().date}" onchange="refreshBookingSlots()" required></div><div class="field"><label for="bkTime">Available time slot ${uxReq}</label><select id="bkTime" required disabled><option value="">Choose a date first</option></select></div></div><p id="bkSlotStatus" class="field-hint" role="status" aria-live="polite"></p>
       </fieldset><fieldset class="visitor-form-section"><legend>Personal details</legend>${visitorFieldsHtml('bk', isStudent)}
       ${disabilityPriorityHtml('bk')}</fieldset>
       <fieldset class="visitor-form-section"><legend>Contact details</legend>
       <div class="form-row">
         <div class="field" id="fwBkContact"><label for="bkContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="bkContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
-        <div class="field" id="fwBkEmail"><label for="bkEmail">Email address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}"><p class="field-hint">${isStudent ? 'Use your PUP student email. We’ll send you a verification code.' : 'We’ll send a verification code to this email.'}</p><div class="field-error"></div></div>
+        <div class="field" id="fwBkEmail"><label for="bkEmail">Email address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}"><div class="field-error"></div></div>
       </div>
       </fieldset><fieldset class="visitor-form-section"><legend>Supporting documents <span class="opt">(optional)</span></legend>
       <div class="field">
@@ -1076,10 +1089,11 @@ async function confirmSchedule(possibleDuplicate, readinessStatus, vals, name, i
   toast('Appointment request submitted.', 'ok');
   clearVisitorDraft(); visitStep = 'pass'; persistSession();
   showPassModalReadonly(appt, true);
+  showVisitPassInstructions('appointment');
 }
 
 function canDownloadAppointmentTicket(appt) {
-  return Boolean(appt && ['Booked','Checked-in'].includes(appt.status) && appt.date && appt.time && !appt.needsRescheduling && !UniServeUX.conflict(appt));
+  return Boolean(appt && /^VIS-/i.test(appt.visitId || '') && ['Booked','Checked-in'].includes(appt.status) && appt.date && appt.time && !appt.needsRescheduling && !UniServeUX.conflict(appt));
 }
 function ticketScheduleLabel(date, time) {
   if (!date) return 'Pending';
@@ -1265,7 +1279,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':q.feedback?'Your visit is complete. Thank you for your feedback.':(q.pickupOfVisitId||q.pickupTransactionId)?'Your pickup visit is complete.':'Your visit is complete. You may share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
   const progressOpen=lastTicketRender.id===q.id ? (document.querySelector('.queue-visit-journey')?.open ?? !isDone) : !isDone;
   document.getElementById('visitorContent').innerHTML = `
-    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">Save your Visit ID. You can reopen this pass using Check My Visit.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
+    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3><p class="field-hint">${isDone?'Save your Visit ID.': 'Download your ticket and save your Visit ID.'} After leaving this page, use Check My Visit to view your pass again.</p><section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
       ${waitBanner}
       <div class="qt-layout">
         <div class="qt-main ${isDone ? 'qt-main-complete' : ''}">
@@ -1422,7 +1436,8 @@ function showPassModalReadonly(apptIn, embedded = false) {
   notes.Completed = 'Your visit is complete. Open your visit to leave feedback about the service.';
   notes['Checked-in'] = 'You are checked in. Follow your queue status and wait for OSS to call you.';
   const note = bookingConflict ? 'Contact OSS before travelling to the office; your scheduled slot is unavailable.' : linked ? (linked.status === 'Completed' ? notes.Completed : notes['Checked-in']) : (notes[appt.status] || (appt.status === 'Booked' && !canCheckIn ? 'Show your Visit ID at the OSS counter on your appointment day. An Admin will check you in when you arrive.' : '') || 'Show your Visit ID at the OSS counter. An Admin will check you in when you arrive.');
-  const buttons = appt.status==='Completed'||linked?.status==='Completed'?[]:[{label:'Download ticket',cls:'btn-ghost',disabled:!canDownloadAppointmentTicket(appt),action:()=>{if(canDownloadAppointmentTicket(appt))return downloadVisitorTicket();}}];
+  const ticketAvailable=canDownloadAppointmentTicket(appt);
+  const buttons = ticketAvailable?[{label:'Download ticket',cls:'btn-ghost',action:()=>{if(canDownloadAppointmentTicket(appt))return downloadVisitorTicket();}}]:[];
   if (appt.shared && ['Requested','Booked'].includes(appt.status)) buttons.push({label:'Cancel appointment',cls:'btn-danger-ghost',action:()=>cancelSharedAppointment(appt.id)});
   if(appt.shared&&['Requested','Booked','No-show','Unfinished'].includes(appt.status)) buttons.push({label:appt.rescheduleRequested?'Update reschedule request':'Request new schedule',cls:'btn-ghost',action:()=>requestNewSchedule(appt.id)});
   if (bookingConflict) buttons.push({label:'Contact OSS',cls:'btn-primary',action:()=>navigateVisitor('chat')});
@@ -1430,7 +1445,7 @@ function showPassModalReadonly(apptIn, embedded = false) {
 
   const statusLabel = (bookingConflict||appt.needsRescheduling) ? 'Needs rescheduling' : linked ? linked.status : ({Requested:'Awaiting approval',Booked:'Appointment confirmed','Checked-in':'Checked in',Completed:'Visit completed',Cancelled:'Appointment cancelled','No-show':'Appointment missed',Unfinished:'Visit unfinished'}[appt.status] || appt.status);
   const summary = '<section class="visit-status-summary" aria-label="Current appointment status"><span class="visit-status-caption">Current status</span><h4>'+escapeHtml(statusLabel)+'</h4><p><strong>Next step:</strong> '+note+'</p></section>';
-  const body = `${summary}${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>'+ (appt.needsRescheduling?'The previous requested slot has been released. Wait for OSS to confirm a new time.':'Waiting for OSS confirmation. Your current appointment stays the same for now.') +'</p></div></div>':''}${appointmentPassHtml(appt)}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}`;
+  const body = `${summary}${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>'+ (appt.needsRescheduling?'The previous requested slot has been released. Wait for OSS to confirm a new time.':'Waiting for OSS confirmation. Your current appointment stays the same for now.') +'</p></div></div>':''}${ticketAvailable?appointmentPassHtml(appt):(appt.visitId||appt.requestReference||appt.code?`<p class="field-hint"><strong>${appt.visitId?'Visit ID':'Request reference'}:</strong> ${escapeHtml(appt.visitId||appt.requestReference||appt.code)}</p>`:'')}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}`;
   if (embedded) {
     visitorView = 'checkvisit';
     if (typeof setVisitorHubState === 'function') setVisitorHubState(false);
@@ -1447,7 +1462,8 @@ function showPassModalReadonly(apptIn, embedded = false) {
     const actionButton = (button,i)=>`<button type="button" class="btn ${button.cls}" ${button.label==='Refresh status'?'data-refresh-status':''} ${button.disabled ? 'disabled title="Available after OSS approves your schedule"' : ''} onclick="runVisitorPassAction(${i})">${button.label}</button>`;
     const secondaryActions = visitorPassActions.map((button,i)=>i!==primaryIndex&&!button.cls.includes('danger')?actionButton(button,i):'').join('');
     const cancelActions = visitorPassActions.map((button,i)=>button.cls.includes('danger')?actionButton(button,i):'').join('');
-    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">Save your ${appt.visitId ? 'Visit ID' : 'request reference'}. You can reopen this status in Check My Visit.</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" aria-label="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" title="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
+    const passNotice=canDownloadAppointmentTicket(appt)?'Download your ticket and save your Visit ID. After leaving this page, use Check My Visit to view it again.':appt.status==='Requested'?'Save your request reference and use Check My Visit to follow your request. Download your ticket after OSS confirms your appointment.':`Save your ${appt.visitId ? 'Visit ID' : 'request reference'} and use Check My Visit to view this status again.`;
+    document.getElementById('visitorContent').innerHTML = `<div class="visitor-page-wrap"><div class="card card-pad"><h3>${appt.status === 'Requested' ? 'Awaiting schedule confirmation' : bookingConflict ? 'Needs rescheduling' : 'Your Visit Pass'}</h3><p class="field-hint">${passNotice}</p>${body}<div class="appointment-pass-actions"><div class="pass-actions-main">${actionButton(visitorPassActions[primaryIndex],primaryIndex)}</div>${secondaryActions?`<div class="pass-actions-secondary">${secondaryActions}</div>`:''}<div class="pass-actions-footer"><button type="button" class="btn btn-ghost" aria-label="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" title="${window.historyVisitOpen?'Back to records':'Check another Visit ID'}" onclick="if(window.historyVisitOpen){visitorSectionBack();}else{sessionStorage.removeItem('oss_activeAppointmentId');navigateVisitor('checkvisit');}">${window.historyVisitOpen?'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg>':'Check another Visit ID'}</button>${cancelActions}</div></div></div></div>`;
   } else {
     openModal(`Visit Pass &mdash; ${escapeHtml(appt.visitId || appt.code)}`, body, buttons);
     if(buttons[0]?.disabled)document.getElementById('modalBtn0')?.setAttribute('disabled','');
@@ -1612,9 +1628,8 @@ function renderChatScreen() {
 }
 function renderBubbles(c) {
   if (!c.messages.length) return `<div class="muted" style="font-size:.8rem; padding:10px;">No messages yet.</div>`;
-  const code = sessionStorage.getItem('chat-code:'+c.id);
   const intro = `<div class="bubble staff"><div class="who">OSS</div><div>Hi ${escapeHtml((c.visitorName || 'there').split(' ')[0])}! What would you like to ask or report to OSS?</div></div>`;
-  const codeReply = code ? `<div class="bubble staff"><div class="who">OSS</div><div>Your chat code: <strong>${escapeHtml(code)}</strong><br>Save it to reopen this chat. Keep it private.</div></div>` : '';
+  const codeReply = c.chatCodeEmailed ? `<div class="bubble staff"><div class="who">Automatic message</div><div>Your chat code will be emailed to you. Save it and keep it private. Please wait for an OSS reply; you can use the code to return later.</div></div>` : '';
   return intro + c.messages.map((m,i) => `<div class="bubble ${m.sender}"><div class="who">${m.sender === 'staff' ? 'OSS Staff' : 'Visitor'}</div><div>${escapeHtml(m.text)}</div>${m.attachments && m.attachments.length ? `<div class="attach-list">${m.attachments.map(attachChip).join('')}</div>` : ''}<div class="ts">${fmtDateTime(m.ts)}</div></div>${i===0 ? codeReply : ''}`).join('');
 }
 function renderPublicChatThread(c) {
