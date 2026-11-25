@@ -9,11 +9,14 @@
  if($visitor==='Guest'&&!empty($ticket['guestClass']))$visitor.=' - '.$ticket['guestClass'];
  if(!empty($ticket['isSenior'])&&($ticket['guestClass']??'')!=='Senior Citizen')$visitor.=' - Senior citizen';
  if(!empty($ticket['isPWD']))$visitor.=' - PWD priority';
+ $nameParts=preg_split('/\s+/u',trim($ticket['name']??''),-1,PREG_SPLIT_NO_EMPTY);
+ $maskedName=$nameParts ? $nameParts[0] : 'Visitor';
+ if(count($nameParts)>1 && preg_match('/^\p{L}/u',end($nameParts),$initial))$maskedName.=' '.$initial[0].'.';
  $fields=[
   'Office'=>$ticket['office']??'Office of Student Services',
   'Scheduled'=>$at ? $at->format('m/d/y - g:i A') : 'Pending',
   'Reference'=>$reference,
-  'Visitor'=>$ticket['name']??'Visitor',
+  'Visitor'=>$maskedName,
   'Status'=>$ticket['status']??'Requested',
  ];
 @endphp

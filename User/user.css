@@ -3445,6 +3445,13 @@ body #activeModal .visit-instructions-modal .modal-body { line-height:1.6; }
 .requirement-feedback { margin: 10px 0 0; padding-left: 22px; font-size: .78rem; line-height: 1.6; color: var(--text); }
 .requirement-reviewed { margin: 5px 0 0; padding-left: 22px; font-size: .7rem; color: var(--text-soft); }
 .appointment-requirements .requirements-note { margin: 0; padding: 12px 18px; background: var(--surface-2); color: var(--text-soft); font-size: .73rem; line-height: 1.6; }
+.additional-requirement { display:flex; flex-direction:column; align-items:flex-start; gap:6px; padding:12px 18px; border-top:1px solid var(--border); }
+.additional-requirement-label { color:var(--text); font-size:.78rem; font-weight:600; }
+.additional-requirement.field label.dropzone { width:100%; padding:14px 12px; gap:6px; margin:0; font-size:.78rem; font-weight:400; }
+.additional-requirement .dropzone small { font-size:.7rem; }
+.additional-requirement p { margin:0; color:var(--text-soft); font-size:.72rem; line-height:1.5; }
+.additional-requirement .btn { align-self:flex-end; min-height:36px; margin:2px 0 0; }
+@media (max-width:600px) { .additional-requirement .btn { min-height:44px; } }
 @media (max-width: 520px) { .requirement-file-row { flex-wrap: wrap; gap: 10px; } .requirement-file-row .attach-chip { flex-basis: 100%; } .requirement-file-row > .pill { margin-left: 22px; } }
 
 /* Ticket actions follow the portal's compact maroon treatment. */

@@ -141,6 +141,23 @@ class AppointmentController extends Controller {
   });
   return response()->json(['appointment'=>$a]);
  }
+ public function addDocument(Request $r,string $id) {
+  abort_if($r->bearerToken(),403,'The visitor must submit the document.');
+  $d=$r->validate(['revision'=>'required|integer|min:0','name'=>'required|string|max:200','dataUrl'=>'required|string|max:7000000','taskId'=>'nullable|string|max:80']);
+  $a=DB::transaction(function()use($r,$id,$d){
+   $row=DB::table('shared_appointments')->where('id',$id)->lockForUpdate()->first();abort_unless($row,404);$this->access($r,$row);
+   abort_unless(in_array($row->status,['Requested','Booked','Checked-in','Completed']),409,'Documents cannot be submitted for this visit.');
+   abort_unless($row->revision===$d['revision'],409,'This request changed. Refresh and try again.');
+   $a=json_decode(Crypt::decryptString($row->payload),true);$files=$a['attachments']??[];abort_if(count($files)>=5,422,'A visit can have at most five uploaded files.');
+   abort_unless(preg_match('~^data:(application/pdf|image/png|image/jpeg);base64,([A-Za-z0-9+/=]+)$~',$d['dataUrl'],$m),422,'Upload a PDF, PNG or JPEG.');
+   $bytes=base64_decode($m[2],true);abort_unless($bytes!==false&&strlen($bytes)<=5*1024*1024,422,'Each file must be at most 5 MB.');
+   abort_unless((new \finfo(FILEINFO_MIME_TYPE))->buffer($bytes)===$m[1],422,'File contents do not match its type.');
+   $files[]=['name'=>$d['name'],'dataUrl'=>$d['dataUrl'],'size'=>strlen($bytes),'type'=>$m[1],'review'=>['status'=>'Pending review'],'uploadedAt'=>now()->toIso8601String(),'additional'=>true,'followUpTaskId'=>$d['taskId']??null];$a['attachments']=$files;
+   DB::table('shared_appointments')->where('id',$id)->update(['payload'=>Crypt::encryptString(json_encode($a)),'revision'=>$row->revision+1,'updated_at'=>now()]);
+   SystemAudit::record(null,'Appointments','Visitor submitted additional document',$row->visit_id);
+   return self::present(DB::table('shared_appointments')->where('id',$id)->first());
+  });return response()->json(['appointment'=>$a]);
+ }
  public function replaceDocument(Request $r,string $id,string $index) {
   // Visitor-only: staff reviews replacements using the existing review action.
   abort_if($r->bearerToken(),403,'The visitor must submit the replacement.');
@@ -170,7 +187,7 @@ class AppointmentController extends Controller {
    $row=DB::table('shared_appointments')->where('id',$id)->lockForUpdate()->first();abort_unless($row,404);
    $this->access($r,$row);
    abort_unless($row->revision===$d['revision'],409,'Another Admin changed this request. Refresh it.');
-   abort_unless(in_array($row->status,['Requested','Booked']),409,'Documents can only be reviewed before check-in.');
+   abort_unless(in_array($row->status,['Requested','Booked','Checked-in','Completed']),409,'Documents cannot be reviewed for this visit.');
    abort_unless(\App\Support\CaseAccess::canEditAppointment($u,$row),403,'Document review requires edit access to this visit.');
    $a=self::present($row);abort_unless(isset($a['attachments'][(int)$index]),404,'Document not found.');
    $reason=trim($d['reason']??'');abort_if($d['status']==='Needs correction'&&$reason==='',422,'Explain what the visitor needs to correct.');

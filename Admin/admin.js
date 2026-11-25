@@ -814,7 +814,7 @@ function renderNotifications() {
   const preferences=notificationPreferences();
   const rows=notifications.map(n=>{
     const key=notificationPreferenceKey(n),pref=notificationPreference(n,preferences);
-    const action=n.kind==='important'?'openImportantNotification(this.dataset.id)':n.kind==='approval'?'openApprovedAccessRequest(this.dataset.id)':n.kind==='access'?'openHeadAccessRequest(this.dataset.id)':n.kind==='document'?'openPendingDocuments()':n.kind==='case'?'openTxnDetail(this.dataset.id)':'openApptDetail(this.dataset.id,true)';
+    const action=n.kind==='important'?'openImportantNotification(this.dataset.id)':n.kind==='approval'?'openApprovedAccessRequest(this.dataset.id)':n.kind==='access'?'openHeadAccessRequest(this.dataset.id)':n.kind==='document'?'openPendingDocuments()':n.kind==='case'?'openTxnDetail(this.dataset.id)':n.category==='followups'?'openAppointmentFollowUps(this.dataset.id)':'openApptDetail(this.dataset.id,true)';
     return '<article class="notification-entry" data-key="'+escapeHtml(key)+'" data-read="'+!!pref.read+'" data-archived="'+!!pref.archived+'" data-category="'+n.category+'"><span class="notification-unread-dot" aria-hidden="true"></span><div class="notification-entry-copy"><p>'+escapeHtml(n.title)+'</p><span>'+escapeHtml(n.detail.replace(/ \? /g,' ? '))+'</span><small class="notification-entry-label">'+categoryLabels[n.category]+' &middot; '+(pref.read?'Read':'Unread')+'</small></div><div class="notification-entry-controls"><button type="button" class="notification-entry-action" data-id="'+escapeHtml(String(n.id))+'" onclick="markNotificationOpened(this);'+action+'">'+n.action+'</button><div class="notification-state-actions"><button type="button" data-action="'+(pref.read?'unread':'read')+'" onclick="changeNotificationState(this,this.dataset.action)">Mark '+(pref.read?'unread':'read')+'</button><button type="button" data-action="'+(pref.archived?'restore':'archive')+'" onclick="changeNotificationState(this,this.dataset.action)">'+(pref.archived?'Restore':'Archive')+'</button></div></div></article>';
   }).join('');
   content.querySelector('.notifications-page-feed').innerHTML='<div class="dashboard-notifications-items">'+rows+'</div><p class="notification-empty"'+(notifications.length?' hidden':'')+'>No notifications.</p>';
@@ -1268,29 +1268,21 @@ function renderApptTable() {
 }
 function appointmentActionsHtml(r){
   if(r.restricted)return `<button type="button" class="icon-btn kebab-btn" aria-label="Confidential access required" title="Confidential access required" data-appointment-id="${escapeHtml(r.id)}" onclick="showAppointmentAccess(this.dataset.appointmentId)">${icon('lock', 16)}</button>`;
-  if(r.status==='Completed'){
-    const actions=[
-      `<button class="kebab-item" onclick="closeKebabs(); openAppointmentVisit('${r.id}')">${icon('eye',14)} View details</button>`,
-      `<button class="kebab-item" onclick="closeKebabs(); UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">${icon('chat',14)} Email details</button>`,
-      `<button class="kebab-item" onclick="closeKebabs(); printAppointmentRecord('${r.id}')">${icon('print',14)} Print</button>`
-    ];
-    return `<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${actions.join('')}</div>`;
-  }
   const buttons=[`<button class="btn btn-ghost btn-sm" onclick="openAppointmentVisit('${r.id}')">View details</button>`];
+  if(r.shared&&!['Cancelled','Completed'].includes(r.status))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openFollowUpAction('${r.id}')">Follow-up tasks</button>`);
   const editable=['Requested','Booked','No-show','Unfinished'].includes(r.status);
-  if(r.shared&&['Requested','Booked'].includes(r.status)&&r.attachments?.length)buttons.push(`<button class="btn btn-ghost btn-sm" onclick="reviewAppointmentRequirements('${r.id}')">Review requirements</button>`);
+  if(r.shared&&r.attachments?.length&&(['Requested','Booked'].includes(r.status)||(['Checked-in','Completed'].includes(r.status)&&r.attachments.some(f=>!f.review||f.review.status==='Pending review'))))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="reviewAppointmentRequirements('${r.id}')">Review requirements</button>`);
   if(editable&&r.status==='Requested')buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Review request</button>`);
   if(editable&&r.status==='Booked'){
     buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
   }
   if(editable&&['No-show','Unfinished'].includes(r.status))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="openApptDetail('${r.id}',true)">Reschedule</button>`);
-  if(r.shared&&(r.date||r.status==='Cancelled'))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`);
+  if(r.shared&&(r.date||['Cancelled','Completed'].includes(r.status)))buttons.push(`<button class="btn btn-ghost btn-sm" onclick="UniServeUX.notificationStatus(loadDB().appointments.find(a=>a.id==='${r.id}'))">Email details</button>`);
+  if(r.status==='Completed')buttons.push(`<button class="btn btn-ghost btn-sm" onclick="printAppointmentRecord('${r.id}')">Print</button>`);
   if(r.shared&&editable)buttons.push(`<button class="btn btn-danger-o btn-sm" onclick="cancelSharedAppointment('${r.id}')">Cancel</button>`);
-  const mainIndex=buttons.findIndex(button=>button.includes('btn-primary'));
-  const main=mainIndex<0?'':buttons.splice(mainIndex,1)[0];
-  const actionIcons={'View details':'eye','Review requirements':'checkin','Review request':'eye','Reschedule':'calendar','Email details':'chat','Cancel':'x'};
+  const actionIcons={'View details':'eye','Follow-up tasks':'log','Review requirements':'checkin','Review request':'eye','Reschedule':'calendar','Email details':'chat','Print':'print','Cancel':'x'};
   const items=buttons.map(button=>{const label=button.match(/">([^<]+)<\/button>$/)?.[1],withIcon=button.replace(/">([^<]+)<\/button>$/,`">${icon(actionIcons[label]||'log',14)} $1</button>`);return withIcon.replace(/class="btn btn-[^"]+"/,button.includes('btn-danger-o')?'class="kebab-item appointment-cancel-item"':'class="kebab-item"').replace('onclick="','onclick="closeKebabs(); ');});
-  return `${main}<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
+  return `<button class="icon-btn kebab-btn" title="Appointment actions" aria-label="Appointment actions" aria-haspopup="true" onclick="toggleKebab(event,'appt_${r.id}')">${icon('dots',16)}</button><div class="kebab-menu" id="kebab_appt_${r.id}" hidden>${items.join('')}</div>`;
 }
 function showAppointmentAccess(id) {
   const db=loadDB(), appointment=db.appointments.find(a=>a.id===id);
@@ -1300,11 +1292,30 @@ function showAppointmentAccess(id) {
   if(record && typeof requireConfUnlock==='function') actions.push({label:'Request access',cls:'btn-primary',action:()=>requireConfUnlock(record,async()=>{await SharedAppointments.reloadRecords();if(state_view==='appointments')await renderAppointments(true);},'view')});
   openModal('Confidential access required', '<p class="field-hint">Request access to this confidential appointment, or unlock it if access has already been granted.</p>', actions);
 }
+async function openFollowUpAction(id){
+  let appointment=loadDB().appointments.find(record=>record.id===id);
+  if(!appointment)return;
+  if(appointment.restricted){toast('Confidential access required.','err');return;}
+  try{
+    const result=await SharedAppointments.request('/appointments/visit/'+encodeURIComponent(id));
+    SharedAppointments.cache(result);
+    appointment=result.appointment;
+  }catch(error){toast(escapeHtml(error.message||'Could not load follow-up tasks.'),'err');return;}
+  if(!(appointment.followUpTasks?.length||appointment.followUpTask)&&appointment.permissions?.editFollowUp===true&&appointment.status!=='Cancelled')return editVisitTask(id,null);
+  openAppointmentFollowUps(id);
+}
+function openAppointmentFollowUps(id){
+  const appointment=loadDB().appointments.find(record=>record.id===id);
+  if(!appointment)return;
+  if(appointment.restricted){toast('Confidential access required.','err');return;}
+  const content=visitExtrasHtml(appointment,true,'tasks')||'<p class="field-hint">No follow-up tasks yet.</p>';
+  openModal('Visit follow-up',`<div class="appointment-detail-panel"><p class="field-hint">${escapeHtml(appointment.name)} &middot; ${escapeHtml(appointment.service)}</p>${content}</div>`,[]);
+}
 function reviewAppointmentRequirements(id){
   const appointment=loadDB().appointments.find(record=>record.id===id);
   if(!appointment)return;
   if(appointment.restricted){toast('Confidential access required.','err');return;}
-  const editable=appointment.shared&&['Requested','Booked'].includes(appointment.status);
+  const editable=appointment.shared&&['Requested','Booked','Checked-in','Completed'].includes(appointment.status);
   openModal('Review requirements',`<div class="appointment-detail-panel"><p class="field-hint">${escapeHtml(appointment.name)} &middot; ${escapeHtml(appointment.service)}<br>Open each file to check it, choose a review result, then save the review for that file.</p>${appointment.attachments?.length?documentReviewHtml(appointment,editable):'<p class="field-hint">No requirements uploaded.</p>'}</div>`,[]);
 }
 async function openAppointmentVisit(id){
@@ -1361,7 +1372,7 @@ function openApptDetail(id, editSchedule = false, viewOnly = false) {
       <p id="calendarApptWarning" role="alert" class="field-hint"></p></section>` : ''}
     ${visitSummary}
     <h4 class="staff-detail-heading">Documents</h4>${r.attachments?.length ? documentReviewHtml(r, !viewOnly) : '<p class="field-hint">No requirements uploaded.</p>'}
-    <h4 class="staff-detail-heading">History and follow-up</h4><div class="appointment-detail-extras">${r.scheduleHistory?.length ? `<details class="schedule-history"><summary><span>Previous schedules</span><span class="schedule-history-count">${r.scheduleHistory.length}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><ol>${r.scheduleHistory.map(s=>`<li><div class="schedule-history-details"><span class="schedule-history-date">${escapeHtml(s.date||'Not yet scheduled')}${s.time ? ` &middot; ${escapeHtml(UniServeUX.timeLabel(s.time))}` : ''}</span>${s.changedAt ? `<span class="schedule-history-updated">Updated ${escapeHtml(String(fmtDateTime(s.changedAt)).replace(/&middot;/g,String.fromCharCode(183)))}</span>` : ''}</div><span class="schedule-history-status">${escapeHtml(s.status||'Previous')}</span></li>`).join('')}</ol></details>` : ''}${visitExtrasHtml(r,true)}</div></div>`, [
+    <h4 class="staff-detail-heading">History</h4><div class="appointment-detail-extras">${r.scheduleHistory?.length ? `<details class="schedule-history"><summary><span>Previous schedules</span><span class="schedule-history-count">${r.scheduleHistory.length}</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary><ol>${r.scheduleHistory.map(s=>`<li><div class="schedule-history-details"><span class="schedule-history-date">${escapeHtml(s.date||'Not yet scheduled')}${s.time ? ` &middot; ${escapeHtml(UniServeUX.timeLabel(s.time))}` : ''}</span>${s.changedAt ? `<span class="schedule-history-updated">Updated ${escapeHtml(String(fmtDateTime(s.changedAt)).replace(/&middot;/g,String.fromCharCode(183)))}</span>` : ''}</div><span class="schedule-history-status">${escapeHtml(s.status||'Previous')}</span></li>`).join('')}</ol></details>` : ''}${visitExtrasHtml(r,true,'notasks')}</div></div>`, [
     ...(canCheckIn&&!showSchedule&&!viewOnly ? [{label:'Check in',cls:'btn-primary',action:()=>adminCheckInAppointment(r.id)}] : []),
     ...(inQueue&&r.status==='Checked-in'&&!viewOnly ? [{label:'Open queue',cls:'btn-primary',action:()=>{closeModal();navigate('queue');}}] : []),
     ...(showSchedule ? [{ label: r.status==='Requested'?'Approve schedule':'Save new schedule', cls: 'btn-primary', action: async () => {

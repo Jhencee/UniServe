@@ -1101,6 +1101,12 @@ function ticketScheduleLabel(date, time) {
   const formattedDate = month + '/' + day + '/' + year.slice(-2);
   return time ? formattedDate + ' - ' + UniServeUX.timeLabel(time) : formattedDate;
 }
+function maskedAppointmentName(name) {
+  const parts=String(name||'').trim().split(/\s+/u).filter(Boolean);
+  if(!parts.length)return 'Visitor';
+  const initial=parts.length>1?parts[parts.length-1].match(/^\p{L}/u)?.[0]:null;
+  return parts[0]+(initial?' '+initial+'.':'');
+}
 function appointmentPassHtml(appt) {
   if (appt.ticketHtml) return `<div class="printable-ticket" data-download-approved="${canDownloadAppointmentTicket(appt)}">${appt.ticketHtml.replace(/ style="[^"]*"/g, '')}</div>`;
   const slot = escapeHtml(ticketScheduleLabel(appt.date, appt.time));
@@ -1125,7 +1131,7 @@ function appointmentPassHtml(appt) {
             <div class="ticket-v2-grid">
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('calendar', 13)} Scheduled</span><span class="tvf-val">${slot}</span></div>
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('ticket', 13)} Reference</span><span class="tvf-val">${escapeHtml(appt.code)}</span></div>
-              <div class="ticket-v2-field"><span class="tvf-lbl">${icon('users', 13)} Visitor</span><span class="tvf-val">${escapeHtml(appt.name)}</span></div>
+              <div class="ticket-v2-field"><span class="tvf-lbl">${icon('users', 13)} Visitor</span><span class="tvf-val">${escapeHtml(maskedAppointmentName(appt.name))}</span></div>
               <div class="ticket-v2-field"><span class="tvf-lbl">${icon('checkin', 13)} Status</span><span class="tvf-val">${escapeHtml(String(appt.status))}</span></div>
             </div>
             <p class="ticket-v2-fine-print">No queue number is issued for scheduled visits. Show this Visit ID at the front desk &mdash; you are called when your scheduled time arrives, ahead of walk-ins.</p>
@@ -1143,7 +1149,7 @@ function requirementsBlockHtml(db, appt) {
     const tone = status === 'Accepted' ? 'pill-ok' : status === 'Needs correction' ? 'pill-danger' : 'pill-warn';
     return `<li class="requirement-file"><div class="requirement-file-row">${attachChip(file)}<span class="pill ${tone}">${escapeHtml(status)}</span></div>${review.reason ? `<p class="requirement-feedback">${escapeHtml(review.reason)}</p>` : ''}${review.reviewedAt ? `<p class="requirement-reviewed">Reviewed ${escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g, '\u00b7'))}</p>` : ''}${status==='Needs correction'&&['Requested','Booked'].includes(appt.status)?`<div class="field"><label for="replacement${index}">Corrected document</label><input id="replacement${index}" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="${escapeHtml(appt.id)}" data-index="${index}" onclick="replaceVisitDocument(this)">Submit replacement</button></div>`:''}</li>`;
   }).join('');
-  return `<section class="appointment-requirements" aria-label="Uploaded requirements"><div class="requirements-heading"><h4>Uploaded requirements</h4>${readinessPillHtml(computeReadiness(svc, files))}</div>${files.length ? `<ul class="requirement-files">${rows}</ul>` : '<p class="requirements-note">No files uploaded with this booking.</p>'}</section>`;
+  return `<section class="appointment-requirements" aria-label="Uploaded requirements"><div class="requirements-heading"><h4>Uploaded requirements</h4>${readinessPillHtml(computeReadiness(svc, files))}</div>${files.length ? `<ul class="requirement-files">${rows}</ul>` : '<p class="requirements-note">No files uploaded with this booking.</p>'}${additionalRequirementHtml(appt)}</section>`;
 }
 
 function timelineStepsHtml(q, appointment = null) {
@@ -1243,7 +1249,7 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const ahead = q.status === 'Waiting' ? (window.UniServeWalkInCapacity?.peopleAhead?.[q.id] ?? null) : 0;
   if(q.status==='Waiting'&&isDue(q)&&Number.isFinite(ahead)&&ahead<=2)notifyNearTurn(q,ahead);
   const etaMin = window.UniServeWalkInCapacity?.waitEstimates?.[q.id];
-  const linkedAppt = q.appointmentId ? db.appointments.find(a => a.id === q.appointmentId) : null;
+  const linkedAppt = q.appointment || (q.appointmentId ? db.appointments.find(a => a.id === q.appointmentId) : null);
   const slotText = q.scheduledAt ? fmtTime(q.scheduledAt) : '';
   const ref = queueRef(q);
 
@@ -1271,7 +1277,8 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const serving = publicQueue ? servingQueueEntries({queues:publicQueue}) : [];
   const nowServing = `<div class="qt-nowserving"><div class="qt-nowserving-head"><span class="qt-live-dot"></span><div class="qt-nowserving-lbl">Now Serving</div></div>
     <div class="qt-nowserving-row">${serving.length ? serving.map(e => `<span class="pill ${e.id === q.id ? 'pill-gold' : 'pill-info'}">${escapeHtml(queueRef(e))}</span>`).join('') : `<span class="qt-empty">${publicQueue ? 'No one has been called yet.' : 'Live queue temporarily unavailable.'}</span>`}</div></div>`;
-  const reqSection = linkedAppt ? `<div class="card card-pad"><label style="display:block; font-size:.78rem; font-weight:600; margin-bottom:6px; color:var(--text-soft);">Your uploaded requirements</label>${attachListHtml(linkedAppt.attachments, 'No files were uploaded with this booking.')}${documentReviewHtml(linkedAppt)}${visitExtrasHtml({...linkedAppt,followUpTask:Object.prototype.hasOwnProperty.call(q,'followUpTask')?q.followUpTask:linkedAppt.followUpTask})}</div>` : (q.followUpTask?`<div class="card card-pad">${visitExtrasHtml(q)}</div>`:'');
+  const followUpData=Object.prototype.hasOwnProperty.call(q,'followUpTasks')?{followUpTasks:q.followUpTasks}:Object.prototype.hasOwnProperty.call(q,'followUpTask')?{followUpTasks:q.followUpTask?[q.followUpTask]:[]}:{};
+  const reqSection = linkedAppt ? `<div class="card card-pad">${visitExtrasHtml({...linkedAppt,...followUpData})}${requirementsBlockHtml(db,linkedAppt)}</div>` : ((q.followUpTasks?.length||q.followUpTask)?`<div class="card card-pad">${visitExtrasHtml(q)}</div>`:'');
   const another = `<button class="btn btn-primary" onclick="resetVisit()">Start another visit</button>`;
   const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;
   const pickupStatus=q.pickupStatus||q.pickupProgress?.documentStatus;

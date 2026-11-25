@@ -145,7 +145,7 @@ class QueueController extends Controller
         $queue['status']=$row->status ?? ($queue['status'] ?? null);
         if (empty($queue['completedAt']) && !empty($row->completed_at)) $queue['completedAt']=\Illuminate\Support\Carbon::parse($row->completed_at,'UTC')->toIso8601String();
         $appointment=!empty($queue['appointmentId'])?DB::table('shared_appointments')->where('id',$queue['appointmentId'])->first():null;
-        if($appointment){$a=AppointmentController::present($appointment);$queue['appointmentProgress']=array_intersect_key($a,array_flip(['createdAt','scheduledConfirmedAt']));$queue['followUpTask']=$a['followUpTask']??null;}
+        if($appointment){$a=AppointmentController::present($appointment);$queue['appointmentProgress']=array_intersect_key($a,array_flip(['createdAt','scheduledConfirmedAt']));$queue['followUpTask']=$a['followUpTask']??null;$queue['followUpTasks']=$a['followUpTasks']??(empty($a['followUpTask'])?[]:[$a['followUpTask']]);$queue['appointment']=$a;}
         $originalRow = !empty($queue['pickupOfVisitId']) ? DB::table('queues')->where('visit_id', $queue['pickupOfVisitId'])->first() : $row;
         if ($originalRow && $originalRow->portal_payload) {
             $original = \App\Support\QueueData::read($originalRow->portal_payload);

@@ -153,7 +153,7 @@
   };
   window.documentReviewHtml=function(a,editable=false){
     if(!a?.attachments?.length)return '';
-    const canEdit=editable&&a.shared&&!a.restricted&&['Requested','Booked'].includes(a.status);
+    const canEdit=editable&&a.shared&&!a.restricted&&['Requested','Booked','Checked-in','Completed'].includes(a.status);
     const historyButton=editable?'<button type="button" class="btn btn-ghost btn-sm document-history-action" data-visit-id="'+escapeHtml(a.id)+'" onclick="openDocumentHistory(this.dataset.visitId)"><span>Previous document versions</span></button>':'';
     return '<section class="document-review"><h4 class="document-review-title">Uploaded requirements</h4>'+(typeof state_view!=='undefined'?documentReviewSummary(a):'')+a.attachments.map((f,i)=>{
       const review=f.review||{},status=review.status||'Pending review';
@@ -166,6 +166,43 @@
         (!editable&&typeof visitorView!=='undefined'&&status==='Needs correction'&&['Requested','Booked'].includes(a.status)?'<div class="field"><label for="replacement'+i+'">Corrected document</label><input id="replacement'+i+'" type="file" accept="application/pdf,image/png,image/jpeg"><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-index="'+i+'" onclick="replaceVisitDocument(this)">Submit replacement</button></div>':'')+
         (canEdit?'<div class="document-review-form" oninput="markDocumentReadinessUnsaved(this)" onchange="markDocumentReadinessUnsaved(this)">'+documentRequirementSelect(a,i,review)+'<div class="field"><label for="documentStatus'+i+'">Readiness decision</label><select id="documentStatus'+i+'" data-review-index="'+i+'" onchange="toggleDocumentReviewCorrection(this)">'+['Pending review','Accepted','Needs correction'].map(decision=>'<option'+(decision===status?' selected':'')+'>'+decision+'</option>').join('')+'</select></div><div id="documentCorrection'+i+'"'+(status==='Needs correction'?'':' hidden')+'>'+correctionSelectHtml(i,review.reason||'')+'</div><button type="button" class="btn btn-primary btn-sm" data-review-id="'+escapeHtml(a.id)+'" data-review-index="'+i+'" onclick="saveDocumentReview(this)"'+(review.reviewedAt?' disabled':'')+'>Save readiness</button><p class="field-hint document-save-state" role="status" aria-live="polite" data-state="'+(review.reviewedAt?'saved':'unsaved')+'">'+(review.reviewedAt?'Saved &middot; '+escapeHtml(String(fmtDateTime(review.reviewedAt)).replace(/&middot;/g,' / ')):'Not saved yet')+'</p></div>':'')+'</div>';
     }).join('')+historyButton+'</section>';
+  };
+  window.additionalRequirementHtml=function(a){
+    if(!a?.shared||!['Requested','Booked','Checked-in','Completed'].includes(a.status))return '';
+    const tasks=a.followUpTasks||(a.followUpTask?[a.followUpTask]:[]);
+    const pendingTask=tasks.find(task=>{
+      if(task.completed||String(task.text||'').trim().toLowerCase()!=='submit missing requirements')return false;
+      const taskTime=Date.parse(task.updatedAt||'');
+      return !(a.attachments||[]).some(file=>file.additional&&(file.followUpTaskId?file.followUpTaskId===(task.id||'legacy'):(!Number.isFinite(taskTime)||Date.parse(file.uploadedAt||'')>=taskTime)));
+    });
+    if(!pendingTask)return '';
+    const count=(a.attachments||[]).length;
+    if(count>=5)return '<p class="requirements-note">The maximum of five uploaded files has been reached.</p>';
+    return '<div class="additional-requirement field"><span class="additional-requirement-label">Submit a missing requirement</span><label class="dropzone" for="additionalRequirement" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="dropAdditionalRequirement(event)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span><b>Choose a file</b> or drag it here</span><small>PDF, JPG or PNG &middot; up to 5 MB</small></label><input id="additionalRequirement" type="file" hidden accept="application/pdf,image/png,image/jpeg" onchange="showAdditionalRequirementFile(this)"><p id="additionalRequirementName" role="status">OSS will review your submission.</p><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-task-id="'+escapeHtml(pendingTask.id||'legacy')+'" onclick="submitAdditionalRequirement(this)">Submit requirement</button></div>';
+  };
+  window.showAdditionalRequirementFile=function(input){
+    const status=document.getElementById('additionalRequirementName');
+    if(status)status.textContent=input.files?.[0]?.name||'OSS will review your submission.';
+  };
+  window.dropAdditionalRequirement=function(event){
+    event.preventDefault();event.currentTarget.classList.remove('drag');
+    const input=document.getElementById('additionalRequirement'),files=event.dataTransfer?.files;
+    if(!input||!files?.length)return;
+    if(files.length!==1){toast('Choose one file at a time.','err');return;}
+    input.files=files;showAdditionalRequirementFile(input);
+  };
+  window.submitAdditionalRequirement=async function(button){
+    const id=button.dataset.visitId,file=document.getElementById('additionalRequirement')?.files?.[0];
+    if(!file){toast('Choose a document to submit.','err');return;}
+    if(file.size>5*1024*1024){toast('Each file must be at most 5 MB.','err');return;}
+    if(!['application/pdf','image/png','image/jpeg'].includes(file.type)){toast('Use a PDF, PNG or JPEG file.','err');return;}
+    button.disabled=true;
+    try{
+      const latest=await visitorRequest('/appointments/visit/'+encodeURIComponent(id));if(!latest)return;
+      const [attachment]=await readFilesAsAttachments([file]);
+      const result=await visitorRequest('/appointments/'+encodeURIComponent(id)+'/documents','POST',{name:attachment.name,dataUrl:attachment.dataUrl,revision:latest.appointment.revision,taskId:button.dataset.taskId});
+      if(result){cache(result);if(myActiveQueueId)await renderQueueTicket();else showPassModalReadonly(result.appointment,true);toast('Requirement submitted for OSS review.','ok');}
+    }catch(e){toast(escapeHtml(e.message),'err');}finally{button.disabled=false;}
   };
   window.replaceVisitDocument=async function(button){
     const id=button.dataset.visitId,index=button.dataset.index,a=loadDB().appointments.find(a=>a.id===id),input=document.getElementById('replacement'+index),file=input.files?.[0];

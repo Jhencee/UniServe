@@ -36,8 +36,8 @@ class AttentionController extends Controller
             $a=json_decode(Crypt::decryptString($row->payload),true);
             if($row->status==='Requested'&&\App\Support\VisitProcess::reviewDeadline($row)->isPast())
                 $add('review-due:'.$row->id,'Appointment review overdue',$row->visit_id.' — Confirm a schedule or contact the visitor.','appointment',$row->id);
-            foreach($a['attachments']??[] as $i=>$file)if(!empty($file['uploadedAt'])&&($file['review']['status']??'')==='Pending review'&&in_array($row->status,['Requested','Booked']))
-                $add('corrected:'.$row->id.':'.$i.':'.$row->revision,'Corrected document ready for review',$row->visit_id,'appointment',$row->id);
+            foreach($a['attachments']??[] as $i=>$file)if(!empty($file['uploadedAt'])&&($file['review']['status']??'')==='Pending review'&&in_array($row->status,['Requested','Booked','Checked-in','Completed']))
+                $add('corrected:'.$row->id.':'.$i.':'.$row->revision,!empty($file['additional'])?'Additional document ready for review':'Corrected document ready for review',$row->visit_id,'appointment',$row->id);
             $tasks=$a['followUpTasks']??(empty($a['followUpTask'])?[]:[$a['followUpTask']]);
             foreach($tasks as $i=>$task){
                 if($row->status==='Cancelled'||!empty($task['completed'])||($task['dueDate']??'9999')>=now('Asia/Manila')->toDateString())continue;

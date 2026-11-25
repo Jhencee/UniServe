@@ -14,7 +14,7 @@
 <tr><td style="padding:20px 0"><h1 style="margin:0 0 12px;font-family:Georgia,serif;font-size:21px;color:#600000">{{ $title }}</h1>
 @if($greeting)<p style="margin:0 0 10px;font-size:14px;line-height:1.6">{{ $greeting['salutation'] }} <strong>{{ $greeting['name'] }}</strong>,</p>@endif
 @if($body !== '')<div style="font-size:14px;line-height:1.6">{!! nl2br(e($body)) !!}</div>@endif
-@if($code)<div style="margin:18px 0 12px;padding:10px 0;text-align:center;font-size:28px;font-weight:bold;letter-spacing:6px;color:#800000">{{ $code }}</div><p style="font-size:13px;color:#667085">{{ $codeNotice }}</p>@endif
+@if($code)<div style="margin:18px 0 12px;padding:10px 0;text-align:center;font-size:28px;font-weight:bold;letter-spacing:6px;color:#800000">{{ $code }}</div><p style="font-size:13px;color:#667085">{{ $codeNotice ?? 'This code expires in five minutes. Never share it with anyone.' }}</p>@endif
 @if($details)<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0">@foreach($details as $label=>$value)<tr><td style="padding:4px 14px 4px 0;font-size:14px;color:#667085;vertical-align:top;width:72px">{{ $label }}</td><td style="padding:4px 0;font-size:14px;font-weight:bold;color:#243040;overflow-wrap:anywhere">{{ $value }}</td></tr>@endforeach</table>@endif
 @if($pickup ?? false)
 <h2 style="margin:20px 0 10px;font-size:15px;color:#600000">How to claim your document</h2>

@@ -114,6 +114,7 @@ Route::patch('/appointments/{id}/follow-up-task', [\App\Http\Controllers\VisitEn
 Route::get('/history', [VisitorHistoryController::class,'records'])->middleware('throttle:30,1,visitor-history-records');
 
 Route::put('/appointments/{id}/documents/{index}', [AppointmentController::class,'replaceDocument'])->middleware('throttle:10,1,document-replacement');
+Route::post('/appointments/{id}/documents', [AppointmentController::class,'addDocument'])->middleware('throttle:10,1,document-upload');
 Route::get('/appointments/{id}/document-history', function(\Illuminate\Http\Request $request,string $id) {
  \App\Support\StaffAuth::user($request,'ADMIN');
  $row=\Illuminate\Support\Facades\DB::table('shared_appointments')->where('id',$id)->first();abort_unless($row,404);

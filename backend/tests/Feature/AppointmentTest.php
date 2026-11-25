@@ -18,7 +18,7 @@ it('supports verified institutional email without allowing mailbox impersonation
  $this->postJson('/api/appointments',$d,['X-Visitor-Token'=>VisitorAccess::token('other@university.edu.ph')])->assertForbidden();
 });
 it('requires the student domain while allowing guest email addresses',function(){
- $d=appointmentInput();
+ $d=appointmentInput();$d['type']='Student';
  $this->verifiedPostJson('/api/appointments',$d)->assertUnprocessable()->assertJsonValidationErrors('email');
  $d['type']='Guest';
  $this->verifiedPostJson('/api/appointments',$d)->assertCreated();
@@ -55,6 +55,18 @@ it('lets only the verified visitor replace a rejected document and preserves its
  $this->getJson('/api/appointments',appointmentHeaders())->assertOk()->assertJsonPath('appointments.0.documentVersions.0.0.name','original.pdf');
  $this->getJson('/api/appointments/'.$a['id'].'/document-history',['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertUnauthorized();
  $this->getJson('/api/appointments/'.$a['id'].'/document-history',appointmentHeaders())->assertOk()->assertJsonPath('versions.0.0.name','original.pdf');
+});
+it('accepts additional requirements only from the verified visitor and allows staff review',function(){
+ $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+ $input=appointmentInput();$input['type']='Guest';
+ $a=$this->verifiedPostJson('/api/appointments',$input)->assertCreated()->json('appointment');
+ $path='/api/appointments/'.$a['id'].'/documents';$file=['name'=>'missing.pdf','dataUrl'=>$pdf,'revision'=>$a['revision']];
+ $this->postJson($path,$file)->assertUnauthorized();
+ $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
+ $this->postJson($path,$file,appointmentHeaders())->assertForbidden();
+ $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Pending review');
+ $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertConflict();
+ $this->patchJson($path.'/0',['status'=>'Accepted','revision'=>$a['revision']+1],appointmentHeaders())->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Accepted');
 });
 it('keeps multiple follow-up tasks with owners history and mandatory completion notes',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');$path='/api/appointments/'.$a['id'].'/follow-up-task';$h=appointmentHeaders();
@@ -102,7 +114,7 @@ function appointmentHeaders(){return ['Authorization'=>'Bearer '.StaffAuth::toke
 function appointmentInput(){
  $day=CarbonImmutable::now('Asia/Manila')->startOfDay();$slots=[];
  while(!$slots){$slots=\App\Support\AppointmentSlots::slots($day->toDateString(),'Office of Student Services');if(!$slots)$day=$day->addDay();}
- return ['office'=>'Office of Student Services','date'=>$day->toDateString(),'time'=>$slots[0],'type'=>'Student','name'=>'Student Name','email'=>'student@gmail.com','contact'=>'09123456789','serviceKey'=>'good_moral','isPWD'=>true,'attachments'=>[]];}
+ return ['office'=>'Office of Student Services','date'=>$day->toDateString(),'time'=>$slots[0],'type'=>'Guest','name'=>'Student Name','email'=>'student@gmail.com','contact'=>'09123456789','serviceKey'=>'good_moral','isPWD'=>true,'attachments'=>[]];}
 it('requires verification of the submitted Gmail when creating an appointment',function(){
  $this->postJson('/api/appointments',appointmentInput())->assertUnauthorized();
  $this->postJson('/api/appointments',appointmentInput(),['X-Visitor-Token'=>VisitorAccess::token('wrong@gmail.com')])->assertForbidden();
@@ -596,7 +608,9 @@ it('protects document reviews and exposes correction instructions to the visit o
  $this->getJson('/api/appointments/visit/'.($a['visitId']??$a['requestReference']),['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.0.review.reason','Bring a readable signed copy.');
  $this->getJson('/api/appointments/visit/'.($a['visitId']??$a['requestReference']),['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
  DB::table('shared_appointments')->where('id',$a['id'])->update(['status'=>'Completed']);
- $this->patchJson($path,array_merge($review,['revision'=>1]),appointmentHeaders())->assertConflict();
+ $this->patchJson($path,array_merge($review,['revision'=>1]),appointmentHeaders())->assertOk()->assertJsonPath('appointment.revision',2);
+ DB::table('shared_appointments')->where('id',$a['id'])->update(['status'=>'Cancelled']);
+ $this->patchJson($path,array_merge($review,['revision'=>2]),appointmentHeaders())->assertConflict();
 });
 
 it('keeps earlier-slot preferences owned, revisioned and cleared on schedule confirmation',function(){
@@ -638,8 +652,9 @@ it('reports priority queue positions consistently with the estimate order',funct
 });
 it('refreshes follow-up tasks and appointment milestones on the authorized live queue',function(){
  $result=readyFlowVisit();$a=$result['appointment'];$q=$result['queue'];
- $this->patchJson('/api/appointments/'.$a['id'].'/follow-up-task',['text'=>'Bring the original.','dueDate'=>'2026-10-20','completed'=>false,'revision'=>$a['revision']],appointmentHeaders())->assertOk();
- $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('queue.followUpTask.text','Bring the original.')->assertJsonStructure(['queue'=>['appointmentProgress'=>['createdAt','scheduledConfirmedAt']]]);
+ $first=$this->patchJson('/api/appointments/'.$a['id'].'/follow-up-task',['text'=>'Bring the original.','dueDate'=>'2026-10-20','completed'=>false,'revision'=>$a['revision']],appointmentHeaders())->assertOk()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'].'/follow-up-task',['text'=>'Submit the form.','dueDate'=>'2026-10-21','completed'=>false,'revision'=>$first['revision']],appointmentHeaders())->assertOk();
+ $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('queue.followUpTask.text','Submit the form.')->assertJsonCount(2,'queue.followUpTasks')->assertJsonPath('queue.followUpTasks.0.text','Bring the original.')->assertJsonPath('queue.followUpTasks.1.text','Submit the form.')->assertJsonStructure(['queue'=>['appointmentProgress'=>['createdAt','scheduledConfirmedAt']]]);
  $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
 });
 
