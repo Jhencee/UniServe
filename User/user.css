@@ -2891,6 +2891,7 @@ html[data-theme="dark"] .chx-msgs .bubble.staff .ts {
 .visitor-form-help { margin-top:20px; padding-top:16px; border-top:1px solid var(--border); font-size:.82rem; color:var(--text-soft); }
 .visitor-form-help summary { cursor:pointer; color:var(--accent-strong); font-weight:600; }
 .visitor-form-help p { margin-top:10px; line-height:1.6; }
+@media(max-width:600px) { .visitor-form-help summary { font-size:.76rem; line-height:1.4; } }
 .visitor-history-stages { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:24px; font-size:.76rem; color:var(--text-soft); }
 .visitor-history-stages .current { color:var(--accent-strong); font-weight:600; }
 .visitor-history-item { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:16px 0; border-bottom:1px solid var(--border); font-size:.86rem; }
@@ -3494,7 +3495,7 @@ body #activeModal .visit-instructions-modal .modal-body { line-height:1.6; }
 
 /* Appointment and walk-in passes share the same surface and maroon ink. */
 .queue-record .queue-ticket-wrap { max-width:none; gap:0; margin-top:16px; }
-.queue-record .wait-estimate { margin:16px 0 18px; padding:16px; border:1px solid var(--border); border-radius:10px; background:var(--surface); font-size:.78rem; }
+.queue-record .wait-estimate { margin:0 0 18px; padding:16px; border:1px solid var(--border); border-radius:10px; background:var(--surface); font-size:.78rem; }
 .queue-record .wait-estimate-copy { display:flex; flex-direction:column; align-items:flex-start; gap:4px; width:100%; }
 .queue-record .wait-estimate-copy .wait-estimate-label { margin:0; font-size:.75rem; }
 .queue-record .wait-estimate-copy strong { color:var(--text); font-size:.8rem; font-weight:500; }
