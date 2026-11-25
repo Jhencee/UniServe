@@ -73,12 +73,11 @@ test('changing history email clears the previous verified identity',()=>{
  vm.runInContext(source.slice(source.indexOf('function changeHistoryEmail()'),source.indexOf('async function verifyHistoryCode()')),c);c.changeHistoryEmail();assert.equal(removed,'ossuniserve_visitor_token');assert.equal(c.historyFlow.step,'email');
 });
 
-test('reopening history reuses the server-validated token without requesting another code',async()=>{
+test('reopening history requests a new verification even with a saved token',async()=>{
  const source=fs.readFileSync(path.resolve(__dirname,'../../../shared/portal-api.js'),'utf8');let requests=0,verifications=0,navigations=0;
  const c={window:{},sessionStorage:{getItem:()=> 'verified-token',removeItem:()=>{}},request:async(path,method,body,options)=>{assert.equal(path,'/history');assert.equal(options.headers['X-Visitor-Token'],'verified-token');requests++;return {email:'visitor@example.com',queues:[],appointments:[]};},SharedAppointments:{cache:()=>{},verify:()=>verifications++},cache:()=>{},navigateVisitor:()=>navigations++,toast:()=>{},escapeHtml:s=>s,historyFlow:null};vm.createContext(c);
  vm.runInContext(source.slice(source.indexOf('    let historyEntryBusy=false;'),source.indexOf('    if(window.pendingVisitorHistory)')),c);
- await c.window.openVerifiedVisitorHistory();await c.window.openVerifiedVisitorHistory();assert.equal(requests,2);assert.equal(verifications,0);assert.equal(navigations,2);assert.equal(c.historyFlow.step,'verified');
- c.request=async()=>{const e=Error('Expired');e.status=401;throw e;};await c.window.openVerifiedVisitorHistory();assert.equal(verifications,1);assert.equal(c.historyFlow,null);
+ await c.window.openVerifiedVisitorHistory();await c.window.openVerifiedVisitorHistory();assert.equal(requests,0);assert.equal(verifications,2);assert.equal(navigations,0);assert.equal(c.historyFlow,null);
 });
 
 test('switching visitor identity removes private records and tracking while retaining public services',()=>{

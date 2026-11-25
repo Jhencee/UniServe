@@ -316,17 +316,19 @@ it('keeps case resolution separate from a completed visit and preserves it on co
  $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('queue.status','Completed')->assertJsonPath('queue.caseStatus','Resolved');
  $this->patchJson($path,['status'=>'Completed'],$h)->assertOk()->assertJsonPath('queue.caseStatus','Resolved');
 });
-it('accepts configured slot capacity and exposes the corresponding policy settings',function(){
+it('reserves a slot for one appointment even when an older configuration allows more',function(){
  $settings=json_decode(DB::table('shared_system_settings')->where('id',1)->value('payload'),true);$settings['appointmentSlotCapacity']=2;
  DB::table('shared_system_settings')->where('id',1)->update(['payload'=>json_encode($settings)]);
- foreach(range(1,2) as $n){$a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');$this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-14','time'=>'10:00','revision'=>0],appointmentHeaders())->assertOk();}
- $this->getJson('/api/settings')->assertJsonPath('settings.appointmentSlotCapacity',2);
+ $d=appointmentInput();$query='/api/appointment-slots?'.http_build_query(['date'=>$d['date'],'office'=>$d['office']]);
+ $this->verifiedPostJson('/api/appointments',$d)->assertCreated();
+ expect($this->getJson($query)->assertOk()->json('slots'))->not->toContain($d['time']);
+ $this->verifiedPostJson('/api/appointments',$d)->assertConflict();
 });
-it('saves capacity and parallel-service settings through the Super Admin API',function(){
+it('enforces one appointment per slot while saving parallel-service settings',function(){
  DB::table('staff_users')->where('id','admin')->update(['role'=>'SUPER_ADMIN']);
- $settings=['maintenanceMode'=>false,'sessionTimeout'=>30,'gracePeriodMinutes'=>15,'noShowThresholdMinutes'=>60,'appointmentSlotCapacity'=>2,'allowParallelService'=>true];
- $this->putJson('/api/settings',['settings'=>$settings,'revision'=>0],appointmentHeaders())->assertOk()->assertJsonPath('settings.appointmentSlotCapacity',2)->assertJsonPath('settings.allowParallelService',true);
- $settings['appointmentSlotCapacity']=0;
+ $settings=['maintenanceMode'=>false,'sessionTimeout'=>30,'gracePeriodMinutes'=>15,'noShowThresholdMinutes'=>60,'appointmentSlotCapacity'=>1,'allowParallelService'=>true];
+ $this->putJson('/api/settings',['settings'=>$settings,'revision'=>0],appointmentHeaders())->assertOk()->assertJsonPath('settings.appointmentSlotCapacity',1)->assertJsonPath('settings.allowParallelService',true);
+ $settings['appointmentSlotCapacity']=2;
  $this->putJson('/api/settings',['settings'=>$settings,'revision'=>1],appointmentHeaders())->assertUnprocessable();
 });
 it('marks a recovered but missed booking as no-show and allows another reschedule',function(){

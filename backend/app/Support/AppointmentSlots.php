@@ -29,7 +29,7 @@ class AppointmentSlots
                 $counts[$row->time][$row->status === 'Requested' ? 'pending' : 'confirmed']++;
             }
         }
-        $capacity = max(1, (int)(VisitFlow::settings()['appointmentSlotCapacity'] ?? 1));
+        $capacity = 1;
         $slots = [];
         foreach (OfficeCalendar::intervals($date, OfficeCalendar::get()) as [$start, $end]) {
             $at = CarbonImmutable::parse($date.' '.$start, 'Asia/Manila');

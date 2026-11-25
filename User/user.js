@@ -747,7 +747,6 @@ function renderVisitPicker() {
   document.getElementById('visitorContent').innerHTML = `
     <section class="visit-start-page" aria-label="Start your visit">
     ${stepperHtml(1)}
-    ${!isOfficeHours()?`<div class="info-banner visit-closed-notice" role="status"><span>Only appointment requests are available at this time.</span></div>`:''}
     <div class="visit-entry-heading visitor-page-wrap"><h3>Choose a service</h3><p>Select your visitor type, then choose the service you need.</p></div>
     <div class="ux-filters">
       <div class="ux-field">
@@ -1371,12 +1370,12 @@ document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
 window.addEventListener('pageshow', refreshActiveVisitorTicket);
 
 function renderCheckVisitScreen() {
-  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my Visit ID or request reference?</summary><p>For a walk-in, find your <b>Visit ID</b> on your <b>Visit Pass</b>. For an appointment, use your <b>request reference</b> while it is pending. Once confirmed, find your <b>Visit ID</b> on your Visit Pass or appointment confirmation email. For document pickup, use the original visit's ID to check its status.</p></details></div>`;
+  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA or APT-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my Visit ID or request reference?</summary><p>For a walk-in, find your <b>Visit ID</b> on your <b>Visit Pass</b>. For an appointment, use your <b>request reference</b> while it is pending. Once confirmed, find your <b>Visit ID</b> on your Visit Pass or appointment confirmation email. For document pickup, use the original visit's ID to check its status.</p></details></div>`;
 }
 
 async function lookupMyVisit() {
   const code = normVisitRef(document.getElementById('cvInput').value);
-  if (!code) { visitorFormError('Enter your Visit ID.', 'visitorLookupError'); return; }
+  if (!code) { visitorFormError('Enter your Visit ID or request reference.', 'visitorLookupError'); return; }
   const db = loadDB();
   const savedAppointment = db.appointments.find(a => (a.visitId || a.requestReference || a.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === code.replace(/[^A-Z0-9]/g, ''));
   if (savedAppointment && !savedAppointment.queueId) {showPassModalReadonly(savedAppointment, true);return;}

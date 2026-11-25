@@ -235,9 +235,7 @@
         try{navigateVisitor('history');}finally{window.visitorHistoryGateEntering=false;}
       };
       try{
-        if(sessionStorage.getItem('ossuniserve_visitor_token')){
-          try{await enter();return;}catch(e){if(e.status!==401&&e.status!==403)throw e;if(typeof clearVisitorIdentity==='function')clearVisitorIdentity();else sessionStorage.removeItem('ossuniserve_visitor_token');historyFlow=null;}
-        }
+        historyFlow=null;
         SharedAppointments.verify(enter,{purpose:'history'});
       }catch(e){toast(escapeHtml(e.message),'err');}finally{historyEntryBusy=false;}
     };
@@ -260,7 +258,7 @@
     if(window.pendingVisitorChat){window.pendingVisitorChat=false;window.openVerifiedVisitorChat();}
     window.finalizeChatFlow=async function(){
       if(contactChatPending)return;contactChatPending=true;
-      try{const p=chatFlow.profile,files=document.getElementById('cfFiles')?.files||[];const errors=validateAttachments(files);if(errors.length)throw Error(errors.join(' '));const result=await request('/chats','POST',{visitorName:joinName(p.first,p.last),text:chatFlow.message,attachments:await readFilesAsAttachments(files)});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);sessionStorage.setItem('chat-code:'+result.chat.id,result.chatCode);cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){toast(escapeHtml(e.message),'err');}finally{contactChatPending=false;}
+      try{const p=chatFlow.profile,files=document.getElementById('cfFiles')?.files||[];const errors=validateAttachments(files);if(errors.length)throw Error(errors.join(' '));const result=await request('/chats','POST',{visitorName:p.name,text:chatFlow.message,attachments:await readFilesAsAttachments(files)});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);sessionStorage.setItem('chat-code:'+result.chat.id,result.chatCode);cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){toast(escapeHtml(e.message),'err');}finally{contactChatPending=false;}
     };
     window.resumeChatByCode=async function(){try{const code=document.getElementById('chatResumeCode').value.trim();const result=await request('/chats/resume','POST',{code});sessionStorage.setItem('chat-token:'+result.chat.id,result.chatToken);sessionStorage.setItem('chat-code:'+result.chat.id,code.toUpperCase().replace(/[\s-]/g,''));cache(result);currentPublicChatId=result.chat.id;chatFlow=null;persistSession();renderChatScreen();}catch(e){toast(escapeHtml(e.message),'err');}};
     window.sendVisitorMessage=async function(id){try{cache(await request('/chats/'+id+'/messages','POST',{text:document.getElementById('chReply').value.trim(),attachments:await readFilesAsAttachments(document.getElementById('chReplyFiles')?.files)}));renderPublicChatThread(loadDB().chats.find(c=>c.id===id));}catch(e){toast(escapeHtml(e.message),'err');}};
