@@ -52,12 +52,25 @@ async function page(){
    await p.goto('http://127.0.0.1:8765/'+(role==='SUPER_ADMIN'?'Super%20Admin/superadmin.html':'Admin/admin.html'));
    await p.run("navigate('dashboard')");await pause(600);
    if(role==='SUPER_ADMIN'){
+    assert.equal(await p.run('document.querySelectorAll(".staff-notification-button").length'),1);
+    await p.run('document.querySelector(".staff-notification-button").click()');
+    assert.equal(await p.run('document.querySelector(".staff-notification-popover").hidden'),false);
+    assert.ok(await p.run('(()=>{const panel=document.querySelector(".staff-notification-popover"),r=panel.getBoundingClientRect(),el=document.elementFromPoint(r.left+20,r.top+20);return r.width>0&&r.height>0&&panel.contains(el);})()'));
+    await p.run('document.querySelector(".staff-popover-all").click()');
+    assert.equal(await p.run('state_view'),'notifications');
+    await p.run("navigate('dashboard')");await pause(300);
     assert.equal(await p.run('loadDB().feedbackSummary.responses'),2);
      assert.ok(await p.run("document.getElementById('content').textContent.includes('Current overview')"));
     assert.ok(await p.run("document.getElementById('content').textContent.includes('Active staff accounts')"));
     assert.ok(await p.run("document.getElementById('content').textContent.includes('Sign-ins and blocked access')"));
     assert.equal(await p.run("document.getElementById('content').textContent.includes('Recent Comments')"),false);
    }else{
+    assert.equal(await p.run('document.querySelectorAll(".staff-notification-button").length'),1);
+    await p.run('document.querySelector(".staff-notification-button").click()');
+    assert.equal(await p.run('document.querySelector(".staff-notification-popover").hidden'),false);
+    assert.ok(await p.run('(()=>{const panel=document.querySelector(".staff-notification-popover"),r=panel.getBoundingClientRect(),el=document.elementFromPoint(r.left+20,r.top+20);return r.width>0&&r.height>0&&panel.contains(el);})()'));
+    await p.run('document.querySelector(".staff-popover-all").click()');
+    assert.equal(await p.run('state_view'),'notifications');
     await p.run("navigate('appointments')");await pause(400);
     assert.ok(await p.run("loadDB().appointments.some(a=>a.restricted)"));
    }

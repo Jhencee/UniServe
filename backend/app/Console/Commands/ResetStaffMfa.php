@@ -15,7 +15,7 @@ class ResetStaffMfa extends Command
         if(!$user){$this->error('Staff account not found.');return self::FAILURE;}
         if(!$this->confirm('Disable two-step sign-in for this account? This is an audited emergency recovery action.',false))return self::FAILURE;
         DB::table('staff_users')->where('id',$user->id)->update(['mfa_version'=>bin2hex(random_bytes(16)),'mfa_secret'=>null,'mfa_recovery_codes'=>null,'mfa_last_step'=>null]);
-        SystemAudit::record(null,'Authentication','Emergency console MFA reset',$user->id);
+        SystemAudit::record((object)['id'=>null,'full_name'=>'System operator'],'Authentication','Emergency console MFA reset',$user->id);
         $this->info('MFA disabled. Existing MFA-bound tokens are invalid. Sign in and enroll a new authenticator.');
         return self::SUCCESS;
     }

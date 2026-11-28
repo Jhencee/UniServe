@@ -1474,6 +1474,18 @@ body .topbar h1 { font-size: 0.9rem; }
   gap: 16px;
   flex-shrink: 0;
 }
+.conf-requests-hint { margin:0 0 14px; color:var(--text-soft); font-size:.78rem; line-height:1.5; }
+.conf-requests-list { max-height:min(380px,50vh); overflow:auto; border-top:1px solid var(--border); }
+.conf-request-row { display:flex; align-items:flex-start; gap:12px; padding:14px 2px; border-bottom:1px solid var(--border); cursor:pointer; }
+.conf-request-row input.conf-request-choice { flex:0 0 auto; width:16px; height:16px; margin:3px 0 0; accent-color:var(--accent); }
+.conf-request-content { display:block; flex:1; min-width:0; }
+.conf-request-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.conf-request-heading strong { color:var(--text); font-size:.82rem; font-weight:600; overflow-wrap:anywhere; }
+.conf-request-status { flex-shrink:0; color:var(--text-soft); font-size:.7rem; }
+.conf-request-status[data-status="Pending"] { color:var(--accent-strong); }
+.conf-request-meta,.conf-request-reason { display:block; margin-top:4px; color:var(--text-soft); font-size:.74rem; line-height:1.5; overflow-wrap:anywhere; }
+.conf-request-reason { margin-top:7px; color:var(--text); }
+.conf-requests-empty { margin:0; padding:14px 0; color:var(--text-soft); font-size:.8rem; }
 .clock {
   font-family: var(--font-mono);
   font-size: 0.78rem;

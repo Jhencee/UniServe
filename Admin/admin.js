@@ -866,6 +866,7 @@ function refreshSidebarNotificationCount() {
   const headerBadge=inbox?.querySelector?.('.staff-notification-count');
   if(headerBadge){headerBadge.textContent=count>99?'99+':String(count);headerBadge.hidden=count===0;}
   inbox?.setAttribute?.('aria-label',count?'Notifications, '+count+' unread':'Notifications, no unread updates');
+  window.refreshStaffNotificationPopover?.();
 }
 function renderNotifications() {
   selectedNotificationKeys.clear();

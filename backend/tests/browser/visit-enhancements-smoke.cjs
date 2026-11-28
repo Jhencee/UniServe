@@ -76,10 +76,14 @@ async function page(){
   await staff.run('refreshSidebarNotificationCount()');
 
   await staff.run('document.querySelector(".staff-notification-button").click()');await pause(200);
+  assert.equal(await staff.run('document.querySelector(".staff-notification-popover").hidden'),false);
+  assert.ok(await staff.run('(()=>{const panel=document.querySelector(".staff-notification-popover"),r=panel.getBoundingClientRect(),el=document.elementFromPoint(r.left+Math.min(20,r.width/2),r.top+Math.min(20,r.height/2));return r.width>0&&r.height>0&&!!el&&panel.contains(el);})()'),'Notification panel must be visible and not covered');
+  assert.ok(await staff.run('!!document.querySelector(".staff-popover-item")'));
+  await staff.run('document.querySelector(".staff-popover-all").click()');await pause(200);
   assert.equal(await staff.run('state_view'),'notifications');
   assert.equal(await staff.run('!!document.querySelector(".browser-alert-toggle")'),false);
   assert.equal(await staff.run('document.querySelector(".staff-notification-count").textContent'),await staff.run('document.querySelector("#sidebarNotifications .notification-bell-count").textContent'));
-  checks.push('Header bell opens the sidebar inbox, shares its unread count, without browser-alert settings');
+  checks.push('Header bell opens the notification panel and See all opens the inbox with the same unread count');
 
   await staff.run('reviewAppointmentRequirements("audit-a")');
   assert.equal(await staff.run('document.getElementById("documentStatus0").value'),'Pending review');

@@ -6,6 +6,8 @@ Laravel API and static portals for visitors, Admin and Super Admin. Portal entry
 
 New installations create their first account with `php artisan portal:create-super-admin`; migrations do not install default credentials.
 
+Audit entries created by the server are distinct from browser-reported activity. Restrict database access and retain encrypted backups outside the application server; the database audit table alone is not tamper-proof. When clearing test visits, preserve `system_audit` and `calendar_audit` unless their deletion is explicitly intended.
+
 ## Setup and services
 
 Keep runtime settings in .env; use .env.example as the configuration reference. Preserve the original APP_KEY: encrypted records, backups, tokens and email indexes depend on it. Never commit credentials or regenerate an existing key.

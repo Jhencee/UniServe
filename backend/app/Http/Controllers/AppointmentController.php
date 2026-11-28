@@ -66,8 +66,12 @@ class AppointmentController extends Controller {
    $file=['name'=>$file['name'],'dataUrl'=>$file['dataUrl'],'type'=>$match[1],'size'=>strlen($bytes)];
   }unset($file);
   DB::transaction(function()use($u,$key,$d,$before){
-  if(!array_key_exists('examples',$d)){$existing=DB::table('service_catalog')->where('key',$key)->value('payload');$d['examples']=$existing?(json_decode($existing,true)['examples']??[]):[];}
-  DB::table('service_catalog')->updateOrInsert(['key'=>$key],['label'=>$d['label'],'payload'=>json_encode($d+['key'=>$key])]);SystemAudit::record($u,'Settings','Saved service '.$d['label'],$key);
+  $existing=DB::table('service_catalog')->where('key',$key)->lockForUpdate()->first();$old=$existing?json_decode($existing->payload,true):[];
+  if(!array_key_exists('examples',$d))$d['examples']=$old['examples']??[];
+  $changes=[];
+  foreach(['label'=>'Name','desc'=>'Description','announcement'=>'Announcement','icon'=>'Icon'] as $field=>$label)if(($old[$field]??'')!==($d[$field]??''))$changes[]=['field'=>$label,'from'=>$field==='label'?($old[$field]??''):'','to'=>$field==='label'?($d[$field]??''):'Updated'];
+  foreach(['requirements'=>'Requirements','templates'=>'Blank forms','examples'=>'Filled-out examples'] as $field=>$label)if(($old[$field]??[])!==($d[$field]??[]))$changes[]=['field'=>$label,'from'=>count($old[$field]??[]).' items','to'=>count($d[$field]??[]).' items; updated'];
+  DB::table('service_catalog')->updateOrInsert(['key'=>$key],['label'=>$d['label'],'payload'=>json_encode($d+['key'=>$key])]);SystemAudit::record($u,'Settings','Saved service '.$d['label'],$key,$changes);
   if($before!==$d['confidential']){
    if($d['confidential'])foreach(DB::table('shared_transactions')->get() as $row){$t=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($row->payload),true);if(($t['service']??'')===$key)DB::table('confidential_cases')->insertOrIgnore(['id'=>$t['id'],'code'=>$t['code']??$t['id'],'created_at'=>now(),'updated_at'=>now()]);}
    SystemAudit::record($u,'Confidential',$d['confidential']?'Service marked confidential':'Service confidentiality removed',$key,[['field'=>'Confidential','from'=>$before?'Yes':'No','to'=>$d['confidential']?'Yes':'No']]);

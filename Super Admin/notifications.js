@@ -22,6 +22,17 @@ function superNotificationItems(data) {
   const bell=document.createElement('button');bell.type='button';bell.className='icon-btn staff-notification-button';bell.title='Notifications';
   bell.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="staff-notification-count" hidden>0</span>';
   host.insertBefore(bell,host.querySelector('.admin-actions-panel'));
+  const popup=document.createElement('section');popup.className='staff-notification-popover';popup.hidden=true;popup.setAttribute('aria-label','Notifications');host.append(popup);bell.setAttribute('aria-expanded','false');
+  function closePopup(){popup.hidden=true;bell.setAttribute('aria-expanded','false');}
+  function drawPopup(){
+    if(popup.hidden)return;
+    const visible=items.filter(item=>!deleted.has(item.id)&&!archived.has(item.id));
+    popup.innerHTML='<div class="staff-popover-head"><strong>Notifications</strong><button type="button" data-mark-all>Mark all as read</button></div><div class="staff-popover-list"></div><button type="button" class="staff-popover-all">See all notifications</button>';
+    const list=popup.querySelector('.staff-popover-list');
+    if(unavailable)list.innerHTML='<p class="staff-popover-empty">Notifications could not be loaded.</p>';else if(!loaded)list.innerHTML='<p class="staff-popover-empty">Checking notifications...</p>';else if(!visible.length)list.innerHTML='<p class="staff-popover-empty">No notifications.</p>';
+    visible.slice(0,8).forEach(item=>{const row=document.createElement('button'),title=document.createElement('strong'),detail=document.createElement('span');row.type='button';row.className='staff-popover-item';row.dataset.unread=String(!seen.has(item.id));title.textContent=item.title;detail.textContent=item.note||'';row.append(title,detail);row.onclick=()=>{seen.add(item.id);save();closePopup();if(item.kind==='confidential-access'){openConfidentialRequests();return;}if(item.page==='activitylog')window.centralAuditReview=item.auditContext?{...item.auditContext,locate:true,scroll:true}:null;navigate(item.page);};list.append(row);});
+    popup.querySelector('[data-mark-all]').onclick=()=>{visible.forEach(item=>seen.add(item.id));save();};popup.querySelector('.staff-popover-all').onclick=()=>{closePopup();navigate('notifications');};
+  }
   function save(){try{sessionStorage.setItem(seenKey,JSON.stringify([...seen].slice(-500)));sessionStorage.setItem(archiveKey,JSON.stringify([...archived].slice(-500)));sessionStorage.setItem(deletedKey,JSON.stringify([...deleted].slice(-500)));}catch(_){}paint();}
   function syncSelection(){
     const feed=document.getElementById('superNotificationFeed'),toolbar=feed?.querySelector('.notification-bulk-toolbar'),page=toolbar?.closest('.notifications-page');if(!toolbar)return;
@@ -63,7 +74,7 @@ function superNotificationItems(data) {
     const count=items.filter(item=>!deleted.has(item.id)&&!seen.has(item.id)&&!archived.has(item.id)).length;
     const badge=bell.querySelector('.staff-notification-count');badge.textContent=count>99?'99+':String(count);badge.hidden=!count;
     const sidebar=document.querySelector('#sidebarNotifications .notification-bell-count');if(sidebar){sidebar.textContent=count>99?'99+':String(count);sidebar.hidden=!count;}
-    bell.setAttribute('aria-label',unavailable?'Notifications unavailable':count?'Notifications, '+count+' unread':'Notifications, no unread updates');drawFeed();
+    bell.setAttribute('aria-label',unavailable?'Notifications unavailable':count?'Notifications, '+count+' unread':'Notifications, no unread updates');drawFeed();drawPopup();
   }
   async function refresh(){
     if(busy||ended||document.visibilityState==='hidden')return;busy=true;
@@ -79,7 +90,9 @@ function superNotificationItems(data) {
     });paint();refresh();
   };
   window.refreshSuperNotificationBadge=paint;
-  bell.addEventListener('click',()=>navigate('notifications'));
+  bell.addEventListener('click',()=>{if(!popup.hidden){closePopup();return;}popup.hidden=false;bell.setAttribute('aria-expanded','true');drawPopup();refresh();});
+  document.addEventListener('click',event=>{if(!popup.hidden&&!host.contains(event.target))closePopup();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!popup.hidden){closePopup();bell.focus();}});
   paint();refresh();const interval=setInterval(refresh,60000);
   window.addEventListener('uniserve:changed',refresh);document.addEventListener('visibilitychange',refresh);
   window.addEventListener('uniserve:session-ended',()=>{ended=true;items=[];clearInterval(interval);});

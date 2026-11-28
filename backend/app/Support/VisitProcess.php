@@ -77,7 +77,7 @@ class VisitProcess
                 // Keep the existing supported Requested state, but release the expired slot.
                 DB::table('shared_appointments')->where('id', $row->id)->update(['date'=>null, 'time'=>null, 'revision'=>$row->revision+1, 'payload'=>Crypt::encryptString(json_encode($a)), 'updated_at'=>now()]);
                 self::notify(DB::table('shared_appointments')->where('id', $row->id)->first(), 'request-expired', 'Your unconfirmed request needs a new schedule. You have not been marked as a no-show.');
-                SystemAudit::record(null, 'Appointments', 'Unconfirmed appointment needs rescheduling', $row->visit_id);
+                SystemAudit::record((object)['id'=>null,'full_name'=>'System'], 'Appointments', 'Unconfirmed appointment needs rescheduling', $row->visit_id);
                 return 1;
             });
         }

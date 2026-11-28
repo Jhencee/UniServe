@@ -15,7 +15,7 @@ const pause=ms=>new Promise(r=>setTimeout(r,ms));
     let ready=false;
     for(let i=0;i<80;i++){try{if((await fetch('http://127.0.0.1:9224/json/version')).ok){ready=true;break;}}catch{}await pause(100);}
     if(!ready)throw Error('Isolated browser did not start.');
-    const checks=process.argv.includes('--oversight')?['system-oversight-smoke.cjs']:process.argv.includes('--all')?['visit-enhancements-smoke.cjs','role-data-smoke.cjs','flow-smoke.cjs']:process.argv.includes('--navigation')?['flow-smoke.cjs']:['visit-enhancements-smoke.cjs'];
+    const checks=process.argv.includes('--oversight')?['system-oversight-smoke.cjs']:process.argv.includes('--roles')?['role-data-smoke.cjs']:process.argv.includes('--all')?['visit-enhancements-smoke.cjs','role-data-smoke.cjs','flow-smoke.cjs']:process.argv.includes('--navigation')?['flow-smoke.cjs']:['visit-enhancements-smoke.cjs'];
     for(const check of checks){
       const args=[path.join(__dirname,check)];
       if(check==='flow-smoke.cjs'&&process.argv.includes('--offline'))args.push('--offline');

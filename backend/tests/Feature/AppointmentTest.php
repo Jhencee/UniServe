@@ -826,6 +826,13 @@ it('publishes service notices only after an authorized service update',function(
  $catalog=$this->getJson('/api/services')->assertOk()->json('services');
  expect(collect($catalog)->firstWhere('key','good_moral')['announcement'])->toBe('Bring your updated clearance.');
 });
+it('audits service requirement and file changes without recording file contents',function(){
+ $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+ $service=['label'=>'Good Moral','icon'=>'home','requirements'=>['Valid ID','Signed form'],'templates'=>[],'examples'=>[['name'=>'Example.pdf','dataUrl'=>$pdf]]];
+ $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
+ $entry=DB::table('system_audit')->where('action','Saved service Good Moral')->first();
+ expect($entry->changes)->toContain('Requirements','Filled-out examples')->not->toContain($pdf,'Example.pdf');
+});
 it('stores validated filled-out examples and preserves them on older service updates',function(){
  $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
  $service=['label'=>'Good Moral','desc'=>'Description','icon'=>'home','requirements'=>[],'templates'=>[],'examples'=>[['name'=>'Example.pdf','dataUrl'=>$pdf]]];

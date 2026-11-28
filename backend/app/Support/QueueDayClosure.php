@@ -18,7 +18,7 @@ class QueueDayClosure
     $q['previousStatus']=$row->status;$q['status']='Unfinished';$q['unfinishedAt']=$now->toIso8601String();
     DB::table('queues')->where('id',$row->id)->update(['status'=>'Unfinished','portal_payload'=>QueueData::write($q)]);
     if(!empty($q['appointmentId'])&&Schema::hasTable('shared_appointments'))DB::table('shared_appointments')->where('id',$q['appointmentId'])->where('status','Checked-in')->update(['status'=>'Unfinished','updated_at'=>now()]);
-    if(Schema::hasTable('system_audit'))SystemAudit::record(null,'Queue','Previous-day visit marked Unfinished',$q['visitId']??$q['id'],[['field'=>'Queue status','from'=>$row->status,'to'=>'Unfinished']]);
+    if(Schema::hasTable('system_audit'))SystemAudit::record((object)['id'=>null,'full_name'=>'System'],'Queue','Previous-day visit marked Unfinished',$q['visitId']??$q['id'],[['field'=>'Queue status','from'=>$row->status,'to'=>'Unfinished']]);
     return 1;
    });
   }

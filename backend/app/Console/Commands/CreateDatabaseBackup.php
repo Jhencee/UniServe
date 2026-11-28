@@ -16,7 +16,7 @@ class CreateDatabaseBackup extends Command
                 $backup=DatabaseBackup::snapshot();
                 return DatabaseBackup::save($backup,'scheduled-or-operator');
             });
-            SystemAudit::record(null,'Data','Created verified server database backup',$meta['id']);
+            SystemAudit::record((object)['id'=>null,'full_name'=>'System'],'Data','Created verified server database backup',$meta['id']);
             $this->info('Verified backup: '.$meta['id'].' ('.$meta['rows'].' application rows). Copy it off-server and retain the original APP_KEY separately.');
             return self::SUCCESS;
         } catch(\Throwable $e) {
