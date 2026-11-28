@@ -76,11 +76,11 @@ function sweepNoShows(db) {
   });
   return changed;
 }
-function arrivalStatusPill(appt) {
+function arrivalStatusPill(appt, compact = false) {
   if (!appt.arrivalStatus || appt.status === 'No-show') return '';
   const map = { OnTime: 'pill-ok', Late: 'pill-warn', NoShow: 'pill-danger' };
   const label = appt.arrivalStatus === 'NoShow' ? 'No-Show' : appt.arrivalStatus;
-  return `<span class="pill ${map[appt.arrivalStatus] || 'pill-info'}">${label}${appt.lateMinutes ? ` &middot; ${fmtMinutes(appt.lateMinutes)}` : ''}${appt.status==='Booked'&&appt.arrivalStatus==='Late'?' &middot; awaiting check-in':''}</span>`;
+  return `<span class="pill ${map[appt.arrivalStatus] || 'pill-info'}">${label}${!compact&&appt.lateMinutes ? ` &middot; ${fmtMinutes(appt.lateMinutes)}` : ''}${!compact&&appt.status==='Booked'&&appt.arrivalStatus==='Late'?' &middot; awaiting check-in':''}</span>`;
 }
 
 function uid(p) {
@@ -1267,7 +1267,7 @@ function renderAppointments(keep) {
       <div ${appointmentView === 'list' ? '' : 'hidden'}>
       <div class="filter-bar">${dateRangeHtml('appt')}${appointmentViewSwitchHtml()}<div class="search-box">${icon('search', 15)}<input id="apptSearch" placeholder="Name, code or visit ID" value="${escapeHtml(prev)}" oninput="renderApptTable()"></div></div>
       <div class="subnav tab-row">${['all', 'Requested', 'Booked', 'Needs rescheduling', 'Checked-in', 'Completed', 'Unfinished', 'No-show', 'Cancelled'].map(f => `<button class="${apptFilter === f ? 'active' : ''}" onclick="setApptFilter('${f}',this)">${f === 'all' ? 'All' : f === 'Needs rescheduling' ? 'Reschedule' : f}</button>`).join('')}</div>
-      <div class="table-wrap"><table><thead><tr><th class="appointment-select-cell"><input type="checkbox" id="selectAllAppointments" aria-label="Select all eligible requests shown" title="Select all eligible requests shown" onchange="selectAllAppointments(this.checked)" hidden></th><th>Visit ID</th><th>Requestor</th><th>Service</th><th>Date</th><th>Time</th><th>Requirements</th><th>Visit status</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="apptBody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th class="appointment-select-cell"><input type="checkbox" id="selectAllAppointments" aria-label="Select all eligible requests shown" title="Select all eligible requests shown" onchange="selectAllAppointments(this.checked)" hidden></th><th>Visit ID</th><th>Requestor</th><th>Service</th><th>Date</th><th>Time</th><th>Requirements</th><th>Visit status</th><th>Arrival</th><th class="appointment-action-heading">Actions</th></tr></thead><tbody id="apptBody"></tbody></table></div>
       </div>
     </div>`;
   organizeStaffToolbar('apptSearch');
@@ -1355,9 +1355,9 @@ function renderApptTable() {
     <td>${r.restricted?'&mdash;':`${escapeHtml(r.name)}<div class="muted" style="font-size:.72rem;">${escapeHtml(r.email || '')}</div>`}</td>
     <td>${escapeHtml(r.service)}</td><td class="mono">${r.date ? r.date : '<span class="muted" style="font-size:.76rem;">Not set</span>'}</td><td class="mono">${r.time ? escapeHtml(UniServeUX.timeLabel(r.time)) : '&mdash;'}</td>
     <td>${r.restricted?'&mdash;':readinessPillHtml(readiness, true)}</td>
-    <td><div class="appointment-status-list">${statusPill(r.status)} ${arrivalStatusPill(r)} ${r.earlierSlotOptIn?'<span class="appointment-status-note">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</div></td>
+    <td><div class="appointment-status-list">${statusPill(r.status)} ${r.earlierSlotOptIn?'<span class="appointment-status-note">Earlier slot requested</span>':''} ${UniServeUX.conflict(r)||r.rescheduleRequested||r.calendarReview ? '<span class="pill pill-warn">Needs rescheduling</span>' : ''}</div></td><td>${arrivalStatusPill(r,true)||'&mdash;'}</td>
     <td class="act-cell appointment-action-cell">${appointmentActionsHtml(r)}</td></tr>`;
-  }).join('') : `<tr class="empty-row"><td colspan="9">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
+  }).join('') : `<tr class="empty-row"><td colspan="10">${db.appointments.length?'No appointments match these filters.':'No appointments yet.'}</td></tr>`;
   syncAppointmentSelection();
 }
 function syncAppointmentSelection(){

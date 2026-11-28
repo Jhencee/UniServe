@@ -195,8 +195,8 @@ function logActivity(db, user, action, extra) {
 function queueRef(q) { return q.number || q.visitId; }
 function isDue(q, now = new Date()) { return q.source !== 'Appointment' || !q.scheduledAt || new Date(q.scheduledAt) <= now; }
 function queueRank(q, now) {
-  if (q.source === 'Appointment') return isDue(q, now) ? ((q.isSenior || q.isPWD) ? -1 : 1) : 3;
-  return (q.isSenior || q.isPWD) ? -1 : 2;
+  if (q.source === 'Appointment') return isDue(q, now) ? ((q.isPriority || q.isSenior || q.isPWD) ? -1 : 1) : 3;
+  return (q.isPriority || q.isSenior || q.isPWD) ? -1 : 2;
 }
 function queueSortKey(q) { return new Date(q.queueEnteredAt || (q.source === 'Appointment' && q.scheduledAt ? q.scheduledAt : (q.checkedInAt || q.createdAt))); }
 function waitingQueueSorted(db) {
@@ -453,7 +453,7 @@ function startPdPolling() {
       lastRefresh = Date.now();
       renderPublicDisplay();
     }
-  }, 3000);
+  }, 6000);
 }
 function stopPdPolling() { if (pdTimer) { clearInterval(pdTimer); pdTimer = null; } }
 document.addEventListener('visibilitychange', () => {
@@ -478,7 +478,7 @@ function speakCall(q) {
   speechSynthesis.speak(u);
 }
 function pdSourceTag(q) {
-  if (q.isSenior || q.isPWD) return { cls: 'priority', txt: 'Priority' };
+  if (q.isPriority || q.isSenior || q.isPWD) return { cls: 'priority', txt: 'Priority' };
   if (q.source === 'Appointment') return { cls: 'appt', txt: 'Appointment' };
   return { cls: 'walk', txt: 'Walk-in' };
 }

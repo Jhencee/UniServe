@@ -613,7 +613,7 @@ it('keeps personal details off the public queue and protects visit endpoints',fu
  $a=\App\Http\Controllers\AppointmentController::present(DB::table('shared_appointments')->where('id',$a['id'])->first());
  $q=$this->postJson('/api/appointments/'.$a['id'].'/check-in',['arrivalOverrideReason'=>'Fixture arrival reviewed by staff'],appointmentHeaders())->json('queue');
  $public=$this->getJson('/api/public-queue')->assertOk()->json('queues.0');
- expect($public)->not->toHaveKeys(['name','email','contact','idNumber','attachments']);
+ expect($public)->not->toHaveKeys(['name','email','contact','idNumber','attachments','serviceLabel','isSenior','isPWD'])->toHaveKey('isPriority');
  $this->getJson('/api/visits/'.$a['visitId'])->assertUnauthorized();
  $this->postJson('/api/visits/'.$a['visitId'].'/cancel')->assertUnauthorized();
  $this->getJson('/api/visits/'.$a['visitId'],['X-Visitor-Token'=>VisitorAccess::token('wrong@gmail.com')])->assertForbidden();

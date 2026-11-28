@@ -1475,7 +1475,7 @@ function startTicketPolling() {
   stopTicketPolling();
   // Socket subscriptions can survive a missed event or a phone going to sleep.
   // Keep a server check active even while realtime reports a connection.
-  ticketPollTimer = setInterval(refreshActiveVisitorTicket, 3000);
+  ticketPollTimer = setInterval(refreshActiveVisitorTicket, 10000);
 }
 function stopTicketPolling() { if (ticketPollTimer) { clearInterval(ticketPollTimer); ticketPollTimer = null; } }
 function refreshActiveVisitorTicket() {
