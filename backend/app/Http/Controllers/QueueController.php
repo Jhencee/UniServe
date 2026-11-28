@@ -59,7 +59,7 @@ class QueueController extends Controller
             throw \Illuminate\Validation\ValidationException::withMessages(['email' => 'Use your @iskolarngbayan.pup.edu.ph student email address.']);
         }
         if($assisted){$d=$request->validate(['identityCheck'=>'required|string|min:5|max:500']);$data['email']=$data['email']??'';$data['assisted']=true;$data['assistedBy']=$actor->id;$data['identityCheck']=$d['identityCheck'];}
-        else \App\Support\VisitorAccess::requireEmail($request,$data['email']);
+        else {\App\Support\VisitorAccess::requireEmail($request,$data['email']);}
         if(\Illuminate\Support\Facades\Schema::hasTable('service_catalog')){ $service=DB::table('service_catalog')->where('key',$data['serviceKey'])->first();abort_unless($service,422,'Unknown service.');$data['serviceLabel']=$service->label;}
         \App\Support\QueueDayClosure::run();
         $result = DB::transaction(function () use ($data, $assisted) {
@@ -94,12 +94,7 @@ class QueueController extends Controller
             DB::table('queue_counters')->insertOrIgnore(['day_key' => $day, 'prefix' => $prefix, 'last_seq' => 0]);
             $counter = DB::table('queue_counters')->where('day_key', $day)->where('prefix', $prefix)->lockForUpdate()->first();
             $seq = $counter->last_seq + 1;
-            do {
-                $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-                $visitId = 'VIS-';
-                foreach (str_split(random_bytes(8)) as $byte) $visitId .= $alphabet[ord($byte) % strlen($alphabet)];
-                $legacyId = substr($visitId,0,8).'-'.substr($visitId,8);
-            } while (DB::table('queues')->whereIn(\Illuminate\Support\Facades\Schema::hasColumn('queues','visit_id')?'visit_id':'portal_payload->visitId',[$visitId,$legacyId])->exists());
+            $visitId = \App\Support\VisitId::next();
             DB::table('queue_counters')->where('day_key', $day)->where('prefix', $prefix)->update(['last_seq' => $seq]);
             $queue = $data + ['id' => 'Q'.bin2hex(random_bytes(8)), 'visitId' => $visitId,
                 'number' => $prefix.'-'.str_pad($seq, 3, '0', STR_PAD_LEFT), 'prefix' => $prefix, 'seq' => $seq,
@@ -117,7 +112,7 @@ class QueueController extends Controller
         });
         $queue = $result['queue'];
         if($assisted)\App\Support\SystemAudit::record($actor,'Queue','Assisted walk-in identity checked',$queue['visitId']);
-        $token=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$queue['visitId'],'expires'=>time()+3600]));
+        $token=$assisted?null:\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$queue['visitId'],'expires'=>time()+3600,'session'=>\App\Support\VisitorAccess::sessionId($request)]));
         return response()->json(['queue' => $queue, 'existing' => $result['existing']]+($assisted?[]:['visitToken'=>$token]), $result['existing'] ? 200 : 201);
     }
 
@@ -332,6 +327,10 @@ class QueueController extends Controller
                 if($queue['status']==='Serving')$changes[]=['field'=>'Visitor log','from'=>'','to'=>'Time In recorded'];
                 if($queue['status']==='Completed')$changes[]=['field'=>'Records','from'=>'','to'=>'Time Out and completed transaction recorded'];
                 \App\Support\SystemAudit::record($actor,'Queue',$action,$queue['visitId'],$changes);
+                if($queue['status']==='Completed' && $stored['status']!=='Completed' && empty($queue['pickupOfVisitId']) && empty($queue['pickupTransactionId'])) {
+                    \App\Support\SystemAudit::record($actor,'Feedback','Visit ready for feedback',$queue['visitId']);
+                    if(filter_var($queue['email']??'',FILTER_VALIDATE_EMAIL)) DB::table('notification_outbox')->insertOrIgnore(\App\Support\PrivateNotification::fields($queue['email'],'Feedback requested','Your visit is complete. Please open Visit History in UniServe and share your feedback about your visit. Reference: '.$queue['visitId'])+['visit_id'=>$queue['visitId'],'scheduled_at'=>now(),'send_at'=>now()->addDay(),'kind'=>'feedback-required','dedup_key'=>hash('sha256','feedback-required|'.$queue['id']),'actor_id'=>'system','created_at'=>now(),'updated_at'=>now()]);
+                }
             }
             request()->attributes->set('system_audit_recorded',true);
             return $queue;

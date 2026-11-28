@@ -21,7 +21,7 @@ class VisitEnhancementController extends Controller {
   $u=StaffAuth::user($r,'ADMIN');$d=$r->validate(['text'=>'required|string|max:500','dueDate'=>'required|date_format:Y-m-d','completed'=>'required|boolean','revision'=>'required|integer|min:0','taskId'=>'nullable|string|max:80','ownerId'=>'nullable|string|max:80','completionNotes'=>'nullable|string|max:1000']);
   $a=DB::transaction(function()use($r,$id,$d,$u){
    $row=DB::table('shared_appointments')->where('id',$id)->lockForUpdate()->first();abort_unless($row,404);(new AppointmentController)->access($r,$row);
-   abort_unless(\App\Support\CaseAccess::canEditAppointment($u,$row),403,'Assigned Admin or Head Admin edit access and an active unlock are required.');
+   abort_unless(\App\Support\CaseAccess::canEditAppointment($u,$row),403,'Assigned Admin edit access and an active unlock are required.');
    abort_unless($row->revision===$d['revision'],409,'Another Admin changed this visit. Refresh it.');
    abort_if($row->status==='Cancelled',409,'This visit is cancelled.');
    $a=AppointmentController::present($row);$text=trim($d['text']);abort_if($text==='',422,'Enter a follow-up action.');
@@ -32,8 +32,8 @@ class VisitEnhancementController extends Controller {
    $taskId=$d['taskId']??('TASK-'.bin2hex(random_bytes(8)));$position=null;
    foreach($tasks as $i=>$task)if(($task['id']??'legacy')===$taskId)$position=$i;
    abort_if(isset($d['taskId'])&&$position===null,404,'Task not found.');
-   $notes=trim($d['completionNotes']??'');abort_if($d['completed']&&$notes==='',422,'Add completion notes.');
-   $before=$position===null?null:$tasks[$position];
+   $before=$position===null?null:$tasks[$position];$notes=trim($d['completionNotes']??($before['completionNotes']??''));
+   abort_if($d['completed'] && $notes==='',422,'Add completion notes for this follow-up action.');
    $task=['id'=>$taskId,'text'=>$text,'dueDate'=>$d['dueDate'],'completed'=>$d['completed'],'ownerId'=>$owner->id,'ownerName'=>$owner->full_name,'completionNotes'=>$notes,'updatedAt'=>now()->toIso8601String()];
    $task['history']=$before['history']??[];
    $task['history'][]=['at'=>now()->toIso8601String(),'by'=>$u->full_name,'text'=>$text,'ownerName'=>$owner->full_name,'dueDate'=>$d['dueDate'],'completed'=>$d['completed'],'notes'=>$notes];

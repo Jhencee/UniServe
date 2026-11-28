@@ -5,7 +5,7 @@ test('an in-flight queue refresh cannot restore Serving after completion is conf
  let resolveRead;
  const serving={id:'q',shared:true,status:'Serving'},completed={...serving,status:'Completed',completedAt:'2026-11-10T08:00:00Z'};
  let db={queues:[serving]};
- const c={DB_KEY:'fixture',AbortSignal,window:{},loadDB:()=>structuredClone(db),loadSession:()=>({token:'fixture'}),
+ const c={DB_KEY:'fixture',AbortSignal,window:{},setInterval(){},notifyIncomingVisitors(){},document:{},loadDB:()=>structuredClone(db),loadSession:()=>({token:'fixture'}),
   localStorage:{setItem:(key,value)=>{db=JSON.parse(value);}},
   fetch:()=>new Promise(resolve=>{resolveRead=resolve;})};
  vm.createContext(c);

@@ -25,6 +25,10 @@
 .notifications-page-feed { grid-column:1 / -1; border-top:1px solid var(--border); margin-top:4px; }
 .notification-status-filter { grid-column:2; grid-row:1; display:flex; align-items:center; gap:8px; margin:0; padding-bottom:4px; color:var(--text-soft); font-size:.74rem; }
 .notification-status-filter select { width:auto; min-width:130px; padding:7px 10px; border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); font:inherit; }
+.notification-status-filter { display:grid; grid-template-columns:auto minmax(130px,1fr); align-items:center; column-gap:8px; row-gap:7px; }
+.notification-status-filter .notification-bulk-action { grid-column:2; min-width:130px; }
+.notification-status-filter .notification-bulk-action[hidden] { display:none !important; }
+@media(max-width:650px) { .notification-status-filter { grid-template-columns:auto minmax(108px,1fr); } .notification-status-filter select,.notification-status-filter .notification-bulk-action { min-width:108px; padding-right:6px; padding-left:7px; } }
 .notification-entry-controls { display:flex; flex-direction:row; align-items:center; gap:18px; flex-shrink:0; }
 .notification-state-actions { display:flex; align-items:center; gap:16px; padding-left:18px; border-left:1px solid var(--border); }
 .notification-state-actions button { padding:4px 0; border:0; background:transparent; color:var(--text-soft); font:inherit; font-size:.7rem; cursor:pointer; }
@@ -63,3 +67,25 @@
 #sidebarNotifications .notification-bell-count { margin-left:auto; font-size:.7rem; font-weight:500; color:rgba(255,255,255,.7); }
 #sidebarNotifications .notification-bell-count[hidden] { display:none; }
 .app-shell.collapsed #sidebarNotifications .notification-bell-count { display:none; }
+.notification-bulk-toolbar { display:flex; align-items:center; justify-content:flex-start; flex-wrap:wrap; gap:10px 14px; padding:8px 4px; border-bottom:1px solid var(--border); color:var(--text-soft); font-size:.74rem; }
+.notifications-page.is-selecting .notification-bulk-toolbar { justify-content:flex-end; }
+.notification-select-control,.notification-select-all-label { display:inline-flex; align-items:center; gap:7px; cursor:pointer; }
+.notification-select,.notification-select-all { width:16px; height:16px; margin:0; accent-color:var(--accent); cursor:pointer; }
+.notification-selected-count { margin-right:auto; }
+.notification-bulk-action { min-height:32px; padding:5px 9px; border:1px solid var(--border); border-radius:5px; background:var(--surface); color:var(--text); font:inherit; }
+.notification-status-filter select,.notification-bulk-action { box-sizing:border-box; flex:0 0 130px; width:130px; min-width:130px; max-width:130px; height:32px; padding:5px 9px; }
+.notification-bulk-toolbar .notification-bulk-action { transform:translateX(3px); }
+.notification-bulk-apply:disabled { opacity:.55; cursor:not-allowed; }
+.notification-select-control { display:inline-flex; visibility:hidden; }
+.notification-entry:hover .notification-select-control,.notification-entry:focus-within .notification-select-control,.notification-entry:has(.notification-select:checked) .notification-select-control { visibility:visible; }
+.notification-bulk-toolbar[hidden],.notification-bulk-toolbar [hidden] { display:none !important; }
+.notification-selection-trigger,.notification-selection-done { border:0; background:transparent; color:var(--text-soft); padding:6px 8px; min-height:32px; border-radius:4px; font:inherit; font-size:inherit; cursor:pointer; }
+.notification-selection-trigger:hover,.notification-selection-done:hover { color:var(--accent-strong); text-decoration:underline; text-underline-offset:3px; }
+.notification-selection-trigger:focus-visible,.notification-selection-done:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media(max-width:650px) {
+ .notification-select-control { visibility:visible; }
+ .notifications-page .notification-entry { display:grid; grid-template-columns:18px 6px minmax(0,1fr); }
+ .notifications-page .notification-entry-copy,.notifications-page .notification-entry-controls { grid-column:3; }
+ .notification-bulk-toolbar { gap:9px 12px; }
+ .notification-selected-count { margin-right:0; }
+}

@@ -440,6 +440,9 @@ function openPublicDisplay() {
   showScreen('publicDisplay');
   startPdPolling();
 }
+if(new URLSearchParams(location.search).get('view')==='queue'){
+  document.addEventListener('DOMContentLoaded',()=>openPublicDisplay(),{once:true});
+}
 function startPdPolling() {
   stopPdPolling();
   renderPublicDisplay();
@@ -744,5 +747,7 @@ function contactHoursHtml() {
   if (!OfficeCalendar.ready()) return '<p class="desc">Hours temporarily unavailable.</p>';
   const date = OfficeCalendar.parts().date, day = OfficeCalendar.day(date);
   const hours = day.open ? OfficeCalendar.clock(day.start).replace(':00', '') + ' \u2013 ' + OfficeCalendar.clock(day.end).replace(':00', '') : 'Closed';
-  return '<div class="desc"><svg class="footer-hours-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Today: '+escapeHtml(hours)+'</span></div>';
+  const intervals=day.open?OfficeCalendar.intervals(date):[];
+  const lunch=intervals.length===2?' · Lunch: '+OfficeCalendar.clock(intervals[0][1]).replace(':00','')+' \u2013 '+OfficeCalendar.clock(intervals[1][0]).replace(':00',''):'';
+  return '<div class="desc"><svg class="footer-hours-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Today: '+escapeHtml(hours+lunch)+'</span></div>';
 }

@@ -12,6 +12,14 @@ beforeEach(function(){
  CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 10:00','Asia/Manila'));
 });
 afterEach(function(){CarbonImmutable::setTestNow();foreach(['queue_counters','shared_chats','shared_system_settings','shared_transactions','shared_visitor_log','shared_appointments','service_catalog','confidential_requests','confidential_cases','notification_outbox','system_audit','calendar_audit','office_calendar','queues','staff_users'] as $t)Schema::dropIfExists($t);});
+it('accepts two files per requirement beyond the old five-file limit and rejects a third',function(){
+ $d=appointmentInput();$pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+ DB::table('service_catalog')->where('key',$d['serviceKey'])->update(['payload'=>json_encode(['requirements'=>['A','B','C']])]);
+ $d['attachments']=[];foreach(['A','B','C'] as $req)foreach([1,2] as $n)$d['attachments'][]=['name'=>$req.$n.'.pdf','dataUrl'=>$pdf,'requirement'=>$req];
+ $d['attachments'][]=['name'=>'A3.pdf','dataUrl'=>$pdf,'requirement'=>'A'];
+ $this->verifiedPostJson('/api/appointments',$d)->assertUnprocessable();
+ array_pop($d['attachments']);$this->verifiedPostJson('/api/appointments',$d)->assertCreated()->assertJsonCount(6,'appointment.attachments');
+});
 it('supports verified institutional email without allowing mailbox impersonation',function(){
  $d=appointmentInput();$d['email']='student@iskolarngbayan.pup.edu.ph';
  $this->verifiedPostJson('/api/appointments',$d)->assertCreated();
@@ -41,13 +49,13 @@ it('rejects early arrival without an audited staff override and preserves schedu
 });
 it('lets only the verified visitor replace a rejected document and preserves its encrypted history',function(){
  $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
- $d=appointmentInput();$d['attachments']=[['name'=>'original.pdf','dataUrl'=>$pdf]];
+ $d=appointmentInput();$d['attachments']=[['name'=>'original.pdf','dataUrl'=>$pdf,'requirement'=>'Valid School ID']];
  $a=$this->verifiedPostJson('/api/appointments',$d)->assertCreated()->json('appointment');$path='/api/appointments/'.$a['id'].'/documents/0';
  $this->patchJson($path,['status'=>'Needs correction','reason'=>'Upload a signed copy','revision'=>0],appointmentHeaders())->assertOk();
  $replacement=['name'=>'corrected.pdf','dataUrl'=>$pdf,'revision'=>1];
  $this->putJson($path,$replacement,['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
  $this->putJson($path,$replacement,appointmentHeaders())->assertForbidden();
- $this->putJson($path,$replacement,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Pending review')->assertJsonMissingPath('appointment.documentVersions');
+ $this->putJson($path,$replacement,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Pending review')->assertJsonPath('appointment.attachments.0.review.requirement','Valid School ID')->assertJsonPath('appointment.attachments.0.review.serviceKey','good_moral')->assertJsonMissingPath('appointment.attachments.0.review.reason')->assertJsonMissingPath('appointment.documentVersions');
  $this->putJson($path,$replacement,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertConflict();
  $payload=DB::table('shared_appointments')->where('id',$a['id'])->value('payload');expect($payload)->not->toContain('original.pdf');
  $raw=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($payload),true);expect($raw['documentVersions'][0][0]['name'])->toBe('original.pdf');
@@ -64,9 +72,58 @@ it('accepts additional requirements only from the verified visitor and allows st
  $this->postJson($path,$file)->assertUnauthorized();
  $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
  $this->postJson($path,$file,appointmentHeaders())->assertForbidden();
- $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Pending review');
+ $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.attachments.1.review.status','Pending review');
  $this->postJson($path,$file,['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertConflict();
- $this->patchJson($path.'/0',['status'=>'Accepted','revision'=>$a['revision']+1],appointmentHeaders())->assertOk()->assertJsonPath('appointment.attachments.0.review.status','Accepted');
+ $this->patchJson($path.'/1',['status'=>'Accepted','revision'=>$a['revision']+1],appointmentHeaders())->assertOk()->assertJsonPath('appointment.attachments.1.review.status','Accepted');
+});
+it('queues and sends one follow-up reminder the day before the due date',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'].'/follow-up-task',['text'=>'Bring the original','dueDate'=>'2026-10-20','completed'=>false,'revision'=>0],appointmentHeaders())->assertOk();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-19 08:59','Asia/Manila'));
+ expect(\App\Support\VisitProcess::queueFollowUpReminders())->toBe(0);
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-19 09:00','Asia/Manila'));
+ expect(\App\Support\VisitProcess::queueFollowUpReminders())->toBe(1)->and(\App\Support\VisitProcess::queueFollowUpReminders())->toBe(0);
+ $notice=DB::table('notification_outbox')->where('kind','follow-up-reminder')->first();
+ expect(\App\Support\PrivateNotification::read($notice)['body'])->toContain('2026-10-20','Check My Visit');
+ DB::table('notification_outbox')->where('kind','!=','follow-up-reminder')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'fixture','mail.mailers.smtp.password'=>'fixture']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->andReturnNull();
+ $this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','follow-up-reminder')->value('status'))->toBe('sent');
+});
+it('skips a follow-up reminder when the task is completed',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');$path='/api/appointments/'.$a['id'].'/follow-up-task';
+ $task=['text'=>'Bring the original','dueDate'=>'2026-10-20','completed'=>false,'revision'=>0];
+ $a=$this->patchJson($path,$task,appointmentHeaders())->assertOk()->json('appointment');$task['taskId']=$a['followUpTasks'][0]['id'];
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-19 09:00','Asia/Manila'));\App\Support\VisitProcess::queueFollowUpReminders();
+ $task['revision']=1;$task['completed']=true;$task['completionNotes']='Completed';$this->patchJson($path,$task,appointmentHeaders())->assertOk();
+ DB::table('notification_outbox')->where('kind','!=','follow-up-reminder')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'fixture','mail.mailers.smtp.password'=>'fixture']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->never();$this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','follow-up-reminder')->value('status'))->toBe('superseded');
+});
+it('skips an old follow-up reminder after the due date changes',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');$path='/api/appointments/'.$a['id'].'/follow-up-task';
+ $task=['text'=>'Bring the original','dueDate'=>'2026-10-20','completed'=>false,'revision'=>0];
+ $a=$this->patchJson($path,$task,appointmentHeaders())->assertOk()->json('appointment');$task['taskId']=$a['followUpTasks'][0]['id'];
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-19 09:00','Asia/Manila'));\App\Support\VisitProcess::queueFollowUpReminders();
+ $task['revision']=1;$task['dueDate']='2026-10-22';$this->patchJson($path,$task,appointmentHeaders())->assertOk();
+ DB::table('notification_outbox')->where('kind','!=','follow-up-reminder')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'fixture','mail.mailers.smtp.password'=>'fixture']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->never();$this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','follow-up-reminder')->value('status'))->toBe('superseded');
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-21 09:00','Asia/Manila'));
+ expect(\App\Support\VisitProcess::queueFollowUpReminders())->toBe(1);
+});
+it('skips a queued follow-up reminder if the visit is cancelled',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'].'/follow-up-task',['text'=>'Bring the original','dueDate'=>'2026-10-20','completed'=>false,'revision'=>0],appointmentHeaders())->assertOk();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-19 09:00','Asia/Manila'));\App\Support\VisitProcess::queueFollowUpReminders();
+ DB::table('shared_appointments')->where('id',$a['id'])->update(['status'=>'Cancelled']);
+ DB::table('notification_outbox')->where('kind','!=','follow-up-reminder')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'fixture','mail.mailers.smtp.password'=>'fixture']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->never();$this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','follow-up-reminder')->value('status'))->toBe('superseded');
 });
 it('keeps multiple follow-up tasks with owners history and mandatory completion notes',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');$path='/api/appointments/'.$a['id'].'/follow-up-task';$h=appointmentHeaders();
@@ -92,29 +149,44 @@ it('requires resolution and reopening notes and rejects conflicting case edits',
  foreach(['Called','Serving','Completed'] as $status){if($status==='Completed')$this->checkQueueRequirements($q['id'],$h);$q=$this->patchJson('/api/queue/'.$q['id'],['status'=>$status],$h)->assertOk()->json('queue');}
  \Illuminate\Support\Facades\Cache::put('conf-unlock:admin:'.$q['transactionId'].':view',true,300);
  $path='/api/service-records/'.$q['transactionId'];
- $change=['escalation'=>'Resolved','ownerId'=>'admin','dueDate'=>'2026-10-20','nextAction'=>'Confirm outcome with visitor','revision'=>0];
+ $change=['escalation'=>'Resolved','caseStatus'=>'Resolved','ownerId'=>'admin','dueDate'=>'2026-10-20','nextAction'=>'Confirm outcome with visitor','revision'=>0];
  $this->patchJson($path,$change,$h)->assertUnprocessable();
  $change['notes']='Visitor confirmed the concern was addressed';$this->patchJson($path,$change,$h)->assertOk();
  $this->patchJson($path,$change,$h)->assertConflict();
- $change['revision']=1;$change['escalation']='For Review';$change['notes']='';$this->patchJson($path,$change,$h)->assertUnprocessable();
+ $change['revision']=1;$change['escalation']='For Review';$change['caseStatus']='In Progress';$change['notes']='';$this->patchJson($path,$change,$h)->assertUnprocessable();
  $change['notes']='Visitor submitted new information';$this->patchJson($path,$change,$h)->assertOk();
  $record=collect($this->getJson('/api/service-records',$h)->json('transactions'))->firstWhere('id',$q['transactionId']);
- expect($record['caseStatus'])->toBe('For Review');expect($record['caseHistory'])->toHaveCount(2);
+ expect($record['caseStatus'])->toBe('In Progress');expect($record['caseHistory'])->toHaveCount(2);
+ unset($change['caseStatus']);$change['revision']=2;$change['escalation']='Normal';$this->patchJson($path,$change,$h)->assertOk();
+ $record=collect($this->getJson('/api/service-records',$h)->json('transactions'))->firstWhere('id',$q['transactionId']);expect($record['caseStatus'])->toBe('In Progress');
 });
 it('delivers document correction notices even when the associated time is past or closed',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');
  \App\Support\VisitProcess::notify(DB::table('shared_appointments')->where('id',$a['id'])->first(),'document-correction','A signed document is required.');
+ DB::table('notification_outbox')->where('kind','request-received')->update(['status'=>'sent']);
  DB::table('notification_outbox')->update(['scheduled_at'=>'2026-10-11 04:00:00','send_at'=>'2026-10-11 04:00:00']);
  config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
  \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->andReturnNull();
  $this->artisan('notifications:send')->assertSuccessful();
- expect(DB::table('notification_outbox')->value('status'))->toBe('sent');
+ expect(DB::table('notification_outbox')->where('kind','document-correction')->value('status'))->toBe('sent');
 });
 function appointmentHeaders(){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id','admin')->first())];}
 function appointmentInput(){
  $day=CarbonImmutable::now('Asia/Manila')->startOfDay();$slots=[];
  while(!$slots){$slots=\App\Support\AppointmentSlots::slots($day->toDateString(),'Office of Student Services');if(!$slots)$day=$day->addDay();}
- return ['office'=>'Office of Student Services','date'=>$day->toDateString(),'time'=>$slots[0],'type'=>'Guest','name'=>'Student Name','email'=>'student@gmail.com','contact'=>'09123456789','serviceKey'=>'good_moral','isPWD'=>true,'attachments'=>[]];}
+ return ['office'=>'Office of Student Services','date'=>$day->toDateString(),'time'=>$slots[0],'type'=>'Guest','name'=>'Student Name','email'=>'student@gmail.com','contact'=>'09123456789','serviceKey'=>'good_moral','isPWD'=>true,'attachments'=>[['name'=>'supporting.pdf','dataUrl'=>'data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF")]]];}
+it('requires at least one supporting document for an appointment request',function(){
+ $input=appointmentInput();$input['attachments']=[];
+ $this->verifiedPostJson('/api/appointments',$input)->assertUnprocessable()->assertJsonValidationErrors('attachments');
+ unset($input['attachments']);$this->verifiedPostJson('/api/appointments',$input)->assertUnprocessable()->assertJsonValidationErrors('attachments');
+});
+it('links uploaded appointment files to a valid requirement for staff review',function(){
+ $input=appointmentInput();$input['attachments'][0]['requirement']='Valid School ID';
+ $saved=$this->verifiedPostJson('/api/appointments',$input)->assertCreated()->json('appointment.attachments.0.review');
+ expect($saved['status'])->toBe('Pending review')->and($saved['requirement'])->toBe('Valid School ID')->and($saved['serviceKey'])->toBe('good_moral');
+ $input=appointmentInput();$input['attachments'][0]['requirement']='Not a requirement';
+ $this->verifiedPostJson('/api/appointments',$input)->assertUnprocessable();
+});
 it('requires verification of the submitted Gmail when creating an appointment',function(){
  $this->postJson('/api/appointments',appointmentInput())->assertUnauthorized();
  $this->postJson('/api/appointments',appointmentInput(),['X-Visitor-Token'=>VisitorAccess::token('wrong@gmail.com')])->assertForbidden();
@@ -137,7 +209,7 @@ it('handles a verified document pickup without creating a second transaction',fu
  $this->patchJson($record,['status'=>'Ready'])->assertUnauthorized();$this->patchJson($record,['status'=>'Ready'],$staff)->assertOk()->assertJsonPath('emailQueued',true);
  $notice=DB::table('notification_outbox')->where('kind','document-ready')->first();expect($notice)->not->toBeNull();
  $this->getJson('/api/service-records',$staff)->assertOk()->assertJsonPath('transactions.0.pickupEmailStatus','pending');
- $mail=\App\Support\PrivateNotification::read($notice);expect($mail['recipient'])->toBe('student@gmail.com')->and($mail['subject'])->toBe('Document ready for pickup')->and($mail['body'])->toContain($q['visitId'],'Check My Visit');
+ $mail=\App\Support\PrivateNotification::read($notice);expect($mail['recipient'])->toBe('student@gmail.com')->and($mail['subject'])->toBe('Document ready - choose delivery')->and($mail['body'])->toContain($q['visitId'],'Check My Visit','choose how you would like to receive it');
  expect($notice->body)->not->toContain('student@gmail.com',$q['visitId']);
  $this->patchJson($record,['status'=>'Ready'],$staff)->assertOk()->assertJsonPath('emailQueued',false);expect(DB::table('notification_outbox')->where('kind','document-ready')->count())->toBe(1);
  $this->postJson($join,[],['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
@@ -169,6 +241,67 @@ it('handles a verified document pickup without creating a second transaction',fu
  $this->postJson('/api/report-data',['kind'=>'transaction','id'=>$q['transactionId'],'includeConf'=>false],$staff)->assertOk()->assertJsonPath('transactions.0.pickupStatus','Claimed')->assertJsonPath('transactions.0.pickupIdentityCheck','Student ID checked')->assertJsonPath('transactions.0.pickupVisit.visitId',$pickup['visitId'])->assertJsonPath('transactions.0.pickupVisit.status','Completed')->assertJsonMissingPath('transactions.0.pickupVisit.email');
  $this->postJson($join,[],$visitor)->assertConflict();
 });
+it('allows joining the pickup queue only during office hours',function(){
+ $q=readyFlowVisit()['queue'];$staff=appointmentHeaders();$visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];$path='/api/queue/'.$q['id'];
+ $this->patchJson($path,['status'=>'Called'],$staff)->assertOk();$this->patchJson($path,['status'=>'Serving'],$staff)->assertOk();$this->checkQueueRequirements($q['id'],$staff);
+ $q=$this->patchJson($path,['status'=>'Completed','documentPreparation'=>true],$staff)->assertOk()->json('queue');
+ $this->patchJson('/api/service-records/'.$q['transactionId'].'/pickup',['status'=>'Ready'],$staff)->assertOk();
+ $this->patchJson('/api/visits/'.$q['visitId'].'/delivery',['format'=>'hard'],$visitor)->assertOk();
+ $join='/api/visits/'.$q['visitId'].'/pickup';$before=DB::table('queues')->count();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 18:00','Asia/Manila'));
+ $visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];
+ $this->postJson($join,[],$visitor)->assertConflict();expect(DB::table('queues')->count())->toBe($before);
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-14 09:00','Asia/Manila'));
+ $visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];
+ $this->postJson($join,[],$visitor)->assertCreated();
+});
+it('records the visitor delivery choice and queues a soft copy only for authorized staff',function(){
+ \Illuminate\Support\Facades\Queue::fake();config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ $q=readyFlowVisit()['queue'];$staff=appointmentHeaders();$visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];$path='/api/queue/'.$q['id'];
+ $this->patchJson($path,['status'=>'Called'],$staff)->assertOk();$this->patchJson($path,['status'=>'Serving'],$staff)->assertOk();$this->checkQueueRequirements($q['id'],$staff);
+ $q=$this->patchJson($path,['status'=>'Completed','documentPreparation'=>true],$staff)->assertOk()->json('queue');$record='/api/service-records/'.$q['transactionId'];
+ $this->patchJson('/api/visits/'.$q['visitId'].'/delivery',['format'=>'digital'],['X-Visitor-Token'=>VisitorAccess::token('other@gmail.com')])->assertForbidden();
+ $this->patchJson('/api/visits/'.$q['visitId'].'/delivery',['format'=>'digital'],$visitor)->assertOk()->assertJsonPath('queue.deliveryFormat','digital');
+ $this->getJson('/api/visits/'.$q['visitId'],$visitor)->assertOk()->assertJsonPath('queue.pickupStatus','Preparing');
+ $this->patchJson($record.'/pickup',['status'=>'Ready'],$staff)->assertOk()->assertJsonPath('emailQueued',false);
+ expect(DB::table('notification_outbox')->where('kind','document-ready')->count())->toBe(0);
+ $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");$doc=['name'=>'document.pdf','dataUrl'=>$pdf];
+ $this->postJson($record.'/digital-document',$doc)->assertUnauthorized();
+ $this->postJson($record.'/digital-document',$doc,$staff)->assertAccepted()->assertJsonPath('queued',true);
+ $this->postJson($record.'/digital-document',$doc,$staff)->assertConflict();
+ $this->patchJson('/api/visits/'.$q['visitId'].'/delivery',['format'=>'hard'],$visitor)->assertConflict();
+ \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\SendDigitalDocument::class,fn($job)=>$job->email==='student@gmail.com'&&$job instanceof \Illuminate\Contracts\Queue\ShouldBeEncrypted);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->once();
+ $job=\Illuminate\Support\Facades\Queue::pushed(\App\Jobs\SendDigitalDocument::class)->first();$job->handle();
+ $this->getJson('/api/visits/'.$q['visitId'],$visitor)->assertOk()->assertJsonPath('queue.digitalDeliveryStatus','Sent');
+});
+it('allows changing delivery after a pickup is cancelled but not while it is active',function(){
+ $q=readyFlowVisit()['queue'];$staff=appointmentHeaders();$visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];$path='/api/queue/'.$q['id'];
+ $this->patchJson($path,['status'=>'Called'],$staff)->assertOk();$this->patchJson($path,['status'=>'Serving'],$staff)->assertOk();$this->checkQueueRequirements($q['id'],$staff);
+ $q=$this->patchJson($path,['status'=>'Completed','documentPreparation'=>true],$staff)->assertOk()->json('queue');
+ $this->patchJson('/api/service-records/'.$q['transactionId'].'/pickup',['status'=>'Ready'],$staff)->assertOk();
+ $delivery='/api/visits/'.$q['visitId'].'/delivery';$this->patchJson($delivery,['format'=>'hard'],$visitor)->assertOk();
+ $pickup=$this->postJson('/api/visits/'.$q['visitId'].'/pickup',[],$visitor)->assertCreated()->json('queue');
+ $this->patchJson($delivery,['format'=>'digital'],$visitor)->assertConflict();
+ $this->patchJson('/api/queue/'.$pickup['id'],['status'=>'Cancelled'],$staff)->assertOk();
+ $this->patchJson($delivery,['format'=>'digital'],$visitor)->assertOk()->assertJsonPath('queue.deliveryFormat','digital');
+});
+it('allows staff to retry a failed soft copy and clears failure after a delivery change',function(){
+ \Illuminate\Support\Facades\Queue::fake();config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ $q=readyFlowVisit()['queue'];$staff=appointmentHeaders();$visitor=['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')];$path='/api/queue/'.$q['id'];
+ $this->patchJson($path,['status'=>'Called'],$staff)->assertOk();$this->patchJson($path,['status'=>'Serving'],$staff)->assertOk();$this->checkQueueRequirements($q['id'],$staff);
+ $q=$this->patchJson($path,['status'=>'Completed','documentPreparation'=>true],$staff)->assertOk()->json('queue');$record='/api/service-records/'.$q['transactionId'];$delivery='/api/visits/'.$q['visitId'].'/delivery';
+ $this->patchJson($delivery,['format'=>'digital'],$visitor)->assertOk();$this->patchJson($record.'/pickup',['status'=>'Ready'],$staff)->assertOk();
+ $doc=['name'=>'document.pdf','dataUrl'=>'data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF")];
+ $this->postJson($record.'/digital-document',$doc,$staff)->assertAccepted();
+ $job=\Illuminate\Support\Facades\Queue::pushed(\App\Jobs\SendDigitalDocument::class)->first();$job->failed(new \RuntimeException('Fixture failure'));
+ $this->getJson('/api/visits/'.$q['visitId'],$visitor)->assertOk()->assertJsonPath('queue.digitalDeliveryStatus','Failed');
+ $this->postJson($record.'/digital-document',$doc,$staff)->assertAccepted();
+ $this->patchJson($delivery,['format'=>'hard'],$visitor)->assertConflict();
+ $jobs=\Illuminate\Support\Facades\Queue::pushed(\App\Jobs\SendDigitalDocument::class);$jobs->last()->failed(new \RuntimeException('Fixture failure'));
+ $this->patchJson($delivery,['format'=>'hard'],$visitor)->assertOk()->assertJsonMissingPath('queue.digitalDeliveryStatus');
+ $this->patchJson($delivery,['format'=>'digital'],$visitor)->assertOk()->assertJsonMissingPath('queue.digitalDeliveryStatus');
+});
 it('keeps check-in, service and completion times consistent across visitor log and reports',function(){
  $q=readyFlowVisit()['queue'];$staff=appointmentHeaders();$path='/api/queue/'.$q['id'];
  CarbonImmutable::setTestNow(CarbonImmutable::parse($q['checkedInAt'])->addMinutes(5));
@@ -191,7 +324,7 @@ it('sends a document ready email using the shared office template',function(){
  $this->patchJson('/api/service-records/'.$q['transactionId'].'/pickup',['status'=>'Ready'],$staff)->assertOk()->assertJsonPath('emailQueued',true);
  \Illuminate\Support\Facades\Queue::assertPushed(\App\Jobs\DeliverAppointmentNotifications::class);
  DB::table('notification_outbox')->where('kind','document-ready')->update(['status'=>'paused']);
- \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->withArgs(fn($html,$callback)=>str_contains($html,'Document ready for pickup')&&str_contains($html,'UniServe')&&str_contains($html,$q['visitId'])&&str_contains($html,'<ol')&&str_contains($html,'<strong>Check My Visit</strong>')&&str_contains($html,'<strong>valid ID</strong>')&&is_callable($callback))->andReturnNull();
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->withArgs(fn($html,$callback)=>str_contains($html,'Document ready - choose delivery')&&str_contains($html,'UniServe')&&str_contains($html,$q['visitId'])&&str_contains($html,'<ol')&&str_contains($html,'<strong>Check My Visit</strong>')&&str_contains($html,'<strong>Hard copy</strong>')&&str_contains($html,'<strong>Soft copy</strong>')&&str_contains($html,'<strong>valid ID</strong>')&&is_callable($callback))->andReturnNull();
  $this->artisan('notifications:send')->assertSuccessful();expect(DB::table('notification_outbox')->where('kind','document-ready')->value('status'))->toBe('sent');
  $this->getJson('/api/service-records',$staff)->assertOk()->assertJsonPath('transactions.0.pickupEmailStatus','sent');
 });
@@ -235,7 +368,38 @@ it('protects reschedule requests and retains details when recovering a no-show',
  $this->postJson($path.'/reschedule-request',['reason'=>'Please arrange another day'])->assertUnauthorized();
  $this->postJson($path.'/reschedule-request',['reason'=>'Please arrange another day'],['X-Visitor-Token'=>VisitorAccess::token('wrong@gmail.com')])->assertForbidden();
  $this->postJson($path.'/reschedule-request',['reason'=>'Please arrange another day'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('appointment.rescheduleRequested',true);
+ expect(collect($this->getJson('/api/attention',appointmentHeaders())->assertOk()->json('notifications'))->pluck('title')->all())->toContain('Schedule change requested');
  $this->patchJson($path,['date'=>'2026-10-14','time'=>'10:00','revision'=>1],appointmentHeaders())->assertOk()->assertJsonPath('appointment.status','Booked')->assertJsonPath('appointment.rescheduleRequested',false)->assertJsonPath('appointment.name','Student Name')->assertJsonPath('appointment.scheduleHistory.0.status','No-show');
+});
+it('sends the missed appointment notice after the appointment time',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-13','time'=>'10:30','revision'=>0],appointmentHeaders())->assertOk();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 11:31','Asia/Manila'));$this->artisan('appointments:no-shows')->assertSuccessful();
+ DB::table('notification_outbox')->where('kind','!=','no-show')->where('status','pending')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->withArgs(fn($html,$callback)=>str_contains($html,'request a new schedule')&&str_contains($html,'Missed appointment')&&is_callable($callback))->andReturnNull();
+ $this->artisan('notifications:send')->assertSuccessful();expect(DB::table('notification_outbox')->where('kind','no-show')->value('status'))->toBe('sent');
+});
+it('does not mark a checked-in visitor as a no-show after the threshold',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-13','time'=>'10:30','revision'=>0],appointmentHeaders())->assertOk();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 10:30','Asia/Manila'));
+ $this->postJson('/api/appointments/'.$a['id'].'/check-in',[],appointmentHeaders())->assertOk()->assertJsonPath('appointment.status','Checked-in');
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 11:31','Asia/Manila'));
+ $this->artisan('appointments:no-shows')->assertSuccessful();
+ expect(DB::table('shared_appointments')->where('id',$a['id'])->value('status'))->toBe('Checked-in');
+ expect(DB::table('notification_outbox')->where('kind','no-show')->count())->toBe(0);
+});
+it('shows late status at the grace boundary and preserves the actual arrival time',function(){
+ $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'],['date'=>'2026-10-13','time'=>'10:30','revision'=>0],appointmentHeaders())->assertOk();
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 10:44','Asia/Manila'));
+ $this->getJson('/api/appointments',appointmentHeaders())->assertOk()->assertJsonMissingPath('appointments.0.arrivalStatus');
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 10:45','Asia/Manila'));
+ $this->getJson('/api/appointments',appointmentHeaders())->assertOk()->assertJsonPath('appointments.0.arrivalStatus','Late')->assertJsonPath('appointments.0.lateMinutes',15);
+ $this->postJson('/api/appointments/'.$a['id'].'/check-in',[],appointmentHeaders())->assertOk()->assertJsonPath('appointment.arrivalStatus','Late')->assertJsonPath('appointment.lateMinutes',15);
+ CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-13 11:05','Asia/Manila'));
+ $this->getJson('/api/appointments',appointmentHeaders())->assertOk()->assertJsonPath('appointments.0.lateMinutes',15);
 });
 it('enforces slot capacity without changing the conflicting request',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');
@@ -324,7 +488,7 @@ it('keeps case resolution separate from a completed visit and preserves it on co
  $record='/api/service-records/'.$q['transactionId'];
  $this->patchJson($record,['escalation'=>'Resolved','ownerId'=>'admin','dueDate'=>'2026-10-20','nextAction'=>'Confirm resolution with visitor','notes'=>'Concern resolved after review','revision'=>0],$h)->assertForbidden();
  \Illuminate\Support\Facades\Cache::put('conf-unlock:admin:'.$q['transactionId'].':view',true,300);
- $this->patchJson($record,['escalation'=>'Resolved','ownerId'=>'admin','dueDate'=>'2026-10-20','nextAction'=>'Confirm resolution with visitor','notes'=>'Concern resolved after review','revision'=>0],$h)->assertOk();
+ $this->patchJson($record,['escalation'=>'Resolved','caseStatus'=>'Resolved','ownerId'=>'admin','dueDate'=>'2026-10-20','nextAction'=>'Confirm resolution with visitor','notes'=>'Concern resolved after review','revision'=>0],$h)->assertOk();
  $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>VisitorAccess::token('student@gmail.com')])->assertOk()->assertJsonPath('queue.status','Completed')->assertJsonPath('queue.caseStatus','Resolved');
  $this->patchJson($path,['status'=>'Completed'],$h)->assertOk()->assertJsonPath('queue.caseStatus','Resolved');
 });
@@ -385,10 +549,18 @@ it('validates schedules and creates reminder outbox atomically',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');$path='/api/appointments/'.$a['id'];
  $this->patchJson($path,['date'=>'2026-10-14','time'=>'12:30','revision'=>0],appointmentHeaders())->assertUnprocessable();
  $this->patchJson($path,['date'=>'2026-10-14','time'=>'11:00','revision'=>0],appointmentHeaders())->assertOk()->assertJsonPath('appointment.status','Booked');
- expect(DB::table('notification_outbox')->count())->toBe(2);
+ expect(DB::table('notification_outbox')->whereIn('kind',['confirmation','reminder'])->count())->toBe(2);
  $this->patchJson($path,['date'=>'2026-10-14','time'=>'11:30','revision'=>0],appointmentHeaders())->assertConflict();
  $this->patchJson($path,['date'=>'2026-10-14','time'=>'11:30','revision'=>1],appointmentHeaders())->assertOk();
  expect(DB::table('notification_outbox')->where('status','superseded')->count())->toBe(2);
+});
+it('schedules a reminder for an appointment confirmed within one day',function(){
+ $d=appointmentInput();$a=$this->verifiedPostJson('/api/appointments',$d)->assertCreated()->json('appointment');
+ $this->patchJson('/api/appointments/'.$a['id'],['date'=>$d['date'],'time'=>$d['time'],'revision'=>0],appointmentHeaders())->assertOk();
+ $reminder=DB::table('notification_outbox')->where('kind','reminder')->first();
+ expect($reminder)->not->toBeNull();
+ expect(CarbonImmutable::parse($reminder->send_at,'UTC')->isFuture())->toBeTrue();
+ expect(CarbonImmutable::parse($reminder->send_at,'UTC')->lessThan(CarbonImmutable::parse($reminder->scheduled_at,'UTC')))->toBeTrue();
 });
 it('checks in once and completes log and transaction together',function(){
  $a=$this->verifiedPostJson('/api/appointments',appointmentInput())->json('appointment');
@@ -481,6 +653,16 @@ it('allows feedback once only after completion and for the correct visitor',func
  $this->postJson($path,['rating'=>5,'comment'=>'Helpful office'],$v)->assertOk();
  $this->postJson($path,['rating'=>1],$v)->assertConflict();
 });
+it('allows a new visit while feedback remains available',function(){
+ $q=['id'=>'feedback-gate','visitId'=>'VIS-GATE','email'=>'student@gmail.com','status'=>'Completed'];
+ DB::table('queues')->insert(['id'=>$q['id'],'queue_number'=>'G-001','visitor_type'=>'Guest','service_label_text'=>'Good Moral','source'=>'Walk-in','status'=>'Completed','visit_id'=>$q['visitId'],'email_hash'=>\App\Support\EmailIndex::key($q['email']),'portal_payload'=>\App\Support\QueueData::write($q)]);
+ $headers=['X-Visitor-Token'=>VisitorAccess::token($q['email'])];
+ $this->getJson('/api/feedback-required')->assertUnauthorized();
+ $this->getJson('/api/feedback-required',$headers)->assertOk()->assertJsonPath('pending.visitId',$q['visitId']);
+ $this->verifiedPostJson('/api/appointments',appointmentInput())->assertCreated();
+ $this->postJson('/api/queue/'.$q['id'].'/feedback',['rating'=>5],$headers)->assertOk();
+ $this->getJson('/api/feedback-required',$headers)->assertOk()->assertJsonPath('pending',null);
+});
 it('imports legacy records without overwriting existing records and refuses unsafe files',function(){
  $data=['origin'=>(string)\Illuminate\Support\Str::uuid(),'transactions'=>[['id'=>'legacy-t','code'=>'OSS-OLD','name'=>'Old Visitor','service'=>'good_moral','status'=>'Completed','createdAt'=>'2026-10-01T00:00:00Z']]];
  $this->postJson('/api/import-browser',$data)->assertUnauthorized();
@@ -498,7 +680,8 @@ it('accepts feedback from a scoped visit token without requiring another Gmail v
  $q=$this->postJson('/api/appointments/'.$a['id'].'/check-in',['arrivalOverrideReason'=>'Fixture arrival reviewed by staff'],appointmentHeaders())->assertOk()->json('queue');
  $q['status']='Completed';$q['feedback']=null;
  DB::table('queues')->where('id',$q['id'])->update(['status'=>'Completed','portal_payload'=>\App\Support\QueueData::write($q)]);
- $token=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$q['visitId'],'expires'=>time()+3600]));
+ $visitor=VisitorAccess::token($q['email']);$session=json_decode(\Illuminate\Support\Facades\Crypt::decryptString($visitor),true)['session'];
+ $token=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$q['visitId'],'expires'=>time()+3600,'session'=>$session]));
  $this->postJson('/api/queue/'.$q['id'].'/feedback',['rating'=>5],['X-Visit-Token'=>$token])->assertOk();
 });
 it('protects private WebSocket subscriptions and excludes personal records from socket messages',function(){
@@ -575,11 +758,10 @@ it('verifies an encrypted backup without replacing database records',function(){
  try{$before=DB::table('service_catalog')->count();file_put_contents($path,json_encode(['format'=>'uniserve-encrypted-v1','encrypted'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['service_catalog'=>[]]))]));$this->artisan('backup:restore',['file'=>$path,'--verify'=>true])->assertSuccessful();expect(DB::table('service_catalog')->count())->toBe($before);}finally{unlink($path);}
 });
 
-it('stops walk-ins at fixed cutoff while preserving queued visits and allows Head Admin override',function(){
+it('stops walk-ins at fixed cutoff while preserving queued visits and allows Admin override',function(){
  \Carbon\CarbonImmutable::setTestNow(\Carbon\CarbonImmutable::parse('2026-10-13 16:30','Asia/Manila'));
  $this->getJson('/api/walk-in-capacity')->assertOk()->assertJsonPath('accepting',false)->assertJsonPath('cutoff','4:30 PM');
- $this->postJson('/api/walk-in-capacity/override',['enabled'=>true,'counters'=>1,'reason'=>'Finish remaining visitors'],appointmentHeaders())->assertForbidden();
- DB::table('staff_users')->where('id','admin')->update(['confidential_approver'=>true]);
+ $this->postJson('/api/walk-in-capacity/override',['enabled'=>true,'counters'=>1,'reason'=>'Finish remaining visitors'])->assertUnauthorized();
  $this->postJson('/api/walk-in-capacity/override',['enabled'=>true,'counters'=>1,'reason'=>'Extra counter available'],appointmentHeaders())->assertOk()->assertJsonPath('accepting',true);
  \Carbon\CarbonImmutable::setTestNow(\Carbon\CarbonImmutable::parse('2026-10-13 17:00','Asia/Manila'));
  $this->getJson('/api/walk-in-capacity')->assertOk()->assertJsonPath('accepting',false);
@@ -639,11 +821,70 @@ it('allows authorized staff to assign dated follow-up tasks visible only to the 
 });
 it('publishes service notices only after an authorized service update',function(){
  $service=['label'=>'Good Moral','desc'=>'Description','icon'=>'home','requirements'=>[],'templates'=>[],'announcement'=>'Bring your updated clearance.'];
- $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertForbidden();
- DB::table('staff_users')->where('id','admin')->update(['confidential_approver'=>true]);
+ $this->putJson('/api/services/good_moral',$service)->assertUnauthorized();
  $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
  $catalog=$this->getJson('/api/services')->assertOk()->json('services');
  expect(collect($catalog)->firstWhere('key','good_moral')['announcement'])->toBe('Bring your updated clearance.');
+});
+it('stores validated filled-out examples and preserves them on older service updates',function(){
+ $pdf='data:application/pdf;base64,'.base64_encode("%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+ $service=['label'=>'Good Moral','desc'=>'Description','icon'=>'home','requirements'=>[],'templates'=>[],'examples'=>[['name'=>'Example.pdf','dataUrl'=>$pdf]]];
+ $this->putJson('/api/services/good_moral',$service)->assertUnauthorized();
+ $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
+ $saved=collect($this->getJson('/api/services')->assertOk()->json('services'))->firstWhere('key','good_moral');
+ expect($saved['examples'][0]['name'])->toBe('Example.pdf')->and($saved['examples'][0]['dataUrl'])->toBe($pdf);
+ unset($service['examples']);$this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
+ expect(collect($this->getJson('/api/services')->json('services'))->firstWhere('key','good_moral')['examples'])->toHaveCount(1);
+ $service['examples']=[['name'=>'bad.pdf','dataUrl'=>'data:application/pdf;base64,'.base64_encode('not a pdf')]];
+ $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertUnprocessable();
+ $service['examples']=array_fill(0,11,['name'=>'Example.pdf','dataUrl'=>$pdf]);$this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertUnprocessable();
+ $service['examples']=[];$this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
+ expect(collect($this->getJson('/api/services')->json('services'))->firstWhere('key','good_moral')['examples'])->toBe([]);
+});
+
+it('accepts valid DOCX examples and rejects invalid files',function(){
+ $path=tempnam(sys_get_temp_dir(),'docx');$zip=new \ZipArchive();
+ expect($zip->open($path,\ZipArchive::CREATE|\ZipArchive::OVERWRITE))->toBeTrue();
+ $zip->addFromString('[Content_Types].xml','<Types/>');$zip->addFromString('word/document.xml','<document/>');$zip->close();
+ $docx='data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,'.base64_encode(file_get_contents($path));unlink($path);
+ $service=['label'=>'Good Moral','desc'=>'Description','icon'=>'home','requirements'=>[],'templates'=>[],'examples'=>[['name'=>'Example.docx','dataUrl'=>$docx]]];
+ $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertOk();
+ expect(collect($this->getJson('/api/services')->json('services'))->firstWhere('key','good_moral')['examples'][0]['dataUrl'])->toBe($docx);
+ $service['examples'][0]['dataUrl']='data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,'.base64_encode('not a document');
+ $this->putJson('/api/services/good_moral',$service,appointmentHeaders())->assertUnprocessable();
+});
+
+it('lists and revokes only sessions belonging to the verified visitor',function(){
+ $one=VisitorAccess::token('student@gmail.com');$two=VisitorAccess::token('student@gmail.com');$other=VisitorAccess::token('other@gmail.com');
+ $headers=['X-Visitor-Token'=>$one];$sessions=$this->getJson('/api/visitor/sessions',$headers)->assertOk()->json('sessions');
+ expect($sessions)->toHaveCount(2);$target=collect($sessions)->firstWhere('current',false)['id'];
+ $this->deleteJson('/api/visitor/sessions/'.$target,[],['X-Visitor-Token'=>$other])->assertNotFound();
+ $this->deleteJson('/api/visitor/sessions/'.$target,[],$headers)->assertOk();
+ $this->getJson('/api/visitor/sessions',['X-Visitor-Token'=>$two])->assertUnauthorized();
+ $this->getJson('/api/visitor/sessions',$headers)->assertOk()->assertJsonCount(1,'sessions');
+});
+it('cancels a pending feedback reminder after feedback is submitted',function(){
+ $result=readyFlowVisit('good_moral');$q=$result['queue'];$headers=appointmentHeaders();
+ foreach(['Called','Serving','Completed'] as $status){if($status==='Completed')$this->checkQueueRequirements($q['id'],$headers);$q=$this->patchJson('/api/queue/'.$q['id'],['status'=>$status],$headers)->assertOk()->json('queue');}
+ expect(DB::table('notification_outbox')->where('visit_id',$q['visitId'])->where('kind','feedback-required')->count())->toBe(1);
+ $this->postJson('/api/queue/'.$q['id'].'/feedback',['rating'=>5],['X-Visitor-Token'=>VisitorAccess::token($q['email'])])->assertOk();
+ DB::table('notification_outbox')->where('kind','feedback-required')->update(['send_at'=>now()->subMinute()]);
+ DB::table('notification_outbox')->where('kind','!=','feedback-required')->where('status','pending')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->never();
+ $this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','feedback-required')->value('status'))->toBe('superseded');
+});
+it('records a delivered feedback reminder under feedback rather than appointments',function(){
+ $q=readyFlowVisit('good_moral')['queue'];$headers=appointmentHeaders();
+ foreach(['Called','Serving','Completed'] as $status){if($status==='Completed')$this->checkQueueRequirements($q['id'],$headers);$q=$this->patchJson('/api/queue/'.$q['id'],['status'=>$status],$headers)->assertOk()->json('queue');}
+ DB::table('notification_outbox')->where('kind','feedback-required')->update(['send_at'=>now()->subMinute()]);
+ DB::table('notification_outbox')->where('kind','!=','feedback-required')->where('status','pending')->update(['status'=>'sent']);
+ config(['mail.default'=>'smtp','mail.mailers.smtp.username'=>'test','mail.mailers.smtp.password'=>'test']);
+ \Illuminate\Support\Facades\Mail::shouldReceive('html')->once()->andReturnNull();
+ $this->artisan('notifications:send')->assertSuccessful();
+ expect(DB::table('notification_outbox')->where('kind','feedback-required')->value('status'))->toBe('sent');
+ expect(DB::table('system_audit')->where('category','Feedback')->where('action','Feedback reminder sent')->where('target',$q['visitId'])->exists())->toBeTrue();
 });
 
 it('reports priority queue positions consistently with the estimate order',function(){
@@ -708,10 +949,11 @@ it('reserves requested slots and releases them on cancellation',function(){
  $this->postJson('/api/appointments/'.$a['id'].'/cancel',[],appointmentHeaders())->assertOk();
  expect($this->getJson($query)->assertOk()->json('slots'))->toContain($d['time']);
 });
-it('isolates office capacity and approves a request in its reserved slot',function(){
+it('uses OSS as the only office and approves a request in its reserved slot',function(){
  DB::table('shared_system_settings')->where('id',1)->update(['payload'=>json_encode(['appointmentOffices'=>['Office of Student Services','Registrar']])]);
  $d=appointmentInput();$a=$this->verifiedPostJson('/api/appointments',$d)->assertCreated()->json('appointment');
- $other=$d;$other['office']='Registrar';$this->verifiedPostJson('/api/appointments',$other)->assertCreated();
+ $other=$d;$other['office']='Registrar';$this->verifiedPostJson('/api/appointments',$other)->assertUnprocessable();
+ $this->getJson('/api/appointment-offices')->assertOk()->assertJsonPath('offices',['Office of Student Services']);
  $path='/api/appointments/'.$a['id'];
  $this->patchJson($path,['date'=>$d['date'],'time'=>$d['time'],'revision'=>0],appointmentHeaders())->assertOk()->assertJsonPath('appointment.status','Booked');
 });
@@ -721,6 +963,15 @@ it('requires a valid office and future slot on the office calendar',function(){
  foreach([['2026-10-13','09:00'],['2026-10-14','12:00'],['2026-10-18','09:00'],['2026-10-14','09:15']] as [$date,$time]){
   $d=appointmentInput();$d['date']=$date;$d['time']=$time;$this->verifiedPostJson('/api/appointments',$d)->assertConflict();
  }
+});
+it('bulk approves same-day requests and reports stale requests individually',function(){
+ $one=appointmentInput();$a=$this->verifiedPostJson('/api/appointments',$one)->assertCreated()->json('appointment');
+ $two=appointmentInput();$two['time']=\App\Support\AppointmentSlots::slots($one['date'],$one['office'])[0];
+ $b=$this->verifiedPostJson('/api/appointments',$two)->assertCreated()->json('appointment');
+ $items=[['id'=>$a['id'],'revision'=>$a['revision']],['id'=>$b['id'],'revision'=>$b['revision']]];
+ $this->postJson('/api/appointments/bulk-approve',['requests'=>$items])->assertUnauthorized();
+ $this->postJson('/api/appointments/bulk-approve',['requests'=>$items],appointmentHeaders())->assertOk()->assertJsonPath('results.0.approved',true)->assertJsonPath('results.1.approved',true)->assertJsonPath('results.0.appointment.status','Booked')->assertJsonPath('results.1.appointment.status','Booked');
+ $this->postJson('/api/appointments/bulk-approve',['requests'=>$items],appointmentHeaders())->assertOk()->assertJsonPath('results.0.approved',false)->assertJsonPath('results.1.approved',false);
 });
 it('rescheduling releases the previous slot and cannot take another pending request slot',function(){
  $d=appointmentInput();$a=$this->verifiedPostJson('/api/appointments',$d)->assertCreated()->json('appointment');

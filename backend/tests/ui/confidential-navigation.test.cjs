@@ -11,6 +11,6 @@ test('expired confidential access locks the record even when its transaction tab
 test('access tab callbacks safely stop after their panel is removed',()=>{
  const c={window:{},accessData:{requests:[],cases:[]},document:{getElementById:()=>null},selectAccessTab:()=>{throw Error('Missing panel should not render');}};
  vm.createContext(c);
- vm.runInContext(access.slice(access.indexOf('  window.paintConfidentialRequests ='),access.indexOf('  window.assignConfidentialCase =')),c);
- assert.doesNotThrow(()=>c.window.paintConfidentialRequests());assert.doesNotThrow(()=>c.window.paintConfidentialAssignments());
+ vm.runInContext(access.slice(access.indexOf('  window.paintConfidentialRequests ='),access.indexOf('  window.requestConfidentialAccess =')),c);
+ assert.doesNotThrow(()=>c.window.paintConfidentialRequests());
 });

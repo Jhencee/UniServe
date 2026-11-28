@@ -19,7 +19,7 @@ class SystemOversightController extends Controller
         $accounts=DB::table('staff_users')->whereIn('role',['ADMIN','SUPER_ADMIN'])->orderBy('full_name')->get()->map(function($u)use($logins){
             $last=$logins[$u->id]??null;
             return ['id'=>$u->id,'name'=>$u->full_name,'role'=>$u->role,'active'=>(bool)$u->is_active,
-                'confidentialAccess'=>(bool)$u->confidential_access,'headAdmin'=>(bool)($u->confidential_approver??false),
+                'confidentialAccess'=>(bool)$u->confidential_access,'headAdmin'=>false,
                 'lastSignIn'=>$last,'reviewInactive'=>(bool)$u->is_active && $last && \Carbon\CarbonImmutable::parse($last)->lt(now()->subDays(90)),
                 'loginEvidence'=>$last?'server-audit':'No retained successful sign-in event'];
         });

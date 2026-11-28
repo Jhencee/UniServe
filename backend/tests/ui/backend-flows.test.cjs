@@ -1,6 +1,12 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const root=path.resolve(__dirname,'../../..');
 function storage(initial={}){const values=new Map(Object.entries(initial));return {getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key)};}
+test('service examples remain available in memory without storing file contents locally',()=>{
+ const localStorage=storage(),c={DB_KEY:'test-db',localStorage,loadDB:()=>JSON.parse(localStorage.getItem('test-db')||'{}'),saveDB:value=>localStorage.setItem('test-db',JSON.stringify(value))};c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(root,'shared/private-record-cache.js'),'utf8'),c);
+ c.saveDB({services:[{key:'service',examples:[{name:'Example.pdf',dataUrl:'data:application/pdf;base64,QUJD'}]}],queues:[],appointments:[],visitorLog:[]});
+ assert.doesNotMatch(localStorage.getItem('test-db'),/QUJD/);assert.equal(c.loadDB().services[0].examples[0].dataUrl,'data:application/pdf;base64,QUJD');
+ c.saveDB({...c.loadDB(),services:[{key:'service',examples:[]}]});assert.equal(c.loadDB().services[0].examples.length,0);
+});
 test('shared chat loads from API, carries staff authorization and stays out of persistent storage',async()=>{
  const db={users:[],chats:[],queues:[],appointments:[],transactions:[],visitorLog:[],systemSettings:{}},calls=[];
  const chat={id:'chat1',visitorName:'Visitor',email:'visitor@gmail.com',messages:[{text:'Private message'}],shared:true,status:'Open'};
@@ -18,7 +24,7 @@ test('shared chat loads from API, carries staff authorization and stays out of p
 test('private snapshots preserve data in memory while excluding names, Gmail and file bodies from disk',()=>{
  const c={DB_KEY:'test-db',localStorage:storage(),loadDB:()=>JSON.parse(c.localStorage.getItem('test-db')||'{}'),saveDB:value=>c.localStorage.setItem('test-db',JSON.stringify(value))};c.window=c;vm.createContext(c);vm.runInContext(fs.readFileSync(path.join(root,'shared/private-record-cache.js'),'utf8'),c);
  c.SecureState.persist({appointments:[{id:'a1',visitId:'VIS-TEST',name:'Private Name',email:'private@gmail.com',contact:'09123456789',shared:true,attachments:[{dataUrl:'data:secret'}]}],queues:[],visitorLog:[]});
- const disk=c.localStorage.getItem('test-db');assert(!disk.includes('Private Name'));assert(!disk.includes('private@gmail.com'));assert(!disk.includes('data:secret'));assert.equal(c.loadDB().appointments[0].name,'Private Name');c.SecureState.clear();assert.equal(c.loadDB().appointments[0].name,'Restricted record');
+ const disk=c.localStorage.getItem('test-db');assert(!disk.includes('Private Name'));assert(!disk.includes('private@gmail.com'));assert(!disk.includes('data:secret'));assert.equal(c.loadDB().appointments[0].name,'Private Name');c.SecureState.clear();assert.equal(c.loadDB().appointments[0].name,'Restricted record');assert.equal(c.loadDB().appointments[0].restricted,true);
 });
 
 test('queue snapshots collapse local and server copies by Visit ID across reload and logout',()=>{

@@ -8,7 +8,7 @@ class CaseAccess
     public static function canEdit(object $user, string $id): bool
     {
         $case = DB::table('confidential_cases')->where('id', $id)->first();
-        return $case && (($user->confidential_approver ?? false) || $case->assigned_admin_id === $user->id)
+        return $case && ($user->confidential_access ?? false) && $case->assigned_admin_id === $user->id
             && self::canView($user, $id);
     }
 
@@ -29,8 +29,8 @@ class CaseAccess
     {
         $case = DB::table('confidential_cases')->where('id', $id)->first();
         if (!$case) return false;
-        $permitted = ($user->confidential_approver ?? false)
-            || $case->assigned_admin_id === $user->id
+        if (!($user->confidential_access ?? false)) return false;
+        $permitted = $case->assigned_admin_id === $user->id
             || DB::table('confidential_requests')->where('case_id', $id)
                 ->where('requester_id', $user->id)->where('status', 'Approved')
                 ->where('expires_at', '>', now())->exists();

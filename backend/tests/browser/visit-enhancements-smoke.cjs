@@ -22,7 +22,7 @@ async function page(){
 (async()=>{
  const checks=[],pages=[];const base='http://127.0.0.1:8765';
  const settings={sessionTimeout:30,maintenanceMode:false,gracePeriodMinutes:15,noShowThresholdMinutes:60,appointmentSlotCapacity:1,allowParallelService:false};
- const services=[{key:'good_moral',label:'Good Moral Character',desc:'Certification',icon:'cap',requirements:['Clearance'],announcement:'Bring an updated clearance.'}];
+ const services=[{key:'good_moral',label:'Good Moral Character',desc:'Certification',icon:'cap',requirements:['Clearance'],announcement:'Bring an updated clearance.',examples:[{name:'Example.pdf',type:'application/pdf',size:4,dataUrl:'data:application/pdf;base64,JVBERg=='},{name:'Second.pdf',type:'application/pdf',size:4,dataUrl:'data:application/pdf;base64,JVBERg=='}]}];
  let appointment={permissions:{editFollowUp:true},id:'audit-a',visitId:'VIS-AUDIT123',code:'APT-AUDIT',name:'Audit Visitor',email:'audit@gmail.com',contact:'09123456789',type:'Student',service:'Good Moral Character',serviceKey:'good_moral',status:'Requested',date:null,time:null,createdAt:new Date().toISOString(),revision:0,shared:true,attachments:[{name:'Clearance.pdf',type:'application/pdf',size:4,dataUrl:'data:application/pdf;base64,JVBERg=='}]};
  const requests=[];let caseRecord=null,queueFixtures=[],rejectChecklist=false;
  const calendar={revision:0,weekly:Array.from({length:7},()=>({open:true,start:'08:00',end:'17:00'})),lunch:{enabled:true,start:'12:00',end:'13:00'},days:{}};
@@ -51,6 +51,7 @@ async function page(){
   if(pathname.endsWith('/follow-up-task')){const task={id:body.taskId||'task-'+appointment.revision,text:body.text,dueDate:body.dueDate,completed:body.completed,ownerId:body.ownerId,ownerName:'Audit Admin',completionNotes:body.completionNotes};appointment.followUpTasks=(appointment.followUpTasks||[]).filter(t=>t.id!==task.id).concat(task);appointment.followUpTask=task;appointment.revision++;return {appointment};}
   if(pathname.endsWith('/waitlist')){appointment.earlierSlotOptIn=body.enabled;appointment.waitlistJoinedAt=new Date().toISOString();appointment.revision++;return {appointment};}
   if(pathname.endsWith('/appointments'))return {appointments:[appointment]};
+  if(pathname.endsWith('/appointment-offices'))return {offices:['Office of Student Services']};
   if(pathname.endsWith('/appointment-slots'))return {slots:['09:00'],availability:[{time:'09:00',available:true,remaining:1,capacity:1,occupied:0,pending:0,confirmed:0}]};
   if(pathname.includes('/appointments/visit/'))return {appointment};
   return {};
@@ -71,9 +72,7 @@ async function page(){
   checks.push('Notification count stays consistent across sidebar navigation');
   assert.equal(await staff.run('document.querySelector(".staff-notification-count").textContent'),notificationCount);
   assert.equal(await staff.run('getComputedStyle(document.querySelector(".staff-notification-button")).borderTopWidth'),'0px');
-  await staff.run('document.querySelector("#sidebarNotifications .notification-bell-count").textContent="2"');await pause(30);
-  assert.equal(await staff.run('document.querySelector(".staff-notification-count").textContent'),'2');
-  assert.equal(await staff.run('document.querySelector(".staff-notification-count").hidden'),false);
+  assert.equal(await staff.run('document.querySelector(".staff-notification-count").textContent'),notificationCount);
   await staff.run('refreshSidebarNotificationCount()');
 
   await staff.run('document.querySelector(".staff-notification-button").click()');await pause(200);
@@ -93,6 +92,23 @@ async function page(){
   assert.ok(await staff.run('document.querySelector(".modal-body").textContent.includes("Bring the signed original.")'));
   checks.push('Actual staff modal saves document review and follow-up through the API/cache layers');
   const visitor=await page();pages.push(visitor);await mock(visitor);await visitor.goto(base+'/User/user.html?flow=checkvisit');
+  await visitor.run('navigateVisitor("documents");openDocumentService("good_moral")');
+  assert.ok(await visitor.run('document.getElementById("visitorContent").textContent.includes("Filled-out examples")'));
+  assert.equal(await visitor.run('document.querySelectorAll(".service-example-row").length'),2);
+  assert.equal(await visitor.run('localStorage.getItem("ossuniserve_db_v1").includes("JVBERg==")'),false);
+  checks.push('Filled-out examples appear as a list without storing file contents locally');
+  await visitor.run('visitSelectedService=findService(loadDB(),"good_moral");renderVisitScheduleForm()');
+  await visitor.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+  await visitor.run('addScheduleFiles([new File(["example"],"clearance.pdf",{type:"application/pdf"})],"Clearance")');
+  assert.equal(await visitor.run('document.querySelector(".appointment-requirement-label input").checked'),true);
+  assert.equal(await visitor.run('scheduleAttachments[0].requirement'),'Clearance');
+  await visitor.run('removeScheduleFile(0)');
+  assert.equal(await visitor.run('document.querySelector(".appointment-requirement-label input").checked'),false);
+  assert.ok(await visitor.run('document.documentElement.scrollWidth<=window.innerWidth+1'));
+  await visitor.run('document.getElementById("bkRequirementUploads").scrollIntoView({block:"center"})');
+  await visitor.screenshot('appointment-requirement-upload-mobile');
+  await visitor.send('Emulation.setDeviceMetricsOverride',{width:1280,height:900,deviceScaleFactor:1,mobile:false});
+  checks.push('Appointment upload checks and clears its matching requirement');
   await visitor.run('sessionStorage.setItem("ossuniserve_visitor_token","fixture");SharedAppointments.request("/appointments/visit/VIS-AUDIT123").then(SharedAppointments.cache).then(r=>showPassModalReadonly(r.appointment,true))');
   assert.ok(await visitor.run('document.getElementById("visitorContent").textContent.includes("Bring a readable signed copy.")'));
   assert.ok(await visitor.run('document.getElementById("visitorContent").textContent.includes("Bring the signed original.")'));

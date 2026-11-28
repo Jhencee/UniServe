@@ -10,7 +10,7 @@ class BroadcastPortalChanges
   if(config('broadcasting.default')!=='reverb'||in_array($request->method(),['GET','HEAD','OPTIONS'])||$response->getStatusCode()>=400||!$request->is('api/*'))return $response;
   $resource=explode('/',$request->path())[1]??'';
   if($resource==='confidential'&&($request->is('api/confidential/requests')||$request->is('api/confidential/requests/*'))){
-   $channels=['private-head-admin'];
+   $channels=['private-super-admin'];
    if($request->isMethod('patch')){
     $id=$request->route('id');$owner=\Illuminate\Support\Facades\DB::table('confidential_requests')->where('id',$id)->value('requester_id');
     if($owner)$channels[]='private-admin-'.$owner;

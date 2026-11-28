@@ -9,6 +9,7 @@ class StaffSecurityController extends Controller
 {
     public function mfa(Request $request) {
         $user=StaffAuth::user($request);
+        abort_unless($user->role==='SUPER_ADMIN',403,'Two-step sign-in is available to Super Admin accounts.');
         abort_unless(\Illuminate\Support\Facades\Schema::hasColumn('staff_users','mfa_secret'),503,'Two-step sign-in setup is unavailable. Contact your system administrator.');
         if($request->isMethod('get'))return response()->json(['enabled'=>!empty($user->mfa_secret)])->header('Cache-Control','no-store');
         StaffSessions::requireConfirmation($request);

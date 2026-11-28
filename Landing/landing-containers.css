@@ -432,7 +432,7 @@ body #landing #contact.footer-contact .contact-grid .contact-card:nth-child(4) {
  body #landing .landing-nav .nav-actions { grid-column:1 / -1; }
  body #landing .hero { padding:44px 20px 28px; text-align:left; }
  body #landing .hero-inner { width:100%; margin:0; text-align:left; }
- body #landing .hero::after { background:linear-gradient(110deg,rgba(42,0,0,.94),rgba(42,0,0,.76)); }
+ body #landing .hero::after { background:linear-gradient(110deg,rgba(42,0,0,.9),rgba(42,0,0,.54)); }
  body #landing .hero-flock { display:none; }
  body #landing .hero .eyebrow { display:flex; align-items:center; justify-content:flex-start; margin-bottom:16px; gap:10px; font-size:.65rem; letter-spacing:.14em; }
  body #landing .hero .eyebrow::before { width:24px; }

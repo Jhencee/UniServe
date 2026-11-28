@@ -58,7 +58,7 @@
   function cache(data){
     if(staff&&typeof sharedQueueSnapshot!=='undefined')for(const q of [...(data.queues||[]),...(data.queue?[data.queue]:[])])sharedQueueSnapshot.set(q.id,JSON.stringify(q));
     const db=loadDB();if(data.chats)db.chats=(db.chats||[]).filter(c=>!c.shared&&!data.chats.some(s=>s.id===c.id)).concat(data.chats);if(data.chat)db.chats=db.chats.filter(c=>c.id!==data.chat.id).concat(data.chat);if(data.queues)db.queues=(db.queues||[]).filter(q=>!q.shared&&!data.queues.some(s=>s.id===q.id)).concat(data.queues);if(data.queue)db.queues=db.queues.filter(q=>q.id!==data.queue.id).concat(data.queue);
-    if(data.services)db.services=data.services;
+    if(data.services)db.services=window.SecureState?data.services:data.services.map(service=>({...service,examples:(service.examples||[]).map(({dataUrl,...metadata})=>metadata)}));
     if(data.settings)db.systemSettings={...db.systemSettings,...data.settings};
     // Shared chats are an in-memory API snapshot, not persistent browser records.
     const persist={...db,chats:db.chats.filter(c=>!c.shared)};saveDB(persist);
@@ -84,26 +84,25 @@
     if(document.visibilityState==='hidden'||sessionEnding)return;
     try{if(await refreshPortalSettings())window.dispatchEvent(new CustomEvent('uniserve:changed',{detail:{resource:'settings-refreshed'}}));}catch(_){}
   });
-  let headRequestRefresh=null;
-  async function refreshHeadAccessRequests(){
+  let accessApprovalRefresh=null;
+  async function refreshAccessApprovals(){
     if(!staff||currentUser?.role!=='ADMIN')return;
-    if(headRequestRefresh)return headRequestRefresh;
-    headRequestRefresh=(async()=>{
-      const [result,own]=await Promise.all([currentUser.confidentialApprover?request('/confidential/notifications'):Promise.resolve({requests:[]}),request('/confidential/approvals')]);
-      window.headAccessRequestNotifications=result.requests||[];
+    if(accessApprovalRefresh)return accessApprovalRefresh;
+    accessApprovalRefresh=(async()=>{
+      const own=await request('/confidential/approvals');
       window.approvedAccessNotifications=own.approvals||[];
       if(typeof window.refreshSidebarNotificationCount==='function'){window.refreshSidebarNotificationCount();return;}
       const badge=document.querySelector('#sidebarNotifications .notification-bell-count');
-      if(badge){const previous=Number(badge.dataset.accessRequests||0);badge.textContent=Math.max(0,Number(badge.textContent||0)-previous)+window.headAccessRequestNotifications.length+window.approvedAccessNotifications.length;badge.dataset.accessRequests=String(window.headAccessRequestNotifications.length+window.approvedAccessNotifications.length);}
+      if(badge){const previous=Number(badge.dataset.accessRequests||0);badge.textContent=Math.max(0,Number(badge.textContent||0)-previous)+window.approvedAccessNotifications.length;badge.dataset.accessRequests=String(window.approvedAccessNotifications.length);}
     })();
-    try{await headRequestRefresh;}finally{headRequestRefresh=null;}
+    try{await accessApprovalRefresh;}finally{accessApprovalRefresh=null;}
   }
   if(staff&&typeof renderNotifications==='function'){
     const originalNotifications=renderNotifications;
     let notificationDataRefresh=null;
     function refreshNotificationData(){
       if(!notificationDataRefresh)notificationDataRefresh=Promise.all([
-        refreshHeadAccessRequests(),
+        refreshAccessApprovals(),
         SharedAppointments.request('/appointments').then(SharedAppointments.cache),
         SharedAppointments.reloadRecords()
       ]).finally(()=>{notificationDataRefresh=null;});
@@ -127,7 +126,7 @@
     const previousView=staff?state_view:null,scrollX=window.scrollX,scrollY=window.scrollY;
     try{
       if(staff){
-        await refreshHeadAccessRequests();
+        await refreshAccessApprovals();
         if(document.activeElement?.matches('#content input, #content textarea, #content select') && state_view!=='queue')return;
         if(state_view==='notifications'){await renderNotifications();}
         else if(state_view==='messages'){
@@ -186,7 +185,7 @@
       if(result.activityLog)serverAudit=result.activityLog;
       for(const key of ['activityLog','transactions','appointments','queues'])if(Array.isArray(result[key]))db[key]=result[key];
       db.feedbackSummary=result.feedbackSummary;
-      db.services=catalog.services;
+      db.services=catalog.services.map(service=>({...service,examples:(service.examples||[]).map(({dataUrl,...metadata})=>metadata)}));
       saveDB(db);
     }
     const originalDashboard=renderDashboard,originalReports=renderReports;
@@ -236,6 +235,11 @@
       };
       try{
         historyFlow=null;
+        const token=sessionStorage.getItem('ossuniserve_visitor_token');
+        if(token){
+          try{await enter();return;}
+          catch(e){if(e.status!==401&&e.status!==403)throw e;sessionStorage.removeItem('ossuniserve_visitor_token');}
+        }
         SharedAppointments.verify(enter,{purpose:'history'});
       }catch(e){toast(escapeHtml(e.message),'err');}finally{historyEntryBusy=false;}
     };

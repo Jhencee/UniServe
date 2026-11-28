@@ -93,10 +93,10 @@ function visitIdExists(db, id) {
 }
 function nextVisitId(db) {
   let id;
-  do { const s = randomVisitSuffix(8); id = `VIS-${s}`; } while (visitIdExists(db, id));
+  do { const s = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0'); id = `VIS-${s}`; } while (visitIdExists(db, id));
   return id;
 }
-const LEGACY_VISIT_ID = /^VIS-\d+$/;
+const LEGACY_VISIT_ID = /^VIS-(?!\d{6}$)\d+$/;
 function migrateLegacyVisitIds(db) {
   const map = {};
   let changed = false;
@@ -305,10 +305,10 @@ function reportSignatureBlock() {
     <div class="rpt-sign-col"><div class="rpt-sign-line"></div><div class="rpt-sign-name">${escapeHtml(currentUser.fullName)}</div><div class="rpt-sign-role">Prepared by, Super Admin</div></div>
     <div class="rpt-sign-col"><div class="rpt-sign-line"></div><div class="rpt-sign-name">&nbsp;</div><div class="rpt-sign-role">Noted by, Head, Office of Student Services</div></div></div>`;
 }
-function printInjected(html) {
+function printInjected(html, report = false) {
   document.querySelectorAll('.print-inject').forEach(n => n.remove());
   const wrap = document.createElement('div');
-  wrap.id = 'printArea'; wrap.className = 'print-inject';
+  wrap.id = 'printArea'; wrap.className = 'print-inject' + (report ? ' report-portrait' : '');
   wrap.innerHTML = `<table class="print-sheet"><tbody><tr><td>${html}</td></tr></tbody><tfoot><tr><td><div class="print-footer-space"></div></td></tr></tfoot></table>${reportFooter()}`;
   document.body.appendChild(wrap);
   window.prepareStaffReport?.(wrap);
@@ -493,7 +493,8 @@ function navigate(key) {
   document.getElementById('pageSub').innerHTML = TITLES[key][1];
   renderSidebar();
   document.getElementById('sidebar').classList.remove('open');
-  ({ notifications: () => window.renderSuperNotifications(), dashboard: renderDashboard, reports: renderReports, activitylog: renderActivityLog, users: renderUsers, settings: renderSettings, backup: renderBackup, systemhealth: () => renderSystemHealth(), accessreview: () => renderAccessReview(), profile: renderProfile })[key]();
+  const renderers={notifications:()=>window.renderSuperNotifications(),dashboard:()=>renderDashboard(),reports:()=>renderReports(),activitylog:()=>renderActivityLog(),users:()=>renderUsers(),settings:()=>renderSettings(),backup:()=>renderBackup(),systemhealth:()=>renderSystemHealth(),accessreview:()=>renderAccessReview(),profile:()=>renderProfile()};
+  renderers[key]?.();
 }
 function escalationPill(status) {
   if (!status || status === 'Normal') return '';
@@ -514,12 +515,12 @@ function renderDashboard() {
   const categoryCounts=new Map();for(const entry of entries){const category=entry.category||inferCategory(entry.action);categoryCounts.set(category,(categoryCounts.get(category)||0)+1);}
   const auditCategories=[...categoryCounts].map(([label,count])=>({label,count})).sort((a,b)=>b.count-a.count);
   const admins=users.filter(u=>u.role==='ADMIN'&&u.active);
-  const roles=[['Super Admin',users.filter(u=>u.role==='SUPER_ADMIN').length],['Head Admin',users.filter(u=>u.role==='ADMIN'&&u.confidentialApprover).length],['Admin',users.filter(u=>u.role==='ADMIN'&&!u.confidentialApprover).length]];
-  const access=[['Approves confidential access',admins.filter(u=>u.confidentialApprover).length],['Handles confidential visits',admins.filter(u=>!u.confidentialApprover&&u.confidentialAccess).length],['Standard service access',admins.filter(u=>!u.confidentialApprover&&!u.confidentialAccess).length]];
+  const roles=[['Super Admin',users.filter(u=>u.role==='SUPER_ADMIN').length],['Admin',users.filter(u=>u.role==='ADMIN').length]];
+  const access=[['Handles confidential visits',admins.filter(u=>u.confidentialAccess).length],['Standard service access',admins.filter(u=>!u.confidentialAccess).length]];
   const metric=(label,value,note)=>'<div class="stat-card"><div class="lbl dashboard-metric-label">'+dashboardMetricIcon(label)+label+(note==='Last 14 days'?' (last 14 days)':'')+'</div><div class="val">'+value+'</div></div>';
   const chartRows=items=>items.map(([label,count])=>({label,count}));
-  const roleNames=['Super Admin','Head Admin','Admin'];
-  const roleOf=user=>user.role==='SUPER_ADMIN'?'Super Admin':user.confidentialApprover?'Head Admin':'Admin';
+  const roleNames=['Super Admin','Admin'];
+  const roleOf=user=>user.role==='SUPER_ADMIN'?'Super Admin':'Admin';
   const roleSeries=[{label:'Active',color:'var(--super-chart-5)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&u.active).length)},{label:'Disabled',color:'var(--super-chart-neutral)',values:roleNames.map(role=>users.filter(u=>roleOf(u)===role&&!u.active).length)}];
   const card=(title,desc,body,footer='')=>'<div class="card"><div class="card-head"><div><h3>'+title+'</h3><div class="desc">'+desc+'</div></div></div><div class="card-pad">'+body+'</div>'+(footer?'<div class="analytics-footer">'+footer+'</div>':'')+'</div>';
   const categorySummary=auditCategories.slice(0,5);
@@ -626,8 +627,8 @@ function systemReportModel(db){
   const daily=new Map();for(const e of entries){const key=reportDateKey(e.ts);daily.set(key,(daily.get(key)||0)+1);}
   add('Daily activity trend',['Date','Events'],[...daily].sort((a,b)=>a[0].localeCompare(b[0])),'Counts represent recorded system activity, not completed visits.');
  }else if(systemReportType==='accounts'){
-  add('Account snapshot',['Measure','Total'],[['Accounts',users.length],['Active',users.filter(u=>u.active).length],['Disabled',users.filter(u=>!u.active).length],['Head Admins',users.filter(u=>u.confidentialApprover).length]],'Current accounts at generation time; date filters apply to activity summaries below.');
-  add('Staff accounts',['Name','Role','Status','Access'],users.map(u=>[u.fullName,u.confidentialApprover?'Head Admin':ROLES[u.role]?.label||u.role,u.active?'Active':'Disabled',u.role==='ADMIN'?(u.confidentialApprover?'Approver':u.confidentialAccess?'Intake access':'No confidential access'):'System administration']));
+  add('Account snapshot',['Measure','Total'],[['Accounts',users.length],['Active',users.filter(u=>u.active).length],['Disabled',users.filter(u=>!u.active).length]],'Current accounts at generation time; date filters apply to activity summaries below.');
+  add('Staff accounts',['Name','Role','Status','Access'],users.map(u=>[u.fullName,ROLES[u.role]?.label||u.role,u.active?'Active':'Disabled',u.role==='ADMIN'?(u.confidentialAccess?'Intake access':'No confidential access'):'System administration']));
   add('Account and access activity',['Action','Events'],groups(entries.filter(e=>['Accounts','Confidential'].includes(categoryOf(e)))),'Includes recorded access grants, requests and unlocks; case contents are excluded.');
  }else if(systemReportType==='security'){
   const failed=entries.filter(e=>/failed|blocked|denied|wrong password|incorrect|too many attempts/i.test(auditActionLabel(e.action)));
@@ -672,7 +673,7 @@ function buildReport(){
 function printReport(){
  const sheet=document.getElementById('reportSheet');if(!sheet)return;
  buildReport();
- printInjected(sheet.innerHTML);const db=loadDB();logActivity(db,currentUser,`Printed ${SYSTEM_REPORT_TYPES[systemReportType]} report`,{category:'System'});saveDB(db);
+ printInjected(sheet.innerHTML,true);const db=loadDB();logActivity(db,currentUser,`Printed ${SYSTEM_REPORT_TYPES[systemReportType]} report`,{category:'System'});saveDB(db);
 }
 function downloadReportExcel(){
  const db=loadDB(),model=systemReportModel(db),rows=[['Office of Student Services'],[model.title],['Period',model.period],['Generated',actionText(fmtDateTime(new Date()))],['Generated by',currentUser.fullName],[]],headingRows=[0,1];
@@ -883,7 +884,7 @@ function renderSettings() {
       <div class="settings-block"><h4>Appointment Policy</h4><div class="desc-txt">A scheduled visitor is called when their time arrives. Staff reviews late arrivals. Unchecked appointments become No-show after the threshold; staff can reschedule the same request without re-entering details.</div>
         <div class="form-row"><div class="field"><label>Grace Period (minutes)</label><input id="stGraceMin" type="number" min="0" max="180" value="${s.gracePeriodMinutes ?? DEFAULT_GRACE_MINUTES}"></div><div class="field"><label>No-Show Threshold (minutes)</label><input id="stNoShowMin" type="number" min="5" max="480" value="${s.noShowThresholdMinutes ?? DEFAULT_NOSHOW_MINUTES}"></div></div>
         <div class="field-hint">Example: with a 15-minute grace period and a 60-minute threshold, a 10:00 AM appointment is On Time until 10:15, Late from 10:16&ndash;11:00, and automatically No-show after 11:00.</div></div>
-      <div class="settings-block"><h4>Service capacity</h4><div class="field"><label for="stAppointmentOffices">Appointment offices</label><textarea id="stAppointmentOffices" rows="3">${escapeHtml((s.appointmentOffices||['Office of Student Services']).join('\n'))}</textarea><p class="field-hint">One office per line. Slots last 30 minutes and use the office calendar. Keep offices with active appointments in this list.</p></div><div class="field"><label for="stSlotCapacity">Appointments per time slot</label><input id="stSlotCapacity" type="number" value="1" readonly><p class="field-hint">One appointment per office at each time. Pending requests also reserve the slot.</p></div><div class="switch-row"><div><div class="lbl">Allow parallel service</div><div class="sub">Let each Admin call or serve multiple visitors at once. This does not increase appointment slots or office capacity. Off by default.</div></div><label class="switch"><input id="stParallel" type="checkbox" ${s.allowParallelService?'checked':''}><span class="track"></span></label></div></div>
+      <div class="settings-block"><h4>Service capacity</h4><div class="field"><label for="stAppointmentOffices">Appointment offices</label><textarea id="stAppointmentOffices" rows="1" readonly>Office of Student Services</textarea><p class="field-hint">Appointments are handled by OSS. Slots last 30 minutes and use the office calendar.</p></div><div class="field"><label for="stSlotCapacity">Appointments per time slot</label><input id="stSlotCapacity" type="number" value="1" readonly><p class="field-hint">One appointment per office at each time. Pending requests also reserve the slot.</p></div><div class="switch-row"><div><div class="lbl">Allow parallel service</div><div class="sub">Let each Admin call or serve multiple visitors at once. This does not increase appointment slots or office capacity. Off by default.</div></div><label class="switch"><input id="stParallel" type="checkbox" ${s.allowParallelService?'checked':''}><span class="track"></span></label></div></div>
       <div class="settings-block"><h4>Session</h4><div class="desc-txt">Admin and Super Admin sessions end after this many idle minutes. API sessions also require sign-in again after one hour.</div>
         <div class="field"><label>Session Timeout (minutes)</label><input id="stTimeout" type="number" min="5" max="120" value="${Number(s.sessionTimeout) || 30}"></div></div>
       <div class="settings-block"><h4>System Maintenance</h4><div class="desc-txt">Temporarily restrict visitor-facing access while the office performs maintenance.</div>
@@ -913,7 +914,7 @@ function renderProfile() {
   const u = currentUser, initials = u.fullName.split(' ').map(s => s[0]).slice(0, 2).join('');
   document.getElementById('content').innerHTML = `
     <div class="card staff-profile-card super-profile-card">
-      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="badge-role">${(u.role==='ADMIN'&&u.confidentialApprover?'Head Admin':ROLES[u.role].label)}</span></div></div>
+      <div class="profile-head"><div class="profile-avatar">${initials}</div><div><div style="font-weight:700; font-size:1.05rem;">${escapeHtml(u.fullName)}</div><span class="badge-role">${ROLES[u.role].label}</span></div></div>
       <div class="card-pad staff-profile-grid"><section class="staff-profile-details" aria-label="Profile details">
         <h4 class="profile-section-title">Account details</h4><p class="profile-section-note">Keep your name and contact information up to date.</p>
         <div class="field"><label>Full Name</label><input id="pfName" value="${escapeHtml(u.fullName)}"></div>
@@ -926,7 +927,7 @@ function renderProfile() {
         <p id="pfPasswordHint" class="field-hint" aria-live="polite" style="margin-bottom:10px;">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</p>
         <p class="field-hint" style="margin-top:10px; margin-bottom:0;">Leave the new password fields blank to keep your password.</p>
       </section></div>
-      <div class="profile-save-footer"><p class="field-hint">Save your account details and any password changes here.</p><button type="button" class="btn btn-primary" onclick="saveProfile()">Save changes</button></div></div>
+      <div class="profile-save-footer"><div class="profile-save-description"><strong>Save your profile</strong><p class="field-hint">Updates account details and any new password. Your current password is required.</p></div><button type="button" class="btn btn-primary" onclick="saveProfile()">Save profile</button></div></div>
       <section class="card super-profile-security" aria-label="Account security"><div class="profile-security-heading"><h4 class="profile-section-title">Account security</h4><p class="profile-section-note">Manage how you sign in and where your account is active.</p></div><div class="security-profile-tools"><div class="profile-security-row"><div><span>Two-step sign-in</span><small>Use an authenticator for extra sign-in protection.</small></div><button type="button" onclick="openSecurityMfa()">Manage</button></div><div class="profile-security-row"><div><span>Active sessions</span><small>Review and sign out of other sessions.</small></div><button type="button" onclick="openSecuritySessions()">View sessions</button></div></div></section>`;
 }
 async function saveProfile() {

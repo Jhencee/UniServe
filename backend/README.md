@@ -12,6 +12,8 @@ Keep runtime settings in .env; use .env.example as the configuration reference. 
 
 Install PHP dependencies with composer install. Apply migrations using the authorized schema account; installations with separate migration credentials use php artisan migrate --env=migrations. Keep database recovery files and migration history.
 
+The PHP ZIP and fileinfo extensions are required to validate filled-out DOCX and other example files. The service editor accepts up to ten blank forms and ten examples of 2 MB each in one request. Appointments accept up to two files per requirement, 5 MB per file, 60 files and 40 MB total; corrected versions also count toward the 40 MB stored-document limit. Set PHP `post_max_size` and the web server or proxy request-body limit to at least 64 MB, MySQL `max_allowed_packet` to at least 128 MB, and PHP `memory_limit` to at least 512 MB. Encoded and encrypted payloads are larger than the original files. Confirm the limits on the actual API and database servers before testing maximum-size uploads; PHP CLI settings may differ from web-server settings.
+
 Serve the frontend over HTTP/HTTPS. shared/api-config.js selects the API address; window.UNISERVE_API_BASE can override it before that script loads. Configure FRONTEND_ORIGINS and REVERB_ALLOWED_ORIGINS for the deployment. Use HTTPS and supervised services in production.
 
 For local development, run these commands from backend in separate terminals:
@@ -22,6 +24,8 @@ For local development, run these commands from backend in separate terminals:
     php artisan schedule:work
 
 The worker delivers queued mail and broadcasts. The scheduler handles reminders, no-shows, permission expiry, cutoff notices and previous-day queue closure. Configure SMTP and Turnstile in .env. Browser alerts require an open portal and notification permission.
+
+Incomplete follow-up tasks receive one reminder on the day before their due date, starting at 9:00 AM Philippine time. The notifications scheduler rechecks the task and visit before sending; completed tasks, changed due dates and cancelled visits are skipped.
 
 On Windows, scripts/install-startup.ps1 installs a current-user logon task for scripts/run-services.ps1. That supervisor starts the worker, Reverb and scheduler; start the database and API separately. Its default PHP path is C:/tools/php85/php.exe.
 
@@ -35,7 +39,7 @@ Confidential appointment intake before service uses the staff confidential-acces
 
 Private payloads and uploads are encrypted. Browser caches retain sanitized metadata; private records stay in tab memory. Keep shared privacy/cache/realtime scripts and their HTML loading order. API/UI helpers load before page scripts, and synchronization wrappers load after them. Asset changes require a query-string version update.
 
-Visitors choose a service (purpose), preferred office, date and an available 30-minute slot before submitting. Requested slots reserve capacity immediately; staff approve the chosen schedule or reschedule through live availability. Requested, Booked and Checked-in appointments count toward per-office capacity. Submission and staff scheduling share the office calendar lock to prevent concurrent double-booking. Cancellations and rescheduling release the previous slot. Super Admin settings manage office names and slot capacity; all offices use the shared calendar. Existing requests without a slot can still be scheduled by staff. Staff check visitors in at the counter, then call, start and complete service. Document reviews, optional earlier-slot waitlists and dated follow-up tasks use the same encrypted appointment record. Waitlist changes require staff confirmation. Old active visits become Unfinished, not Completed.
+Visitors choose a service (purpose), date and an available 30-minute slot at the Office of Student Services before submitting. Requested slots reserve capacity immediately; staff approve the chosen schedule or reschedule through live availability. Requested, Booked and Checked-in appointments count toward per-office capacity. Submission and staff scheduling share the office calendar lock to prevent concurrent double-booking. Cancellations and rescheduling release the previous slot. The Office of Student Services uses the shared calendar, with one appointment per time slot. Existing requests without a slot can still be scheduled by staff. Staff check visitors in at the counter, then call, start and complete service. Document reviews, optional earlier-slot waitlists and dated follow-up tasks use the same encrypted appointment record. Waitlist changes require staff confirmation. Old active visits become Unfinished, not Completed.
 
 ## Backups and recovery
 

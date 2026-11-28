@@ -28,20 +28,15 @@ async function page(){
  assert.equal(await visitor.run("document.getElementById('visitorContent').hidden"),true);
  assert.equal(await visitor.run("document.getElementById('visitorContent').textContent"),'');
  assert.equal(await visitor.run("document.querySelector('.flow-entry-options')"),null);
- assert.equal(await visitor.run("document.querySelectorAll('.visitor-hub-nav button').length"),4);
+ assert.equal(await visitor.run("document.querySelectorAll('.visitor-hub-nav button').length"),5);
  assert.equal(await visitor.run("document.getElementById('visitorSidebar')"),null);
- await visitor.run("document.querySelector('#visitorActions summary').click()");
- assert.equal(await visitor.run("document.getElementById('visitorActions').open"),true);
- assert.equal(await visitor.run("!!document.querySelector('.visitor-actions-panel .browser-alert-toggle')"),false);
- await visitor.run("document.getElementById('visitorThemeToggle').click()");
+ assert.equal(await visitor.run("!!document.getElementById('a11yBtn')"),true);
+ await visitor.run("setTheme('dark')");
  assert.equal(await visitor.run("document.documentElement.dataset.theme"),'dark');
- assert.equal(await visitor.run("document.getElementById('visitorThemeToggle').getAttribute('aria-checked')"),'true');
- await visitor.run("document.getElementById('visitorThemeToggle').click()");
+ await visitor.run("setTheme('light')");
  assert.equal(await visitor.run("document.documentElement.dataset.theme"),'light');
- assert.equal(await visitor.run("!!document.querySelector('#visitorActions .visitor-home-link')"),false);
  assert.equal(await visitor.run("document.querySelector('.visitor-home-bar a').getAttribute('href')"),'../Landing/landing.html');
  await visitor.run("setTheme('light');document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}))");
- assert.equal(await visitor.run("document.getElementById('visitorActions').open"),false);
  await pause(400);
  await visitor.screenshot('visitor-hub-desktop');
  await visitor.run("UniServeUX.visitorCalendar()");
@@ -73,11 +68,13 @@ async function page(){
  await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[2].click()");
  await pause(250);assert.ok(await visitor.run("!!document.getElementById('appointmentEmail')"));await visitor.run('closeModal()');
  await visitor.run("showVisitorHub()");
- await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[3].click()");
- await pause(250);assert.ok(await visitor.run("!!document.getElementById('appointmentEmail')"));await visitor.run("closeModal()");
+ await visitor.run("document.querySelector('[data-service=\"documents\"]').click()");
+ assert.ok(await visitor.run("document.getElementById('visitorContent').textContent.includes('Requirements & Forms')"));
+ await visitor.run("showVisitorHub();document.querySelector('[data-service=\"chat\"]').click()");
+  await pause(250);assert.ok(await visitor.run("!!document.getElementById('chatName') || document.getElementById('visitorContent').textContent.includes('Resume a chat')"));
  await visitor.run("showVisitorHub()");
  await visitor.run("document.querySelectorAll('.visitor-hub-nav button')[0].click()");
- checks.push('Welcome shows only separate service cards; all four open on click and Back to services returns to an empty home view');
+ checks.push('Welcome service cards open their pages and Back to services returns to an empty home view');
  await visitor.run("showVisitorHub()");
  await visitor.run("setTheme('dark')");await visitor.screenshot('visitor-mobile-dark');
  if(process.argv.includes('--visual')){
@@ -93,14 +90,14 @@ async function page(){
  }
  await visitor.goto(base+'/Landing/landing.html');
  assert.equal(await visitor.run("document.querySelectorAll('.hero-actions a').length"),2);
- assert.deepEqual(await visitor.run("Array.from(document.querySelectorAll('#navActions a[href^=\"#\"]')).map(a=>a.getAttribute('href'))"),['#services','#how','#feedback','#faq','#contact']);
+ assert.deepEqual(await visitor.run("Array.from(document.querySelectorAll('#navActions a[href^=\"#\"]')).map(a=>a.getAttribute('href'))"),['#services','#how','#faq']);
  assert.equal(await visitor.run("document.querySelector('.hero-actions .btn-ghost').getAttribute('href')"),'../User/user.html?flow=checkvisit');
  assert.ok(await visitor.run("document.getElementById('services').compareDocumentPosition(document.getElementById('how')) & Node.DOCUMENT_POSITION_FOLLOWING"));
  assert.ok(await visitor.run("getComputedStyle(document.querySelector('.hero-actions .btn-primary')).backgroundColor!==getComputedStyle(document.querySelector('.hero-actions .btn-ghost')).backgroundColor"));
  assert.ok(await visitor.run('document.documentElement.scrollWidth<=window.innerWidth+1'));
 
  assert.equal(await visitor.run("document.querySelectorAll('.nav-link-primary').length"),1);
- assert.equal(await visitor.run("document.querySelector('.nav-link-primary').textContent"),'Start a Visit');
+ assert.equal(await visitor.run("document.querySelector('.nav-link-primary').textContent"),'Get Started');
  assert.equal(await visitor.run("document.querySelector('.nav-link-primary').getAttribute('href')"),'../User/user.html');
  assert.ok(await visitor.run("Array.from(document.querySelectorAll('a[href*=\"user.html\"]')).every(a=>a.getAttribute('aria-disabled')!=='true')"));
  await visitor.screenshot('landing-mobile');checks.push('Landing links remain available outside office hours');
@@ -184,7 +181,7 @@ async function page(){
    assert.ok(await p.run("document.getElementById('content').textContent.includes('Reschedule')"));
    await p.run("openApptDetail('fixture-a',true)");assert.ok(await p.run("!!document.getElementById('mApptDate')"));
    await p.screenshot('admin-reschedule');await p.run("closeModal();navigate('queue')");await pause(200);
-   assert.ok(await p.run("document.getElementById('content').textContent.includes('Review remaining visits')"));await p.screenshot('admin-queue');
+   assert.ok(await p.run("document.getElementById('content').textContent.includes('My Queue') && document.getElementById('content').textContent.includes('Waiting')"));await p.screenshot('admin-queue');
   }else{
    for(const endpoint of ['/reports','/services','/admins'])assert.ok(requests.some(url=>new URL(url).pathname==='/api'+endpoint),'Super Admin did not load '+endpoint);
    await p.run("setTheme('light');document.querySelector('.theme-toggle [data-theme-btn=dark]').click()");

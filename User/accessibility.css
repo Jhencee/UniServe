@@ -75,15 +75,15 @@ html[data-text="large"] {
 }
 
 .fb-star {
-    color: #9CA3AF;
+    color: #d8c59b;
 }
 
 .fb-star.on {
-    color: var(--gold-500);
+    color: #c58b00;
 }
 
 html[data-theme="dark"] .fb-star.on {
-    color: #FBBF24;
+    color: #f0c75e;
 }
 
 /* tiny ticket text was 0.6rem (~9px) */
@@ -341,7 +341,7 @@ html[data-color-assist="on"] .dup-warn {
 
 /* ---------- settings panel ---------- */
 .a11y-row {
-    padding: 14px 0;
+    padding: 11px 0;
     border-bottom: 1px solid var(--border);
 }
 
@@ -359,8 +359,8 @@ fieldset.a11y-fs {
 .a11y-fs legend,
 .a11y-t {
     display: block;
-    padding: 0 0 8px;
-    font-size: .9rem;
+    padding: 0 0 6px;
+    font-size: .84rem;
     font-weight: 600;
     color: var(--text);
 }
@@ -379,7 +379,7 @@ fieldset.a11y-fs {
 .a11y-txt small,
 .a11y-fs>small {
     display: block;
-    font-size: .8rem;
+    font-size: .76rem;
     line-height: 1.45;
     color: var(--text-soft);
 }
@@ -434,10 +434,10 @@ fieldset.a11y-fs {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
-    padding: 0 10px;
+    min-height: 38px;
+    padding: 0 8px;
     border-radius: 6px;
-    font-size: .86rem;
+    font-size: .8rem;
     font-weight: 600;
     color: var(--text-soft);
     text-align: center;

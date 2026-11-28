@@ -16,7 +16,7 @@ class ServiceOutcome {
   }
   if($q['status']==='Completed' && empty($q['pickupTransactionId'])){
    $existing=DB::table('shared_transactions')->where('queue_id',$q['id'])->first();
-   $txn=$existing?json_decode(Crypt::decryptString($existing->payload),true):['id'=>'T'.bin2hex(random_bytes(8)),'code'=>'OSS-'.strtoupper(bin2hex(random_bytes(4))),'name'=>$q['name'],'type'=>$q['visitorType'],'service'=>$q['serviceKey'],'email'=>$q['email']??'','idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','status'=>'Completed','queueId'=>$q['id'],'visitId'=>$q['visitId'],'appointmentId'=>$q['appointmentId']??null,'queueNumber'=>$q['number']??null,'entryMethod'=>$q['source'],'servedBy'=>$actor->full_name,'createdAt'=>$q['createdAt'],'completedAt'=>$q['completedAt']??now()->toIso8601String(),'shared'=>true];
+   $txn=$existing?json_decode(Crypt::decryptString($existing->payload),true):['id'=>'T'.bin2hex(random_bytes(8)),'code'=>TransactionCode::fromDatabase()->next(),'name'=>$q['name'],'type'=>$q['visitorType'],'service'=>$q['serviceKey'],'email'=>$q['email']??'','idNumber'=>$q['idNumber']??'','idType'=>$q['idType']??'','status'=>'Completed','queueId'=>$q['id'],'visitId'=>$q['visitId'],'appointmentId'=>$q['appointmentId']??null,'queueNumber'=>$q['number']??null,'entryMethod'=>$q['source'],'servedBy'=>$actor->full_name,'createdAt'=>$q['createdAt'],'completedAt'=>$q['completedAt']??now()->toIso8601String(),'shared'=>true];
    $txn['serviceHistory']=$q['serviceHistory']??[];
    if(!$existing && !empty($q['documentPreparation'])){$txn['pickupStatus']='Preparing';$txn['pickupUpdatedAt']=now()->toIso8601String();$q['pickupStatus']='Preparing';}
    unset($q['documentPreparation']);

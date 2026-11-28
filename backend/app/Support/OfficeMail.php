@@ -13,7 +13,7 @@ class OfficeMail
     public static function html(string $title,string $body,?string $code=null,?string $codeNotice=null):string
     {
         $details=[];$intro=$body;$closing='';
-        if(preg_match_all('/^(Service|Date|Time|Visit ID):[ \t]*(.+)$/m',$body,$matches,PREG_OFFSET_CAPTURE)){
+        if(preg_match_all('/^(Service|Date|Time|Visit ID|Request reference):[ \t]*(.+)$/m',$body,$matches,PREG_OFFSET_CAPTURE)){
             foreach($matches[1] as $index=>$label)$details[$label[0]]=trim($matches[2][$index][0]);
             $first=$matches[0][0];$last=$matches[0][count($matches[0])-1];
             $intro=trim(substr($body,0,$first[1]));
@@ -24,8 +24,9 @@ class OfficeMail
             $rules=explode("\n",$match[1]);$closing=str_replace($match[0],'',$closing);
         }
         $intro=preg_replace('/\n{3,}/',"\n\n",$intro);
-        $pickup=$title==='Document ready for pickup';
+        $pickup=in_array($title,['Document ready - choose delivery','Hard copy ready for pickup'],true);
+        $pickupHard=$title==='Hard copy ready for pickup';
         if($pickup)$closing='';
-        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'codeNotice'=>$codeNotice ?? 'This code expires in five minutes. Never share it with anyone.','details'=>$details,'rules'=>$rules,'pickup'=>$pickup])->render();
+        return view('emails.office',['title'=>$title,'body'=>$intro,'closing'=>$closing,'code'=>$code,'codeNotice'=>$codeNotice ?? 'This code expires in five minutes. Never share it with anyone.','details'=>$details,'rules'=>$rules,'pickup'=>$pickup,'pickupHard'=>$pickupHard])->render();
     }
 }

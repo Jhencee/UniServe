@@ -34,6 +34,8 @@ class AttentionController extends Controller
         foreach(DB::table('shared_appointments')->get() as $row){
             if(!CaseAccess::canViewAppointment($staff,$row))continue;
             $a=json_decode(Crypt::decryptString($row->payload),true);
+            if(!empty($a['rescheduleRequested'])&&in_array($row->status,['Requested','Booked','No-show','Unfinished'],true))
+                $add('reschedule:'.$row->id.':'.$row->revision,'Schedule change requested',$row->visit_id.' — Review the visitor’s request and arrange a new time.','appointment',$row->id);
             if($row->status==='Requested'&&\App\Support\VisitProcess::reviewDeadline($row)->isPast())
                 $add('review-due:'.$row->id,'Appointment review overdue',$row->visit_id.' — Confirm a schedule or contact the visitor.','appointment',$row->id);
             foreach($a['attachments']??[] as $i=>$file)if(!empty($file['uploadedAt'])&&($file['review']['status']??'')==='Pending review'&&in_array($row->status,['Requested','Booked','Checked-in','Completed']))
@@ -41,14 +43,13 @@ class AttentionController extends Controller
             $tasks=$a['followUpTasks']??(empty($a['followUpTask'])?[]:[$a['followUpTask']]);
             foreach($tasks as $i=>$task){
                 if($row->status==='Cancelled'||!empty($task['completed'])||($task['dueDate']??'9999')>=now('Asia/Manila')->toDateString())continue;
-                $head=($staff->confidential_approver??false)&&($task['dueDate']??'9999')<now('Asia/Manila')->subDays(2)->toDateString();
-                if(($task['ownerId']??$staff->id)===$staff->id||$head)$add('task-due:'.$row->id.':'.$i,$head?'Overdue follow-up escalated':'Your follow-up is overdue',$row->visit_id.' — '.$task['dueDate'],'appointment',$row->id);
+                if(($task['ownerId']??$staff->id)===$staff->id)$add('task-due:'.$row->id.':'.$i,'Your follow-up is overdue',$row->visit_id.' — '.$task['dueDate'],'appointment',$row->id);
             }
         }
         foreach(DB::table('shared_transactions')->get() as $row){
             $t=json_decode(Crypt::decryptString($row->payload),true);
             if(\App\Support\ServicePrivacy::confidential($t['service'])&&!CaseAccess::canView($staff,$row->id))continue;
-            if(($t['caseStatus']??'')==='Resolved')continue;
+            if(in_array($t['caseStatus']??'',['Resolved','Closed'],true))continue;
             if(($t['caseOwnerId']??'')===$staff->id&& !empty($t['caseDueDate'])&&$t['caseDueDate']<now('Asia/Manila')->toDateString())
                 $add('case-due:'.$row->id,'Your case action is overdue',$t['code']??$row->id,'case',$row->id);
         }

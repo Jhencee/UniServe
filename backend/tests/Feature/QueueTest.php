@@ -18,12 +18,12 @@ afterEach(function(){\Carbon\CarbonImmutable::setTestNow();});
 function walkInData(): array
 {
     return ['visitorType' => 'Student', 'serviceKey' => 'good_moral', 'serviceLabel' => 'Good Moral',
-        'name' => 'Queue Test', 'idNumber' => 'TEST-123', 'contact' => '09123456789', 'email' => 'queue.test@gmail.com'];
+        'name' => 'Queue Test', 'idNumber' => 'TEST-123', 'contact' => '09123456789', 'email' => 'queue.test@iskolarngbayan.pup.edu.ph'];
 }
 
 it('rejects new walk-ins without verification of the same email',function(){
     $this->postJson('/api/visits',walkInData())->assertUnauthorized();
-    $this->postJson('/api/visits',walkInData(),['X-Visitor-Token'=>\App\Support\VisitorAccess::token('wrong@gmail.com')])->assertForbidden();
+    $this->postJson('/api/visits',walkInData(),['X-Visitor-Token'=>\App\Support\VisitorAccess::token('wrong@iskolarngbayan.pup.edu.ph')])->assertForbidden();
 });
 
 it('shares a started visit with the Admin Queue and updates the visitor ticket', function () {
@@ -33,19 +33,19 @@ it('shares a started visit with the Admin Queue and updates the visitor ticket',
     $headers = ['Authorization' => 'Bearer '.StaffAuth::token($admin)];
     $this->getJson('/api/queue', $headers)->assertOk()->assertJsonFragment(['visitId' => $q['visitId']]);
     $this->patchJson('/api/queue/'.$q['id'], ['status' => 'Called', 'calledAt' => now()->toIso8601String()], $headers)->assertOk();
-    $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertOk()->assertJsonPath('queue.status', 'Called')->assertJsonPath('queue.assignedAdminId', $admin->id);
+    $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@iskolarngbayan.pup.edu.ph')])->assertOk()->assertJsonPath('queue.status', 'Called')->assertJsonPath('queue.assignedAdminId', $admin->id);
     $this->patchJson('/api/queue/'.$q['id'], ['status' => 'Serving'], $headers)->assertOk();
     $this->patchJson('/api/queue/'.$q['id'], ['status'=>'Serving'], $headers)->assertOk();
     $this->checkQueueRequirements($q['id'],$headers);
     $this->patchJson('/api/queue/'.$q['id'], ['status' => 'Completed'], $headers)->assertOk();
-    $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertJsonPath('queue.status', 'Completed');
+    $this->getJson('/api/visits/'.$q['visitId'],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@iskolarngbayan.pup.edu.ph')])->assertJsonPath('queue.status', 'Completed');
 });
 
 it('allocates unique queue numbers and synchronizes visitor cancellation', function () {
     $a = $this->verifiedPostJson('/api/visits', walkInData())->assertCreated()->json('queue');
-    $b = $this->verifiedPostJson('/api/visits', array_replace(walkInData(), ['email'=>'second@gmail.com']))->assertCreated()->json('queue');
+    $b = $this->verifiedPostJson('/api/visits', array_replace(walkInData(), ['email'=>'second@iskolarngbayan.pup.edu.ph']))->assertCreated()->json('queue');
     expect($a['number'])->not->toBe($b['number']);
-    $this->postJson('/api/visits/'.$a['visitId'].'/cancel',[],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertOk()->assertJsonPath('queue.status', 'Cancelled');
+    $this->postJson('/api/visits/'.$a['visitId'].'/cancel',[],['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@iskolarngbayan.pup.edu.ph')])->assertOk()->assertJsonPath('queue.status', 'Cancelled');
     expect(DB::table('queues')->where('id', $a['id'])->value('status'))->toBe('Cancelled');
 });
 
@@ -67,12 +67,12 @@ it('uses a valid verified email when the visit token is expired or invalid', fun
     $q=$this->verifiedPostJson('/api/visits',walkInData())->assertCreated()->json('queue');
     $url='/api/visits/'.$q['visitId'];
     $expired=\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visit','visitId'=>$q['visitId'],'expires'=>time()-1]));
-    $valid=\App\Support\VisitorAccess::token('queue.test@gmail.com');
+    $valid=\App\Support\VisitorAccess::token('queue.test@iskolarngbayan.pup.edu.ph');
     $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>$valid])->assertOk()->assertJsonPath('queue.id',$q['id']);
     $this->getJson($url,['X-Visit-Token'=>'invalid','X-Visitor-Token'=>$valid])->assertOk()->assertJsonPath('queue.id',$q['id']);
     $this->getJson($url,['X-Visit-Token'=>$expired])->assertUnauthorized();
-    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@gmail.com')])->assertForbidden();
-    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visitor','email'=>'queue.test@gmail.com','expires'=>time()-1]))])->assertUnauthorized();
+    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@iskolarngbayan.pup.edu.ph')])->assertForbidden();
+    $this->getJson($url,['X-Visit-Token'=>$expired,'X-Visitor-Token'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['purpose'=>'visitor','email'=>'queue.test@iskolarngbayan.pup.edu.ph','expires'=>time()-1]))])->assertUnauthorized();
 });
 
 it('returns the existing active walk-in instead of creating another', function () {
@@ -80,14 +80,15 @@ it('returns the existing active walk-in instead of creating another', function (
     expect($first['possibleDuplicate'])->toBeFalse();
     $this->verifiedPostJson('/api/visits',walkInData()+['possibleDuplicate'=>false])->assertOk()->assertJsonPath('existing',true)->assertJsonPath('queue.id',$first['id']);
     expect(DB::table('queues')->count())->toBe(1);
-    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@gmail.com')])->assertOk()->assertJsonPath('queue.id',$first['id']);
-    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@gmail.com')])->assertOk()->assertJsonPath('queue',null);
+    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('queue.test@iskolarngbayan.pup.edu.ph')])->assertOk()->assertJsonPath('queue.id',$first['id']);
+    $this->getJson('/api/visits/active',['X-Visitor-Token'=>\App\Support\VisitorAccess::token('other@iskolarngbayan.pup.edu.ph')])->assertOk()->assertJsonPath('queue',null);
     $this->getJson('/api/visits/active')->assertUnauthorized();
 });
 
 it('does not flag completed visits as active duplicates', function () {
     $first=$this->verifiedPostJson('/api/visits',walkInData())->assertCreated()->json('queue');
-    DB::table('queues')->where('id',$first['id'])->update(['status'=>'Completed']);
+    $first['status']='Completed';$first['feedback']=['rating'=>5,'submittedAt'=>now()->toIso8601String()];
+    DB::table('queues')->where('id',$first['id'])->update(['status'=>'Completed','portal_payload'=>\App\Support\QueueData::write($first)]);
     $this->verifiedPostJson('/api/visits',walkInData())->assertCreated()->assertJsonPath('queue.possibleDuplicate',false);
 });
 
@@ -106,7 +107,7 @@ function servingChecklistVisit($test): array
 
 it('saves requirement checks per visit and preserves independent items across reloads',function(){
     [$q,$headers]=servingChecklistVisit($this);
-    $other=$this->verifiedPostJson('/api/visits',array_replace(walkInData(),['email'=>'other@gmail.com']))->assertCreated()->json('queue');
+    $other=$this->verifiedPostJson('/api/visits',array_replace(walkInData(),['email'=>'other@iskolarngbayan.pup.edu.ph']))->assertCreated()->json('queue');
     $url='/api/queue/'.$q['id'].'/requirements';
     foreach(['Clearance','Student ID'] as $label)$this->patchJson($url,['serviceKey'=>'good_moral','requirement'=>$label,'checked'=>true],$headers)->assertOk();
     $this->patchJson($url,['serviceKey'=>'good_moral','requirement'=>'Clearance','checked'=>false],$headers)->assertOk();
@@ -170,7 +171,7 @@ it('saves checklist items on existing queue tables without an updated timestamp 
 it('counts only accepted uploads matched to distinct requirements of the linked appointment service',function(){
     [$q,$headers]=servingChecklistVisit($this);
     $files=[['name'=>'clearance.pdf','review'=>['status'=>'Accepted','requirement'=>'Clearance','serviceKey'=>'good_moral']],['name'=>'duplicate.pdf','review'=>['status'=>'Accepted','requirement'=>'Clearance','serviceKey'=>'good_moral']],['name'=>'id.pdf','review'=>['status'=>'Pending review','requirement'=>'Student ID']],['name'=>'unmatched.pdf','review'=>['status'=>'Accepted']]];
-    DB::table('shared_appointments')->insert(['id'=>'checklist-appointment','visit_id'=>'APT-CHECKLIST','email'=>\App\Support\EmailIndex::key('queue.test@gmail.com'),'service_key'=>'good_moral','status'=>'Checked-in','date'=>'2026-10-13','time'=>'10:00','queue_id'=>$q['id'],'payload'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['attachments'=>$files,'createdAt'=>now()->toIso8601String(),'service'=>'Good Moral Character','serviceKey'=>'good_moral','name'=>'Queue Test','type'=>'Student','email'=>'queue.test@gmail.com'])),'created_at'=>now(),'updated_at'=>now()]);
+    DB::table('shared_appointments')->insert(['id'=>'checklist-appointment','visit_id'=>'APT-CHECKLIST','email'=>\App\Support\EmailIndex::key('queue.test@iskolarngbayan.pup.edu.ph'),'service_key'=>'good_moral','status'=>'Checked-in','date'=>'2026-10-13','time'=>'10:00','queue_id'=>$q['id'],'payload'=>\Illuminate\Support\Facades\Crypt::encryptString(json_encode(['attachments'=>$files,'createdAt'=>now()->toIso8601String(),'service'=>'Good Moral Character','serviceKey'=>'good_moral','name'=>'Queue Test','type'=>'Student','email'=>'queue.test@iskolarngbayan.pup.edu.ph'])),'created_at'=>now(),'updated_at'=>now()]);
     $stored=\App\Support\QueueData::read(DB::table('queues')->where('id',$q['id'])->value('portal_payload'));$stored['appointmentId']='checklist-appointment';$stored['source']='Appointment';
     DB::table('queues')->where('id',$q['id'])->update(['portal_payload'=>\App\Support\QueueData::write($stored)]);
     $readiness=\App\Support\QueueData::requirements($stored);

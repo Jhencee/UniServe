@@ -16,7 +16,7 @@ class RealtimeController extends Controller
  }
  public function auth(Request $r){
   $d=$r->validate(['socket_id'=>'required|regex:/^\d+\.\d+$/','channel_name'=>'required|string|max:160']);$channel=$d['channel_name'];
-  if($channel==='private-head-admin'){$u=StaffAuth::user($r,'ADMIN');abort_unless($u->confidential_approver??false,403,'Head Admin access required.');}
+  if($channel==='private-super-admin'){StaffAuth::user($r,'SUPER_ADMIN');}
   elseif(str_starts_with($channel,'private-admin-')){$u=StaffAuth::user($r,'ADMIN');abort_unless($channel==='private-admin-'.$u->id,403);}
   elseif($channel==='private-office')StaffAuth::user($r);
   elseif(str_starts_with($channel,'private-chat-')){

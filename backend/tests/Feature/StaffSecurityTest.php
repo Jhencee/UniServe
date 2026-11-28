@@ -12,7 +12,7 @@ afterEach(function(){Schema::dropAllTables();});
 function securityHeaders($id='security-super'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function securityConfirm($headers){test()->postJson('/api/password/confirm',['password'=>'SecurityFixture42!'],$headers)->assertOk();}
 
-it('requires the existing authenticator for every new staff login',function($id){
+it('requires the existing authenticator for Super Admin login',function($id){
     $secret='JBSWY3DPEHPK3PXP';
     $encrypted=\Illuminate\Support\Facades\Crypt::encryptString($secret);
     DB::table('staff_users')->where('id',$id)->update(['mfa_secret'=>$encrypted]);
@@ -23,7 +23,12 @@ it('requires the existing authenticator for every new staff login',function($id)
     $this->postJson('/api/login',$input)->assertUnprocessable()->assertJsonPath('mfaRequired',true)->assertJsonMissingPath('token');
     expect(DB::table('staff_users')->where('id',$id)->value('mfa_secret'))->toBe($encrypted);
     $this->getJson('/api/security/sessions')->assertUnauthorized();
-})->with(['security-admin','security-super']);
+})->with(['security-super']);
+
+it('does not require an authenticator for Admin sign-in even if previously enrolled',function(){
+    DB::table('staff_users')->where('id','security-admin')->update(['mfa_secret'=>\Illuminate\Support\Facades\Crypt::encryptString('JBSWY3DPEHPK3PXP')]);
+    $this->postJson('/api/login',['username'=>'security-admin','password'=>'SecurityFixture42!'])->assertOk()->assertJsonPath('user.role','ADMIN');
+});
 
 it('exposes only an authenticated change marker without auditing polling or extending idle sessions',function(){
     $this->getJson('/api/realtime/changes')->assertUnauthorized();
@@ -39,10 +44,10 @@ it('exposes only an authenticated change marker without auditing polling or exte
     $this->getJson('/api/realtime/changes',$headers)->assertUnauthorized();
 });
 
-it('allows Admins to manage only their own MFA and sessions without Super Admin privileges',function(){
+it('limits Admins to their own sessions and reserves MFA for Super Admin',function(){
     $admin=securityHeaders('security-admin');$other=securityHeaders('security-admin');$super=securityHeaders();
-    $this->getJson('/api/security/mfa',$admin)->assertOk()->assertJsonPath('enabled',false);
-    $this->postJson('/api/security/mfa',['action'=>'setup'],$admin)->assertStatus(428);
+    $this->getJson('/api/security/mfa',$admin)->assertForbidden();
+    $this->postJson('/api/security/mfa',['action'=>'setup'],$admin)->assertForbidden();
     securityConfirm($admin);
     $this->deleteJson('/api/security/sessions',['id'=>hash('sha256',substr($super['Authorization'],7))],$admin)->assertNotFound();
     $listed=$this->getJson('/api/security/sessions',$admin)->assertOk()->json('sessions');
@@ -51,12 +56,6 @@ it('allows Admins to manage only their own MFA and sessions without Super Admin 
     $this->getJson('/api/security/sessions',$other)->assertUnauthorized();
     $this->getJson('/api/admins',$admin)->assertForbidden();
     $this->postJson('/api/system/test-email',[],$admin)->assertForbidden();
-    $secret=$this->postJson('/api/security/mfa',['action'=>'setup'],$admin)->assertOk()->json('secret');
-    $enabled=$this->postJson('/api/security/mfa',['action'=>'enable','code'=>StaffMfa::code($secret,now()->timestamp)],$admin)->assertOk();
-    $this->postJson('/api/login',['username'=>'security-admin','password'=>'SecurityFixture42!'])->assertUnprocessable()->assertJsonPath('mfaRequired',true);
-    $fresh=['Authorization'=>'Bearer '.$enabled->json('token')];securityConfirm($fresh);
-    $this->postJson('/api/security/mfa',['action'=>'disable','code'=>$enabled->json('recoveryCodes.0')],$fresh)->assertOk();
-    expect(DB::table('staff_users')->where('id','security-super')->value('mfa_secret'))->toBeNull();
 });
 
 it('backs up the old staff schema before applying only the MFA migration and safely reruns it',function(){

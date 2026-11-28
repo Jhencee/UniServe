@@ -12,15 +12,15 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="user.css?v=20261125-requirement-compact">
-    <link rel="stylesheet" href="accessibility.css">
-    <link rel="stylesheet" href="../shared/ui-components.css?v=20261125-task-history-no-divider">
+    <link rel="stylesheet" href="user.css?v=20261128-appointment-reference">
+    <link rel="stylesheet" href="accessibility.css?v=20261126-feedback-stars-gold">
+    <link rel="stylesheet" href="../shared/ui-components.css?v=20261126-regular-edit-task">
     <link rel="stylesheet" href="../shared/sidebar-selection.css">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
     <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
-    <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261123-compact-modals">
-    <link rel="stylesheet" href="visitor-hierarchy.css?v=20261124-change-service-weight">
+    <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261125-clean-hub-icons">
+    <link rel="stylesheet" href="visitor-hierarchy.css?v=20261128-documents-page">
 </head>
 
 <body>
@@ -34,21 +34,10 @@
                     <span>UniServe<small>Office of Student Services</small></span>
                 </div>
                 <div class="topbar-right">
-                    <details class="visitor-actions" id="visitorActions">
-                    <summary aria-label="More options" title="More options"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></summary>
-                    <div class="visitor-actions-panel">
-                    <button type="button" class="btn btn-ghost btn-sm a11y-btn" id="a11yBtn" aria-haspopup="dialog" aria-label="Accessibility settings" aria-keyshortcuts="Alt+Shift+A" title="Accessibility settings (Alt+Shift+A)">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="4.5" r="1.8" /><path d="M5 8.5l7 1.5 7-1.5M12 10v5M9 21l3-6 3 6" /></svg>
-                        <span>Accessibility</span>
-                    </button>
-                    <button type="button" id="visitorThemeToggle" role="switch" aria-checked="false" aria-label="Dark mode">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" /></svg>
-                        <span>Dark mode</span><span class="visitor-theme-state" aria-hidden="true">Off</span>
-                    </button>
-                    </div>
-                    </details>
+                    <a class="visitor-queue-link" href="../Landing/landing.html?view=queue"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z"/></svg><span>Live Queue</span></a>
                 </div>
             </header>
+            <button type="button" class="visitor-accessibility-button" id="a11yBtn" aria-haspopup="dialog" aria-label="Accessibility settings" aria-keyshortcuts="Alt+Shift+A" title="Accessibility settings (Alt+Shift+A)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="4.5" r="1.8"/><path d="M5 8.5l7 1.5 7-1.5M12 10v5M9 21l3-6 3 6"/></svg></button>
             <div class="visitor-section-bar visitor-home-bar"><a class="btn btn-ghost btn-sm system-back-link home-back-arrow" href="../Landing/landing.html" aria-label="Back to home" title="Back to home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 5-7 7 7 7M5 12h14"/></svg></a></div>
             <section class="visitor-hub" id="visitorHub" aria-labelledby="visitorWelcomeTitle">
                 <div class="visitor-welcome">
@@ -73,22 +62,22 @@
 
     <div class="toast-wrap" id="toastWrap" aria-live="polite"></div>
     <script src="../shared/office-calendar.js?v=20261125-opening-today"></script>
-    <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
+    <script src="../shared/ui-components.js?v=20261126-flow-cleanup"></script>
     <script src="visit-flow.js"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/visitor-turnstile.js"></script>
-    <script src="../shared/visit-enhancements.js?v=20261125-task-label"></script>
-    <script src="user.js?v=20261125-masked-ticket-name"></script>
+    <script src="../shared/visit-enhancements.js?v=20261128-task-history"></script>
+    <script src="user.js?v=20261128-upload-accessibility"></script>
     <script src="chat-identity.js?v=20261125-chat-code-only"></script>
-    <script src="../shared/appointment-api.js?v=20261125-requirement-when-needed"></script>
+    <script src="../shared/appointment-api.js?v=20261126-current-visit-lookup"></script>
 
-    <script src="../shared/private-record-cache.js?v=20261120-ticket-refresh-cleanup"></script>
+    <script src="../shared/private-record-cache.js?v=20261128-service-examples"></script>
     <script src="accessibility.js"></script>
     <script src="../shared/code-boxes.js?v=20261124-chat-code-boxes"></script>
     <script src="../shared/responsive.js"></script>
-    <script src="../shared/portal-api.js?v=20261125-chat-code-only"></script>
-    <script src="../shared/realtime-updates.js?v=20261109-consistency-pass"></script>
-    <script src="visitor-actions.js?v=20261120-ticket-export-fix"></script>
+    <script src="../shared/portal-api.js?v=20261128-service-examples"></script>
+    <script src="../shared/realtime-updates.js?v=20261126-flow-cleanup"></script>
+    <script src="visitor-actions.js?v=20261125-header-accessibility"></script>
 </body>
 
 </html>

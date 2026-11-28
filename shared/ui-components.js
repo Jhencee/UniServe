@@ -286,7 +286,7 @@ function toggleProfilePassword(id,button) {
     const data=event.detail;if(!data?.id||intakeEvents.has(data.id))return;
     intakeEvents.add(data.id);if(intakeEvents.size>100)intakeEvents.delete(intakeEvents.values().next().value);
     if(document.visibilityState!=='visible')return;
-    const message=data.mode==='closed'?'Head Admin closed walk-in intake'+(data.time?' at '+data.time:'')+'.':data.mode==='scheduled'?'Head Admin scheduled walk-in cutoff for '+data.time+'.':data.mode==='extra'?'Head Admin allowed extra walk-ins during office hours.':'Head Admin restored automatic walk-in cutoff.';
+    const message=data.mode==='closed'?'Admin closed walk-in intake'+(data.time?' at '+data.time:'')+'.':data.mode==='scheduled'?'Admin scheduled walk-in cutoff for '+data.time+'.':data.mode==='extra'?'Admin allowed extra walk-ins during office hours.':'Admin restored automatic walk-in cutoff.';
     root.toast?.(root.UniServeUX.escape(message),'ok');
   });
 })(globalThis);

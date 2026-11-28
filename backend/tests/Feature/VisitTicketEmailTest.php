@@ -33,8 +33,12 @@ it('uses a readable email brand block with the original UniServe logo',function(
  $html=OfficeMail::html('Appointment confirmation','Your appointment is confirmed.');
  expect($html)->toContain('Landing/uniserve.png','width="64" height="64"','font-size:12px;line-height:18px','color:#475467','Office of Student Services')->not->toContain('uniserve-outlined');
 });
+it('highlights the request reference in appointment request emails',function(){
+ $html=OfficeMail::html('Appointment request received',"Hi Visitor,\n\nYour request is not confirmed yet.\n\nService: Test\nDate: Tomorrow\nTime: 10 AM\nRequest reference: APT-TEST1234\n\nOffice of Student Services");
+ expect($html)->toContain('Request reference','APT-TEST1234','border-left:3px solid #800000','Your request is not confirmed yet.')->and(substr_count($html,'APT-TEST1234'))->toBe(1);
+});
 it('formats named greetings consistently and escapes names',function(){
- foreach(['Appointment confirmation','Appointment cancelled','Document ready for pickup'] as $title){
+ foreach(['Appointment confirmation','Appointment cancelled','Document ready - choose delivery'] as $title){
   $html=OfficeMail::html($title,"Hi <Visitor>,\n\nYour update.\n\nVisit ID: VIS-TEST");
   expect($html)->toContain('Hi <strong>&lt;Visitor&gt;</strong>,','margin:0 0 10px','Your update.')->not->toContain('<strong><Visitor></strong>');
  }

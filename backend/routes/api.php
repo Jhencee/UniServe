@@ -39,11 +39,14 @@ Route::delete('/services/{key}', [AppointmentController::class,'deleteService'])
 Route::get('/service-records', [\App\Http\Controllers\ServiceRecordController::class,'index']);
 Route::patch('/service-records/{id}', [\App\Http\Controllers\ServiceRecordController::class,'update'])->middleware('throttle:30,1,api-route-14');
 Route::patch('/service-records/{id}/pickup', [\App\Http\Controllers\PickupController::class,'status'])->middleware('throttle:30,1,pickup-status');
+Route::post('/service-records/{id}/digital-document', [\App\Http\Controllers\PickupController::class,'sendDigital'])->middleware('throttle:10,1,digital-document');
 Route::post('/visits/{visitId}/pickup', [\App\Http\Controllers\PickupController::class,'join'])->middleware('throttle:10,1,pickup-join');
+Route::patch('/visits/{visitId}/delivery', [\App\Http\Controllers\PickupController::class,'preference'])->middleware('throttle:10,1,delivery-preference');
 Route::get('/appointment-offices', [AppointmentController::class,'offices']);
 Route::get('/appointment-slots', [AppointmentController::class,'slots'])->middleware('throttle:60,1,appointment-slots');
 Route::get('/appointments', [AppointmentController::class,'index']);
 Route::post('/appointments', [AppointmentController::class,'store'])->middleware('throttle:10,1,api-route-15');
+Route::post('/appointments/bulk-approve', [AppointmentController::class,'bulkApprove'])->middleware('throttle:10,1,appointment-bulk');
 Route::get('/appointments/visit/{visitId}', [AppointmentController::class,'show'])->middleware('throttle:30,1,api-route-16');
 Route::patch('/appointments/{id}/documents/{index}', [AppointmentController::class,'reviewDocument'])->middleware('throttle:30,1,document-review');
 Route::patch('/appointments/{id}', [AppointmentController::class,'update'])->middleware('throttle:30,1,api-route-17');
@@ -107,11 +110,25 @@ Route::post('/history/session', function(\Illuminate\Http\Request $request) {
  \App\Support\VisitorAccess::requireEmail($request,$data['email']);
  return response()->json(['verified'=>true]);
 })->middleware('throttle:30,1,visitor-email-session');
+Route::get('/feedback-required', function(\Illuminate\Http\Request $request) {
+ $email=\App\Support\VisitorAccess::email($request);
+ return response()->json(['pending'=>\App\Support\RequiredFeedback::pending($email)])->header('Cache-Control','no-store, private');
+})->middleware('throttle:30,1,feedback-required');
 
 Route::patch('/appointments/{id}/waitlist', [\App\Http\Controllers\VisitEnhancementController::class,'preferences'])->middleware('throttle:20,1,visit-waitlist');
 Route::patch('/appointments/{id}/follow-up-task', [\App\Http\Controllers\VisitEnhancementController::class,'task'])->middleware('throttle:30,1,visit-task');
 
 Route::get('/history', [VisitorHistoryController::class,'records'])->middleware('throttle:30,1,visitor-history-records');
+Route::get('/visitor/sessions',function(\Illuminate\Http\Request $r){
+    $email=\App\Support\VisitorAccess::email($r);$current=\App\Support\VisitorAccess::sessionId($r);$index='visitor-sessions:'.\App\Support\EmailIndex::key($email);
+    $sessions=array_values(array_filter(\Illuminate\Support\Facades\Cache::get($index,[]),fn($s)=>$s['expires']>time()&&\Illuminate\Support\Facades\Cache::has('visitor-session:'.$s['id'])));
+    return response()->json(['sessions'=>array_map(fn($s)=>$s+['current'=>$s['id']===$current],$sessions)]);
+})->middleware('throttle:30,1,visitor-sessions');
+Route::delete('/visitor/sessions/{id}',function(\Illuminate\Http\Request $r,string $id){
+    $email=\App\Support\VisitorAccess::email($r);$index='visitor-sessions:'.\App\Support\EmailIndex::key($email);
+    \Illuminate\Support\Facades\Cache::lock($index.':lock',10)->block(5,function()use($index,$id){$sessions=\Illuminate\Support\Facades\Cache::get($index,[]);abort_unless(isset($sessions[$id]),404);\Illuminate\Support\Facades\Cache::forget('visitor-session:'.$id);unset($sessions[$id]);\Illuminate\Support\Facades\Cache::put($index,$sessions,3600);});
+    return response()->json(['revoked'=>true]);
+})->middleware('throttle:10,1,visitor-revoke');
 
 Route::put('/appointments/{id}/documents/{index}', [AppointmentController::class,'replaceDocument'])->middleware('throttle:10,1,document-replacement');
 Route::post('/appointments/{id}/documents', [AppointmentController::class,'addDocument'])->middleware('throttle:10,1,document-upload');

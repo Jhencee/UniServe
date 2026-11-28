@@ -35,7 +35,7 @@
     }catch(_){}finally{pending.delete(channel);}
   }
   function channels(){
-    if(staff){subscribe('private-office');if(typeof currentUser!=='undefined'&&currentUser?.role==='ADMIN')subscribe('private-admin-'+currentUser.id);if(typeof currentUser!=='undefined'&&currentUser?.confidentialApprover)subscribe('private-head-admin');return;}
+    if(staff){subscribe('private-office');if(typeof currentUser!=='undefined'&&currentUser?.role==='ADMIN')subscribe('private-admin-'+currentUser.id);if(typeof currentUser!=='undefined'&&currentUser?.role==='SUPER_ADMIN')subscribe('private-super-admin');return;}
     subscribe('public-queue');
     if(typeof visitorView!=='undefined'&&['visit','checkvisit'].includes(visitorView)){const id=sessionStorage.getItem('oss_activeAppointmentId'),a=id&&loadDB().appointments.find(a=>a.id===id);if(a?.visitId||a?.requestReference)subscribe('private-visit-'+(a.visitId||a.requestReference));}
     if(typeof currentPublicChatId!=='undefined'&&currentPublicChatId)subscribe('private-chat-'+currentPublicChatId);

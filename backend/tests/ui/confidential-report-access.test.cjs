@@ -4,9 +4,13 @@ function setup(head,serverApprover=head){
  const calls={reloaded:0,printed:0,errors:[]};const context={window:{},currentUser:{confidentialApprover:head},isConfidentialTxn:()=>true,api:async(path)=>path?.endsWith('/unlock')?{expiresAt:new Date(Date.now()+300000).toISOString()}:{approver:serverApprover},openModal:(title,body,buttons)=>calls.modal={title,body,buttons},document:{getElementById:()=>({value:'password'})},profilePasswordEye:()=>'',closeModal:()=>{},assignments:new Map(),confTimers:{},clearTimeout:()=>{},setTimeout:()=>0,SharedAppointments:{reloadRecords:async()=>calls.reloaded++},confUnlocked:new Map(),Date,escapeHtml:String,toast:message=>calls.errors.push(message)};
  vm.createContext(context);vm.runInContext(source.slice(source.indexOf('  window.requireConfUnlock ='),source.indexOf('  api().then')),context);return {context,calls};
 }
-test('Head Admin can include confidential records after server role verification',async()=>{
- for(const id of ['rpt:all','svc:incident_report']){const {context:c,calls}=setup(true);await c.window.requireConfUnlock({id},()=>calls.printed++,'print');assert.equal(calls.printed,0);assert.match(calls.modal.body,/type="password"/);await calls.modal.buttons[1].action();assert.equal(calls.printed,1);assert.equal(calls.reloaded,1);assert.ok(c.confUnlocked.has(id));assert.equal(calls.errors.length,0);}
+test('old approver flags cannot unlock combined confidential reports',async()=>{
+ for(const id of ['rpt:all','svc:incident_report']){const {context:c,calls}=setup(true);await c.window.requireConfUnlock({id},()=>calls.printed++,'print');assert.equal(calls.printed,0);assert.match(calls.errors[0],/individually after approval/);}
 });
 test('regular Admins retain the individual-record approval restriction',async()=>{const {context:c,calls}=setup(false);await c.window.requireConfUnlock({id:'rpt:all'},()=>calls.printed++,'print');assert.equal(calls.printed,0);assert.equal(calls.reloaded,0);assert.match(calls.errors[0],/individually after approval/);});
-test('a client-side Head Admin flag cannot override the server role',async()=>{const {context:c,calls}=setup(true,false);await c.window.requireConfUnlock({id:'rpt:all'},()=>calls.printed++,'print');assert.equal(calls.printed,0);assert.equal(calls.reloaded,0);assert.match(calls.errors[0],/Only the Head Admin/);});
-test('record refresh failures stop confidential report printing',async()=>{const {context:c,calls}=setup(true);c.SharedAppointments.reloadRecords=async()=>{throw Error('Access revoked');};await c.window.requireConfUnlock({id:'rpt:all'},()=>calls.printed++,'print');await calls.modal.buttons[1].action();assert.equal(calls.printed,0);assert.equal(c.confUnlocked.size,0);assert.match(calls.errors[0],/Access revoked/);});
+test('an approved individual record still requires a password unlock',async()=>{const {context:c,calls}=setup(false);await c.window.requireConfUnlock({id:'case-1'},()=>calls.printed++,'print');assert.match(calls.modal.body,/type="password"/);await calls.modal.buttons[1].action();assert.equal(calls.printed,1);assert.ok(c.confUnlocked.has('case-1'));});
+test('the confidential print wrapper preserves the Reports page orientation flag',()=>{
+ const calls=[];const c={printInjected:(...args)=>calls.push(args),confidentialPrintRecord:null};vm.createContext(c);
+ vm.runInContext(source.slice(source.indexOf('  const originalPrintInjected ='),source.lastIndexOf('\n})();')),c);
+ c.printInjected('<p>Report</p>',true);assert.deepEqual(calls,[['<p>Report</p>',true]]);
+});

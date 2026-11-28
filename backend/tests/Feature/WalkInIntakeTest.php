@@ -17,15 +17,15 @@ afterEach(function(){CarbonImmutable::setTestNow();Cache::flush();foreach(['queu
 function intakeHeaders($id='head'){return ['Authorization'=>'Bearer '.StaffAuth::token(DB::table('staff_users')->where('id',$id)->first())];}
 function intakeChange($mode='closed'){return ['mode'=>$mode,'counters'=>1];}
 
-it('allows only Head Admin to close intake without requiring a reason',function(){
+it('allows an authenticated Admin to close intake without requiring a reason',function(){
  $this->postJson('/api/walk-in-capacity/override',intakeChange())->assertUnauthorized();
- $this->postJson('/api/walk-in-capacity/override',intakeChange(),intakeHeaders('regular'))->assertForbidden();
+ $this->postJson('/api/walk-in-capacity/override',intakeChange(),intakeHeaders('regular'))->assertOk();
  $this->postJson('/api/walk-in-capacity/override',intakeChange(),intakeHeaders())->assertOk();
 });
 it('publishes the manual cutoff status and records the decision',function(){
  $this->postJson('/api/walk-in-capacity/override',intakeChange(),intakeHeaders())->assertOk()->assertJsonPath('accepting',false)->assertJsonPath('manualCutoff',true);
  $this->getJson('/api/walk-in-capacity')->assertOk()->assertJsonPath('message','Walk-in intake is closed for today. Book an appointment or return on the next opening day.');
- expect(DB::table('system_audit')->where('action','Walk-in intake closed by Head Admin')->exists())->toBeTrue();
+ expect(DB::table('system_audit')->where('action','Walk-in intake closed by Admin')->exists())->toBeTrue();
 });
 it('restores automatic rules or allows extra walk-ins and clears manual closure',function(){
  foreach(['automatic','extra'] as $mode){

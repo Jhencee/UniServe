@@ -13,8 +13,8 @@ test('requested and booked appointments have a separate editable requirements re
 });
 test('restricted appointments cannot expose uploaded files',()=>{const s=setup({restricted:true});assert.doesNotMatch(s.c.appointmentActionsHtml(s.appointment),/reviewAppointmentRequirements/);s.c.reviewAppointmentRequirements('a');assert.equal(s.read().modal,undefined);assert.match(s.read().notice,/Confidential/);});
 test('missing uploads and closed appointments do not offer document review',()=>{
- for(const extra of [{attachments:[]},{status:'Cancelled'},{status:'Completed'}]){const s=setup(extra);assert.doesNotMatch(s.c.appointmentActionsHtml(s.appointment),/reviewAppointmentRequirements/);}
- const s=setup({status:'Completed'});s.c.reviewAppointmentRequirements('a');assert.equal(s.read().editable,false);
+ for(const extra of [{attachments:[]},{status:'Cancelled'},{status:'Completed',attachments:[{name:'ID.pdf',review:{status:'Accepted'}}]}]){const s=setup(extra);assert.doesNotMatch(s.c.appointmentActionsHtml(s.appointment),/reviewAppointmentRequirements/);}
+ const s=setup({status:'Completed'});assert.match(s.c.appointmentActionsHtml(s.appointment),/reviewAppointmentRequirements/);s.c.reviewAppointmentRequirements('a');assert.equal(s.read().editable,true);
 });
 
 test('document review uses one decision dropdown and save action with conditional correction fields',()=>{
@@ -55,7 +55,7 @@ test('appointment readiness uses verified counter checks without changing upload
 });
 
 test('completed appointment menu contains only details, email and print in order',()=>{
- const s=setup({status:'Completed',queueId:'q'});const html=s.c.appointmentActionsHtml(s.appointment);
+ const s=setup({status:'Completed',queueId:'q',attachments:[{name:'ID.pdf',review:{status:'Accepted'}}]});const html=s.c.appointmentActionsHtml(s.appointment);
  const labels=[...html.matchAll(/class="kebab-item" onclick="[^"]*">([^<]+)</g)].map(m=>m[1].trim());
  assert.deepEqual(labels,['View details','Email details','Print']);assert.doesNotMatch(html,/Review requirements|Reschedule|Cancel|View visit/);
 });

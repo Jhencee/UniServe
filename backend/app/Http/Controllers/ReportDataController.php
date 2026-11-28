@@ -10,13 +10,12 @@ class ReportDataController extends Controller
     private function canPrint(object $u,string $id):bool {
         $case=DB::table('confidential_cases')->where('id',$id)->first();if(!$case)return false;
         $grant=DB::table('confidential_requests')->where('case_id',$id)->where('requester_id',$u->id)->where('status','Approved')->where('scope','print')->where('expires_at','>',now())->exists();
-        return (($u->confidential_approver??false)||$grant)&&(bool)Cache::get('conf-unlock:'.$u->id.':'.$id.':print');
+        return ($u->confidential_access??false)&&$grant&&(bool)Cache::get('conf-unlock:'.$u->id.':'.$id.':print');
     }
     public function snapshot(Request $r){
         $u=StaffAuth::user($r,'ADMIN');$d=$r->validate(['kind'=>'required|in:combined,service,transaction,logbook,appointment','id'=>'nullable|string|max:80','serviceKey'=>'nullable|string|max:50','includeConf'=>'required|boolean']);
         $include=$d['includeConf'];$kind=$d['kind'];$id=$d['id']??'';
-        $headReport=($u->confidential_approver??false)&&(Cache::get('report-print:'.$u->id.':rpt:all')||($kind==='service'&&Cache::get('report-print:'.$u->id.':svc:'.($d['serviceKey']??''))));
-        if($include&&in_array($kind,['combined','service']))abort_unless($headReport,403,'Unlock confidential report printing with your password first.');
+        if($include&&in_array($kind,['combined','service']))abort(403,'Print confidential records individually after approval.');
         $transactions=[];$caseByQueue=[];
         foreach(DB::table('shared_transactions')->get() as $row){
             $t=json_decode(Crypt::decryptString($row->payload),true);$private=ServicePrivacy::confidential($t['service']??'');
@@ -36,7 +35,7 @@ class ReportDataController extends Controller
             $q=DB::table('queues')->where('id',$row->queue_id)->first();$queue=$q?QueueData::read($q->portal_payload):[];
             if(!empty($queue['checkedInAt']))$l['timeIn']=$queue['checkedInAt'];
             $private=$case||ServicePrivacy::confidential($queue['serviceKey']??'');
-            if($private&&$include)abort_unless(($u->confidential_approver??false)&&($headReport||($case&&$this->canPrint($u,$case))),403,'Unlock confidential Visitor Log printing first.');
+            if($private&&$include)abort_unless($case&&$this->canPrint($u,$case),403,'Unlock confidential Visitor Log printing first.');
             if($private&&!$include)$l=array_intersect_key($l,array_flip(['id','timeIn','timeOut','source','shared']))+['name'=>'Restricted record','type'=>'','restricted'=>true];
             if($case)$l['confidentialCaseId']=$case;$logs[]=$l;
         }

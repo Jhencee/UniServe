@@ -9,7 +9,7 @@ function setup(record,error){
  const context={sessionStorage:{getItem:()=>record?.id||'missing',removeItem:()=>{cleared=true;}},loadDB:()=>({appointments:record?[record]:[]}),visitStep:'pass',persistSession(){},renderVisitScreen(){reset++;},showPassModalReadonly:a=>shown.push(a),visitorRequest:async url=>{calls.push(url);if(error)throw error;return {appointment:{...record,visitId:'VIS-SERVER'}};},toast:message=>notices.push(message),escapeHtml:String};
  vm.createContext(context);
  const start=source.indexOf('    refreshAppointmentPass=async function(){');
- vm.runInContext(source.slice(start,source.indexOf('    const originalLookup=',start)),context);
+ vm.runInContext(source.slice(start,source.indexOf('    lookupMyVisit=async function()',start)),context);
  return {context,calls,shown,notices,reset:()=>reset,cleared:()=>cleared};
 }
 test('appointment refresh uses permanent ID instead of stale cached Visit ID',async()=>{

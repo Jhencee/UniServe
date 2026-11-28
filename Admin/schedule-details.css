@@ -2,8 +2,10 @@
 .document-save-state { margin:8px 0 0; text-align:right; font-size:.72rem; }
 .document-save-state[data-state="unsaved"] { color:var(--warn); }
 .document-save-state[data-state="saved"] { color:var(--text-soft); }
-body #content #apptBody > .appointment-awaiting-review > td { background:color-mix(in srgb,var(--warn-bg) 65%,var(--surface)); }
-body #content #apptBody > .appointment-awaiting-review:hover > td { background:var(--warn-bg); }
+body #content #apptBody > .appointment-awaiting-review > td { background:color-mix(in srgb,#7850a3 8%,var(--surface)); }
+body #content #apptBody > .appointment-awaiting-review:hover > td { background:color-mix(in srgb,#7850a3 13%,var(--surface)); }
+body #content #apptBody > .appointment-awaiting-review .appointment-status-list > .pill:first-child { background:color-mix(in srgb,#7850a3 15%,var(--surface)); color:#66398b; }
+html[data-theme="dark"] body #content #apptBody > .appointment-awaiting-review .appointment-status-list > .pill:first-child { color:#e0c2f3; }
 body #content #apptBody > .appointment-requirements-attention > td { background:color-mix(in srgb,#3b82f6 7%,var(--surface)); }
 body #content #apptBody > .appointment-requirements-attention:hover > td { background:color-mix(in srgb,#3b82f6 12%,var(--surface)); }
 body .visitor-schedule-toolbar .calendar-month-controls,
@@ -136,11 +138,84 @@ body .visitor-day-agenda .arrival-visitor-details > .mono { order:5; font-family
 body .visitor-day-agenda .arrival-visitor-actions .pill { padding:0; border-radius:0; background:transparent; color:var(--text-soft); font-size:.68rem; }
 body .visitor-day-agenda .arrival-visitor-actions .pill::before { content:''; width:5px; height:5px; border-radius:50%; background:currentColor; }
 body .visitor-day-agenda .arrival-visitor-actions .btn-ghost { margin-left:auto; padding:4px 0; }
+
+/* Appointment approval and arrival controls */
+body .queue-sound-toggle { display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; min-height:40px; padding:0; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text-soft); flex-shrink:0; }
+body .queue-sound-toggle[aria-pressed="true"] { color:var(--accent-strong); background:color-mix(in srgb,var(--accent) 7%,var(--surface)); border-color:color-mix(in srgb,var(--accent) 25%,var(--border)); }
+body .queue-sound-toggle:hover { border-color:var(--accent); color:var(--accent-strong); text-decoration:none; }
+body .queue-sound-toggle[aria-pressed="true"] .queue-sound-muted, body .queue-sound-toggle[aria-pressed="false"] .queue-sound-waves { display:none; }
+body .queue-actions { gap:10px; }
+body .queue-intake-actions { gap:8px; padding:0; border:0; background:transparent; }
+body .queue-intake-actions .btn { min-height:42px; padding:8px 13px; border:1px solid var(--border); border-radius:8px; background:var(--surface); font-size:.75rem; font-weight:600; }
+body .queue-intake-actions .btn:hover { border-color:var(--border); background:var(--surface); color:var(--accent-strong); }
+body .queue-intake-actions .btn:focus-visible, body .queue-actions .queue-call-next:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+body .queue-actions .queue-call-next { min-height:42px; padding:10px 16px; border-radius:8px; font-size:.75rem; font-weight:600; }
+body .queue-actions .queue-call-next:disabled { background:var(--surface-2); border:1px solid var(--border); color:var(--text-soft); }
+body .scheduled-approval-controls { gap:10px; }
+body .approval-date-control { gap:6px; }
+body .approval-date-control > label { color:var(--text-soft); font-size:.71rem; font-weight:600; }
+body .approval-date-field { min-height:40px; padding:0 8px; border-radius:8px; background:var(--surface); transition:border-color .15s, box-shadow .15s; }
+body .approval-date-field:hover { border-color:color-mix(in srgb,var(--accent) 35%,var(--border)); }
+body .approval-date-field:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent); }
+body .approval-date-field input { width:132px; min-height:36px; font-size:.79rem; }
+body .scheduled-approve-button { min-height:40px; padding-inline:18px; border-radius:8px; font-weight:600; }
+body .scheduled-visits-head.approval-aligned { min-height:0; }
+body .scheduled-visits-head.approval-aligned .scheduled-approval-controls { position:static; transform:none; margin-left:auto; }
+body .scheduled-approval-controls { align-items:center; flex-wrap:nowrap; gap:10px; padding:8px; border:1px solid var(--border); border-radius:10px; background:var(--surface-2); }
+body .approval-date-control { flex-direction:row; align-items:center; gap:14px; }
+body .approval-date-control > label { display:flex; flex-direction:column; gap:3px; padding-left:5px; color:var(--text); font-size:.74rem; font-weight:600; white-space:nowrap; }
+body .approval-date-control > label span { color:var(--text-soft); font-size:.68rem; font-weight:400; }
+body .approval-date-field { min-height:38px; }
+body .approval-date-field input { min-height:34px; }
+body .scheduled-approve-button { min-height:38px; }
+
+body .arrival-checkin { border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+body .arrival-toolbar { gap:20px; padding:20px 22px; }
+body .arrival-heading { display:flex; align-items:center; gap:12px; min-width:0; }
+body .arrival-heading-icon { display:grid; place-items:center; width:40px; height:40px; flex:0 0 40px; border-radius:10px; color:var(--accent-strong); background:color-mix(in srgb,var(--accent) 8%,var(--surface)); }
+body .arrival-heading h3 { font-size:.94rem; }
+body .arrival-heading p { margin-top:4px; }
+body .arrival-lookup { position:relative; width:min(100%,410px); gap:8px; }
+body .arrival-search-icon { position:absolute; left:12px; top:50%; display:flex; color:var(--text-soft); pointer-events:none; transform:translateY(-50%); }
+body .arrival-lookup input { min-height:40px; padding-left:38px; border-radius:8px; }
+body .arrival-lookup input:focus { outline:0; border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent); }
+body .arrival-lookup .btn { width:auto; flex:0 0 auto; min-width:80px; height:40px; min-height:40px; padding-inline:16px; border-radius:8px; }
+body .arrival-list { padding:0 22px; }
+body .arrival-checkin .arrival-empty { margin:16px 0; padding:16px 18px; border:1px solid var(--border); border-radius:9px; background:var(--surface-2); text-align:left; }
+@media (max-width:600px) {
+  body .queue-actions { width:100%; }
+  body .queue-intake-actions { flex:1 1 100%; justify-content:space-between; }
+  body .queue-intake-actions .btn { flex:1 1 auto; min-height:40px; }
+  body .queue-actions .queue-call-next { width:100%; margin-left:0; }
+  body .arrival-toolbar { padding:16px; }
+  body .arrival-list { padding:0 16px; }
+  body .arrival-lookup { width:100%; }
+  body .arrival-lookup input, body .arrival-lookup .btn { min-height:44px; }
+  body .scheduled-visits-head { flex-wrap:wrap; gap:12px; }
+  body .scheduled-approval-controls { width:100%; flex:1 0 100%; box-sizing:border-box; justify-content:space-between; margin-left:0; }
+  body .approval-date-control { flex:1; justify-content:space-between; }
+  body .approval-date-field input { width:130px; }
+}
+@media (max-width:400px) {
+  body .scheduled-approval-controls { flex-wrap:wrap; }
+  body .approval-date-control { flex-basis:100%; }
+  body .scheduled-approve-button { width:100%; }
+}
 body .modal:has(.appointment-detail-panel) .modal-head h3 { font-size:.88rem; font-weight:500; }
 body .modal:has(.appointment-detail-panel) .modal-foot .btn,
 body .modal:has(.reschedule-editor) .modal-foot .btn { display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:7px 16px; border-radius:5px; font-family:var(--font-body); font-size:.76rem; font-weight:500; line-height:1.4; box-shadow:none; }
 body .modal:has(.appointment-detail-panel) .modal-foot .btn-ghost { border:1px solid var(--border); background:var(--surface); color:var(--text); }
 body .modal:has(.appointment-detail-panel) .modal-foot .btn-ghost:hover { background:var(--surface-2); }
+body #activeModal > .modal:has(#confRequestReason) { max-width:480px; }
+body #activeModal > .modal:has(#confRequestReason) .modal-head h3 { font-size:.92rem; font-weight:600; }
+body #activeModal > .modal:has(#confRequestReason) .modal-body > p.field-hint { margin:0 0 9px; font-size:.76rem; line-height:1.5; }
+body #activeModal > .modal:has(#confRequestReason) .modal-body > p.field-hint:nth-of-type(2) { padding:8px 10px; border-left:2px solid var(--accent); border-radius:4px; background:var(--surface-2); color:var(--text); }
+body #activeModal > .modal:has(#confRequestReason) .modal-body > .field { margin:12px 0 0; }
+body #activeModal > .modal:has(#confRequestReason) .modal-body > .field > label { margin-bottom:6px; font-size:.76rem; font-weight:600; }
+body #activeModal > .modal:has(#confRequestReason) #confRequestReason { min-height:42px; border-radius:6px; font-size:.8rem; }
+body #activeModal > .modal:has(#confRequestReason) .modal-body > p.field-hint:last-child { margin:10px 0 0; }
+body #activeModal > .modal:has(#confRequestReason) .modal-foot { padding:12px 20px; gap:8px; }
+body #activeModal > .modal:has(#confRequestReason) .modal-foot .btn { min-height:38px; padding:8px 14px; font-size:.76rem; font-weight:500; }
 body .appointment-detail-panel .document-review { padding:0; margin:0; border:0; background:transparent; }
 body .appointment-detail-panel .document-review-title { display:none; }
 body .appointment-detail-panel .document-review-summary { margin:0 0 14px; padding:0; border:0; background:transparent; font-size:.73rem; }
@@ -150,6 +225,14 @@ body .appointment-detail-panel .schedule-history,
 body .appointment-detail-panel .follow-up-disclosure { margin:0; border:0; border-radius:0; border-top:1px solid var(--border); background:transparent; box-shadow:none; }
 body .appointment-detail-panel .schedule-history > summary,
 body .appointment-detail-panel .follow-up-disclosure > summary { padding:13px 0; font-size:.75rem; font-weight:500; background:transparent; }
+body .appointment-detail-panel .schedule-history { border-top:0; }
+body .appointment-detail-panel .schedule-history > summary { display:list-item; min-height:0; padding:6px 0; color:var(--text-soft); font-size:.76rem; font-weight:600; list-style:disclosure-closed inside; }
+body .appointment-detail-panel .schedule-history[open] > summary { list-style:disclosure-open inside; }
+body .appointment-detail-panel .schedule-history > summary:hover { color:var(--text); background:transparent; }
+body .appointment-detail-panel .schedule-history > summary svg { display:none; }
+body .appointment-detail-panel .schedule-history-count { float:right; min-width:24px; margin-left:0; padding:2px 7px; border-radius:6px; background:var(--surface-2); color:var(--text-soft); font-size:.7rem; font-weight:500; text-align:center; }
+body .appointment-detail-panel .schedule-history-count::before,
+body .appointment-detail-panel .schedule-history-count::after { content:none; }
 body .appointment-detail-panel .follow-up-card { border:0; padding:12px 0; background:transparent; box-shadow:none; }
 @media(max-width:900px) {
   body .visitor-schedule-layout { grid-template-columns:1fr; }

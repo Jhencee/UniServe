@@ -7,7 +7,7 @@ class LegacyImportController extends Controller {
  public function store(Request $r){
   $u=StaffAuth::user($r,'ADMIN');$d=$r->validate(['origin'=>'required|uuid','transactions'=>'array|max:1000','appointments'=>'array|max:1000','chats'=>'array|max:1000','queues'=>'array|max:1000','visitorLog'=>'array|max:1000']);
   $check=function($value)use(&$check){if(!is_array($value))return;foreach($value as $key=>$item){if($key==='dataUrl')abort_unless(is_string($item)&&strlen($item)<=7000000&&preg_match('~^data:(application/pdf|image/png|image/jpeg);base64,[A-Za-z0-9+/=]+$~',$item),422,'Legacy attachment needs a safe PDF or image format.');else $check($item);}};$check($d);
-  $count=DB::transaction(function()use($d,$u){$count=0;$accepted=[];$mapping=[];
+  $count=DB::transaction(function()use($d,$u){$count=0;$accepted=[];$mapping=[];$transactionCodes=\App\Support\TransactionCode::fromDatabase();
    foreach(['transactions'=>'T','appointments'=>'A','chats'=>'C','queues'=>'Q','visitorLog'=>'L'] as $type=>$prefix)foreach($d[$type]??[] as $record){abort_unless(isset($record['id'])&&is_string($record['id']),422);$mapping[$type][$record['id']]=$prefix.substr(hash('sha256',$d['origin'].':'.$type.':'.$record['id']),0,16);}
    foreach($d['queues']??[] as $q)if(!empty($q['visitId'])&&($existing=DB::table('queues')->where('visit_id',$q['visitId'])->first()))$mapping['queues'][$q['id']]=$existing->id;
    foreach(['transactions','appointments','chats','queues','visitorLog'] as $type)foreach($d[$type]??[] as $record){
@@ -18,6 +18,7 @@ class LegacyImportController extends Controller {
     if($type==='appointments'&&(!isset($record['visitId'],$record['email'],$record['service'])||!$record['visitId']||!$record['email']||!$record['service']))continue;
     if($type==='transactions'&&\App\Support\ServicePrivacy::confidential($record['service']??'')&&!$u->confidential_access)continue;
     $originalId=$record['id'];$record['id']=$mapping[$type][$originalId];foreach(['queueId'=>'queues','appointmentId'=>'appointments','transactionId'=>'transactions'] as $field=>$kind)if(isset($record[$field],$mapping[$kind][$record[$field]]))$record[$field]=$mapping[$kind][$record[$field]];
+    if($type==='transactions'&&!$transactionCodes->reserve($record['code']??null))$record['code']=$transactionCodes->next();
     $record['shared']=true;$record['imported']=true;$payload=Crypt::encryptString(json_encode($record));$base=['id'=>$record['id'],'payload'=>$payload,'created_at'=>now(),'updated_at'=>now()];
     if($type==='appointments'){
      abort_unless(isset($record['visitId'],$record['email'],$record['service']),422,'Legacy appointment is incomplete.');

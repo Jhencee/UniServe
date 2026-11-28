@@ -11,8 +11,8 @@ function setup(head){
 test('approved access appears with an open-record action in requester notifications',()=>{
  const html=setup(false);assert.ok(html.includes('Access request approved'));assert.ok(html.includes('openApprovedAccessRequest(this.dataset.id)'));
 });
-test('permission requests appear only in Head Admin notifications with a review action',()=>{
- for(const head of [false,true]){const html=setup(head);assert.equal(html.includes('Confidential access requested'),head);assert.equal(html.includes('Requesting Admin'),head);assert.equal(html.includes('openHeadAccessRequest(this.dataset.id)'),head);}
+test('stale Head Admin flags do not restore the former review action',()=>{
+ for(const head of [false,true]){const html=setup(head);assert.ok(!html.includes('Confidential access requested'));assert.ok(!html.includes('openHeadAccessRequest(this.dataset.id)'));}
 });
 
 test('sidebar and header share the unread total without additive drift',()=>{
@@ -22,15 +22,15 @@ test('sidebar and header share the unread total without additive drift',()=>{
  const c={currentUser:{id:'head',confidentialApprover:true},OfficeCalendar:{parts:()=>({date:'2026-11-08'})},loadDB:()=>db,document:{querySelector:()=>badge},localStorage:{getItem:key=>storage.get(key)||null},sessionStorage:{getItem:()=>null},importantNotifications:[{id:'update',kind:'system',title:'Update'}],approvedAccessNotifications:[{id:'approval'}],headAccessRequestNotifications:[{id:'access'}]};
  c.window=c;vm.createContext(c);
  vm.runInContext(source.slice(source.indexOf('let notificationStatusFilter='),source.indexOf('function queueStatusPill(')),c);
- assert.equal(c.staffNotificationItems().length,7);
- c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'7');
+ assert.equal(c.staffNotificationItems().length,6);
+ c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'6');
  // Navigation replaces the badge element, including all its dataset counters.
- badge={textContent:'4',dataset:{}};c.state_view='calendar';c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'7');
- c.state_view='queue';c.refreshSidebarNotificationCount();c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'7');
+ badge={textContent:'4',dataset:{}};c.state_view='calendar';c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'6');
+ c.state_view='queue';c.refreshSidebarNotificationCount();c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'6');
  const notification=c.staffNotificationItems()[0];
  storage.set('uniserve-notifications:head',JSON.stringify({[c.notificationPreferenceKey(notification)]:{archived:true}}));
- c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'6');
- c.importantNotifications.push({id:'new',kind:'system',title:'New update'});c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'7');
+ c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'5');
+ c.importantNotifications.push({id:'new',kind:'system',title:'New update'});c.refreshSidebarNotificationCount();assert.equal(badge.textContent,'6');
  const headerBadge={textContent:'',hidden:false},header={querySelector:()=>headerBadge,setAttribute:(k,v)=>header[k]=v};
  c.document.querySelector=selector=>selector.includes('staff-notification-button')?header:badge;
  const preferences={};c.staffNotificationItems().forEach(n=>preferences[c.notificationPreferenceKey(n)]={read:true});

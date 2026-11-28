@@ -21,13 +21,13 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="landing.css?v=20261123-status-alignment">
+    <link rel="stylesheet" href="landing.css?v=20261126-queue-column-alignment">
     <link rel="stylesheet" href="../shared/ui-components.css?v=20261123-compact-modals">
     <link rel="stylesheet" href="../shared/form-controls.css">
     <link rel="stylesheet" href="../shared/responsive.css?v=20261109-device-layouts">
     <link rel="stylesheet" href="../shared/calendar-style.css?v=20261123-calendar-simple-grid">
     <link rel="stylesheet" href="../shared/minimal-theme.css?v=20261123-compact-modals">
-    <link rel="stylesheet" href="landing-containers.css?v=20261124-footer-item-spacing">
+    <link rel="stylesheet" href="landing-containers.css?v=20261128-faq-restore">
 </head>
 
 <body>
@@ -122,7 +122,7 @@
                 <li class="step">
                     <span class="step-num">2</span>
                     <h3>Choose how to visit</h3>
-                    <p>Join the queue or request an appointment.</p>
+                    <p>Join the walk-in queue during office hours or request an appointment.</p>
                 </li>
                 <li class="step">
                     <span class="step-num">3</span>
@@ -132,7 +132,7 @@
                 <li class="step">
                     <span class="step-num">4</span>
                     <h3>Follow your visit</h3>
-                    <p>Use your reference or Visit ID to check your status.</p>
+                    <p>Track your visit using your reference or Visit ID. Wait for OSS to confirm an appointment before coming.</p>
                 </li>
             </ol>
         </section>
@@ -143,46 +143,36 @@
             </div>
             <div class="faq-list">
                 <details class="faq-item">
-                    <summary>What should I bring?</summary>
-                    <div class="faq-body">Each service lists its own requirements in the section above. For an appointment
-                        request, you can upload supporting documents when you submit your details. If you walk in, bring the
-                        physical documents to the counter.</div>
-                </details>
-                <details class="faq-item">
-                    <summary>What happens if I'm late for my appointment?</summary>
-                    <div class="faq-body">You have a grace period of <b id="faqGrace">15</b> minutes after your
-                        confirmed time. After that, your arrival may be marked late. Show your Visit Pass to OSS staff
-                        so they can record and review your arrival. If no arrival is recorded after
-                        <b id="faqNoShow">60</b> minutes, your appointment may be marked as a no-show.
-                        Speak to OSS staff if you still need assistance.</div>
-                </details>
-                <details class="faq-item">
-                    <summary>Who gets served first?</summary>
-                    <div class="faq-body">Senior citizens and persons with disabilities receive priority service. After that,
-                        visitors whose arrival has been recorded by OSS for a confirmed appointment are served before walk-ins, once their
-                        scheduled time arrives. Within each group, it's first come, first served.</div>
-                </details>
-                <details class="faq-item">
-                    <summary>How do I check my visit or recover my reference?</summary>
-                    <div class="faq-body">Use your request reference or Visit ID in <b>Check My Visit</b>. A Visit ID is assigned when your appointment is confirmed. To find past visits, open <b>Visit History</b> and verify your email. Visitors without email can ask OSS staff for help.</div>
-                </details>
-                <details class="faq-item">
-                    <summary>How do I pick up my document once it is ready?</summary>
-                    <div class="faq-body">When your document is <b>Ready for pickup</b>, visit OSS during office hours. Open your visit, select <b>Join pickup queue</b>, and bring a valid ID. Pickup depends on walk-in availability.</div>
-                </details>
-                <details class="faq-item">
-                    <summary>Can I use the portal outside office hours?</summary>
-                    <div class="faq-body">Yes. Appointment requests and Check My Visit remain available when the office is closed.
-                        Walk-in queue entry and messages to OSS are available during office hours, following the office calendar,
-                        lunch breaks, holidays and special closures. OSS reviews appointment requests during office hours.</div>
+                    <summary>When can I request an appointment or join the queue?</summary>
+                    <div class="faq-body">You can request an appointment or check your visit anytime. Walk-in intake and messages are available during office hours; intake may close early when the queue is full or staff set a cutoff. OSS reviews appointments during office hours.</div>
                 </details>
                 <details class="faq-item">
                     <summary>Why do I need to verify my email?</summary>
-                    <div class="faq-body">Verification confirms that you can access the inbox used for your visit. Enter the code sent to that email to view your visit history or perform protected actions. History reuses your verified session until it expires or you choose a different email.</div>
+                    <div class="faq-body">Verification confirms access to your inbox and protects your visits. Your verified session can be reused until it expires or you choose a different email.</div>
                 </details>
                 <details class="faq-item">
-                    <summary>Why is walk-in intake closed while the office is open?</summary>
-                    <div class="faq-body">Intake may stop before closing when the queue reaches capacity or staff set an earlier cutoff. Visitors already in the queue can still be served during office hours. Check the office calendar for lunch breaks, holidays and special hours, or request an appointment.</div>
+                    <summary>When is my appointment confirmed?</summary>
+                    <div class="faq-body">Your selected time is reserved while OSS reviews your request. Wait for a confirmation email with your Visit ID and schedule before coming.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>What should I bring?</summary>
+                    <div class="faq-body">Check your service requirements above. For an appointment, upload at least one required document and bring the required documents to OSS.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>What happens if I'm late for my appointment?</summary>
+                    <div class="faq-body">Show your Visit Pass to OSS staff so they can check you in. At <b id="faqGrace">15</b> minutes you may be marked late; after <b id="faqNoShow">60</b> minutes without check-in, you may be marked as a no-show. Request a new schedule through <b>Check My Visit</b> or contact OSS.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>Who gets served first?</summary>
+                    <div class="faq-body">Senior citizens and persons with disabilities receive priority. Once their scheduled time arrives, checked-in appointment visitors are served before walk-ins. Appointments follow scheduled time; walk-ins follow queue order.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>How do I check my visit or recover my reference?</summary>
+                    <div class="faq-body">Use your request reference or Visit ID in <b>Check My Visit</b>. To find past visits, verify your email in <b>Visit History</b>. Visitors without email can ask OSS for help.</div>
+                </details>
+                <details class="faq-item">
+                    <summary>How do I receive my document?</summary>
+                    <div class="faq-body">Choose hard or soft copy in <b>Check My Visit</b>. OSS sends soft copies to your verified email. For a ready hard copy, join the pickup queue before coming and bring your Visit ID and a valid ID. Pickup depends on walk-in availability.</div>
                 </details>
             </div>
         </section>
@@ -242,9 +232,8 @@
                     <span>&copy; <span id="yearNow"></span> Office of Student Services, PUP Santa Maria Campus</span>
                 </div>
                 <div class="footer-col footer-information">
-                    <h4>Information</h4>
+                    <h4>Legal</h4>
                     <a href="terms.html">Terms &amp; Conditions</a>
-                    <a href="#" onclick="showLogin(); return false;">Login</a>
                 </div>
                 <p class="privacy-note" id="privacy">
                     <b>Data privacy notice.</b> UniServe uses your name, ID details, contact number, email address,
@@ -372,10 +361,10 @@
     <script src="../shared/ui-components.js?v=20261121-modal-back-text"></script>
     <script src="../shared/code-cooldown.js"></script>
     <script src="../shared/login-turnstile.js?v=20261110-turnstile-mobile"></script>
-    <script src="landing.js?v=20261124-formal-opening"></script>
+    <script src="landing.js?v=20261128-office-hours"></script>
     <script src="../shared/code-boxes.js"></script>
     <script src="../shared/responsive.js"></script>
-    <script src="../shared/portal-api.js?v=20261120-public-queue-isolation"></script>
+    <script src="../shared/portal-api.js?v=20261128-service-examples"></script>
     <script src="../shared/realtime-updates.js?v=20261109-consistency-pass"></script>
 </body>
 

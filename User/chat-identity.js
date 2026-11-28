@@ -23,12 +23,14 @@ async function startContactChat() {
   const valid=chatProfileValidation(profile);let ok=true;
   for(const [key,id,message] of [['type','fwChatType','Select your visitor type.'],['name','fwChatName','Enter a valid full name.'],['email','fwChatEmail',profile.type==='Student'?'Use your @iskolarngbayan.pup.edu.ph email.':'Use your @gmail.com email.']])ok=markField(id,valid[key],message)&&ok;
   if(!ok){focusFirstError();return;}
-  SharedAppointments.verify(()=>{
+  const continueChat=()=>{
     if(visitorHubOpen || visitorView!=='chat')return;
     const capitalize=value=>value.replace(/(^|[\s-])\p{L}/gu,letter=>letter.toLocaleUpperCase());
     profile.name=capitalize(profile.name);
     chatFlow={step:'message',profile,message:'',bubbles:[{sender:'staff',text:`Hi ${profile.name}! What would you like to ask or report to OSS?`}]};renderChatFlowScreen();
-  },{purpose:'submission',email:profile.email});
+  };
+  try { if(await SharedAppointments.ensureEmail(profile.email,continueChat)) continueChat(); }
+  catch(error) { toast(escapeHtml(error.message),'err'); }
 }
 let contactChatPending=false;
 // Sending and resuming conversations use the authenticated API in portal-api.js.

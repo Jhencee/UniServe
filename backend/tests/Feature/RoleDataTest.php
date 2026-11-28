@@ -6,7 +6,7 @@ use Carbon\CarbonImmutable;
 
 beforeEach(function(){
  Schema::create('staff_users',function(Blueprint $t){$t->string('id')->primary();$t->string('full_name');$t->string('role');$t->string('password_hash');$t->boolean('is_active');$t->boolean('confidential_access')->default(false);$t->boolean('confidential_approver')->default(false);});
- foreach(['admin','head','super'] as $id)DB::table('staff_users')->insert(['id'=>$id,'full_name'=>$id,'role'=>$id==='super'?'SUPER_ADMIN':'ADMIN','password_hash'=>\Illuminate\Support\Facades\Hash::make('RoleFixturePassword42!'),'is_active'=>true,'confidential_access'=>$id==='head','confidential_approver'=>$id==='head']);
+ foreach(['admin','head','super'] as $id)DB::table('staff_users')->insert(['id'=>$id,'full_name'=>$id,'role'=>$id==='super'?'SUPER_ADMIN':'ADMIN','password_hash'=>\Illuminate\Support\Facades\Hash::make('RoleFixturePassword42!'),'is_active'=>true,'confidential_access'=>$id!=='super','confidential_approver'=>$id==='head']);
  Schema::create('queues',function(Blueprint $t){$t->string('id')->primary();$t->string('status');$t->text('portal_payload');$t->timestamps();});
  foreach(['2026_10_12_000003_office_calendar.php','2026_10_12_000004_audit_and_notifications.php','2026_10_14_000006_shared_appointments.php','2026_10_15_000008_remaining_flows.php'] as $file)(require database_path('migrations/'.$file))->up();
  Schema::create('confidential_cases',function(Blueprint $t){$t->string('id')->primary();$t->string('code');$t->string('assigned_admin_id')->nullable();$t->timestamps();});
@@ -91,6 +91,7 @@ function roleAuditAppointment():void {
  $q['status']='Completed';$q['transactionId']='private-case';$q['appointmentId']='private-appt';
  DB::table('queues')->where('id','private')->update(['status'=>'Completed','portal_payload'=>QueueData::write($q)]);
  DB::table('confidential_cases')->insert(['id'=>'private-case','code'=>'CASE-PRIVATE','assigned_admin_id'=>'admin']);
+ DB::table('confidential_requests')->insert(['id'=>'head-print-grant','case_id'=>'private-case','requester_id'=>'head','scope'=>'print','status'=>'Approved','expires_at'=>now()->addMinutes(30)]);
  DB::table('shared_transactions')->insert(['id'=>'private-case','queue_id'=>'private','payload'=>Illuminate\Support\Facades\Crypt::encryptString(json_encode(['id'=>'private-case','visitId'=>'VIS-PRIVATE','service'=>'incident_report','name'=>'Private Visitor','email'=>'owner@gmail.com'])),'created_at'=>now(),'updated_at'=>now()]);
  DB::table('shared_appointments')->insert(['id'=>'private-appt','visit_id'=>'VIS-PRIVATE','email'=>App\Support\EmailIndex::key('owner@gmail.com'),'service_key'=>'incident_report','status'=>'Completed','date'=>'2026-10-13','time'=>'10:30','queue_id'=>'private','payload'=>Illuminate\Support\Facades\Crypt::encryptString(json_encode(['name'=>'Private Visitor','email'=>'owner@gmail.com','type'=>'Student','createdAt'=>now()->toIso8601String(),'service'=>'Incident report','serviceKey'=>'incident_report','contact'=>'09123456789','attachments'=>[['dataUrl'=>'PRIVATE FILE']],'followUpTask'=>['text'=>'PRIVATE TASK']])),'created_at'=>now(),'updated_at'=>now()]);
 }
@@ -231,7 +232,7 @@ it('authorizes fresh report snapshots independently of client flags and view unl
  $redacted=$this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>false],roleDataHeaders('head'))->assertOk()->json();
  expect(json_encode($redacted))->not->toContain('owner@gmail.com')->not->toContain('PRIVATE TASK');
  Cache::put('report-print:head:rpt:all',true,300);
- $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('head'))->assertOk()->assertJsonPath('transactions.0.name','Private Visitor');
+ $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
  $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('admin'))->assertForbidden();
  Cache::forget('report-print:head:rpt:all');
  $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
@@ -272,7 +273,7 @@ it('includes completed visit detail only in its authorized individual report',fu
 it('keeps service report unlocks scoped to the selected service and blocks other roles',function(){
  roleAuditAppointment();
  Cache::put('report-print:head:svc:incident_report',true,300);
- $this->postJson('/api/report-data',['kind'=>'service','serviceKey'=>'incident_report','includeConf'=>true],roleDataHeaders('head'))->assertOk()->assertJsonPath('transactions.0.name','Private Visitor');
+ $this->postJson('/api/report-data',['kind'=>'service','serviceKey'=>'incident_report','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
  $this->postJson('/api/report-data',['kind'=>'combined','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
  $this->postJson('/api/report-data',['kind'=>'service','serviceKey'=>'concern','includeConf'=>true],roleDataHeaders('head'))->assertForbidden();
  $redacted=$this->postJson('/api/report-data',['kind'=>'service','serviceKey'=>'incident_report','includeConf'=>false],roleDataHeaders('admin'))->assertOk()->json('transactions.0');

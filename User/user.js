@@ -179,14 +179,14 @@ function visitIdExists(db, id) {
 }
 function nextVisitId(db) {
   let id;
-  do { const s = randomVisitSuffix(8); id = `VIS-${s}`; } while (visitIdExists(db, id));
+  do { const s = String(crypto.getRandomValues(new Uint32Array(1))[0] % 1000000).padStart(6, '0'); id = `VIS-${s}`; } while (visitIdExists(db, id));
   return id;
 }
 function normVisitRef(s) {
   const raw = String(s || '').trim().toUpperCase(), c = raw.replace(/[^A-Z0-9]/g, '');
   return /^VIS[A-Z0-9]{8}$/.test(c) && !/^VIS-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(raw) ? `VIS-${c.slice(3)}` : raw;
 }
-const LEGACY_VISIT_ID = /^VIS-\d+$/;
+const LEGACY_VISIT_ID = /^VIS-(?!\d{6}$)\d+$/;
 function migrateLegacyVisitIds(db) {
   const map = {};
   let changed = false;
@@ -348,9 +348,11 @@ function computeReadiness(svc, attachments) {
   const requirements=[...new Set((svc?.requirements||[]).map(label=>String(label).trim()).filter(Boolean))], required=requirements.length, files=attachments||[];
   const accepted=files.filter(file=>file.review?.status==='Accepted');
   const covered=new Set(accepted.filter(file=>!svc?.key||file.review?.serviceKey===svc.key).map(file=>file.review?.requirement).filter(label=>requirements.includes(label)));
+  const mapped=files.map(file=>file.requirement||file.review?.requirement).filter(label=>requirements.includes(label));
+  const uploaded=files.length&&mapped.length===files.length?new Set(mapped).size:Math.min(files.length,required);
   if(files.some(file=>file.review?.status==='Needs correction'))return {status:'INCOMPLETE',label:'Needs correction'};
   if(!required&&!files.length)return {status:'READY',label:'No uploads required'};
-  if(files.length<required)return {status:'INCOMPLETE',label:`Incomplete — ${files.length} of ${required} requirements uploaded`};
+  if(uploaded<required)return {status:'INCOMPLETE',label:`Incomplete — ${uploaded} of ${required} requirements uploaded`};
   if(files.some(file=>file.review?.status!=='Accepted'))return {status:'FOR_REVIEW',label:'Pending review'};
   if(covered.size<required)return {status:'INCOMPLETE',label:`Incomplete — ${covered.size} of ${required} requirements covered`};
   return {status:'READY',label:`Accepted — ${accepted.length} ${accepted.length===1?'file':'files'}`};
@@ -406,11 +408,26 @@ function attachListHtml(list, emptyText) {
 }
 function requirementsBoxHtml(svc) {
   return svc && svc.requirements && svc.requirements.length
-    ? `<div class="req-box"><div class="req-title">Documents to bring</div><ul>${svc.requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul></div>` : '';
+    ? `<div class="req-box"><div class="req-title">Requirements</div><ol class="document-requirements">${svc.requirements.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ol>${svc.requirements.length>5?'<button type="button" class="requirements-toggle" aria-expanded="false" onclick="toggleRequirements(this)"><span>See more</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>':''}</div>` : '';
 }
-function templatesBoxHtml(svc) {
-  return svc && svc.templates && svc.templates.length
-    ? `<div class="req-box"><div class="req-title">Forms to download</div>${attachListHtml(svc.templates)}</div>` : '';
+function toggleRequirements(button) {
+  const expanded=button.getAttribute('aria-expanded')==='true';
+  button.setAttribute('aria-expanded',String(!expanded));
+  button.previousElementSibling.classList.toggle('requirements-expanded',!expanded);
+  button.querySelector('span').textContent=expanded?'See more':'See less';
+}
+function documentsExamplesListHtml(service){
+  if(!service?.examples?.length)return '';
+  return `<div class="documents-examples"><div class="req-title">Filled-out examples</div><p class="field-hint">Use these examples as a guide when filling out your form.</p><ol class="service-example-list">${service.examples.map((file,index)=>{const download=file.dataUrl?.startsWith('data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;'),action=download?'Download':'Open';return `<li class="service-example-row"><span class="service-example-number">${index+1}.</span><span class="service-example-name">${escapeHtml(file.name)}</span><button type="button" class="service-example-action" aria-label="${action} ${escapeHtml(file.name)}" title="${action}" data-service-key="${escapeHtml(service.key)}" data-example-index="${index}" onclick="openServiceExample(this.dataset.serviceKey,Number(this.dataset.exampleIndex))">${icon(download?'download':'external',16)}</button></li>`;}).join('')}</ol></div>`;
+}
+function openServiceExample(key,index){
+  const file=findService(loadDB(),key)?.examples?.[index],match=file?.dataUrl?.match(/^data:(application\/pdf|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|image\/png|image\/jpeg);base64,([A-Za-z0-9+/=]+)$/);
+  if(!match){toast('This example could not be opened.','err');return;}
+  try{
+    const bytes=Uint8Array.from(atob(match[2]),character=>character.charCodeAt(0));
+    const url=URL.createObjectURL(new Blob([bytes],{type:match[1]})),link=document.createElement('a');
+    link.href=url;if(match[1]==='application/vnd.openxmlformats-officedocument.wordprocessingml.document')link.download=file.name;else link.target='_blank';link.rel='noopener noreferrer';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+  }catch(_){toast('This example could not be opened.','err');}
 }
 function validateAttachments(files) {
   const problems = [], seen = new Set();
@@ -443,6 +460,7 @@ function icon(name, size = 17) {
     megaphone: 'M3 11v2a2 2 0 002 2h1l3 5 1-1-1-4h5l6 4V6l-6 4H6a2 2 0 00-2 2z',
     arrowright: 'M5 12h14M13 5l7 7-7 7',
     download: 'M12 3v12M7 10l5 5 5-5M4 21h16',
+    external: 'M13 5h6v6M19 5l-9 9M19 13v5a1 1 0 01-1 1H6a1 1 0 01-1-1V6a1 1 0 011-1h5',
     clock: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 6v6l4 2',
   }[name] || 'M12 2v20';
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p.split('M').filter(Boolean).map(seg => `<path d="M${seg}"/>`).join('')}</svg>`;
@@ -526,12 +544,14 @@ const VISITOR_NAV = [
   { key: 'visit', label: 'Start a Visit', ic: 'ticket' },
   { key: 'checkvisit', label: 'Check My Visit', ic: 'search' },
   { key: 'history', label: 'Visit History', ic: 'log' },
+  { key: 'documents', label: 'Requirements & Forms', ic: 'log' },
   { key: 'chat', label: 'Chat with OSS', ic: 'chat' },
 ];
 const VISITOR_TITLES = {
   visit: ['Start Your Visit', 'Choose a service and how you want to visit'],
   checkvisit: ['Check My Visit', 'Track your appointment, visit, or document pickup'],
   history: ['Visit History', 'Verify your email to see your past visits'],
+  documents: ['Requirements & Forms', 'View requirements, blank forms, and filled-out examples'],
   chat: ['Chat with OSS', 'Send a message to the office'],
 };
 
@@ -575,7 +595,7 @@ function resetVisit() {
 
 let portalWasOpen = isOfficeHours();
 function hideClosedScreen() { const el = document.getElementById('closedScreen'); if (el) el.remove(); document.body.style.overflow = ''; }
-function visitTrackingAvailable() { return ["visit", "checkvisit", "history", "chat"].includes(visitorView); }
+function visitTrackingAvailable() { return ["visit", "checkvisit", "history", "documents", "chat"].includes(visitorView); }
 function renderClosedScreen() {
   if (visitorHubOpen) { hideClosedScreen(); return; }
   if (visitTrackingAvailable()) { hideClosedScreen(); return; }
@@ -641,15 +661,18 @@ function updateVisitorBackButton() {
   if(button){const label=window.historyVisitOpen?'Back to records':'Back to services';button.setAttribute('aria-label',label);button.title=label;}
 }
 function visitorSectionBack() {
+  if(visitorView==='documents'&&documentsServiceKey){openDocumentService('');updateVisitorBackButton();return;}
   if(window.historyVisitOpen){
     window.historyVisitOpen=false;stopTicketPolling();myActiveQueueId=null;
     sessionStorage.removeItem('oss_activeAppointmentId');persistSession();updateVisitorBackButton();navigateVisitor('history');
   }else {
     if(visitorView==='chat')clearChatSelection();
-    if(myActiveQueueId || visitStep==='pass'){
+    const leavingTicket=!!myActiveQueueId;
+    if(leavingTicket || visitStep==='pass'){
       myActiveQueueId=null;visitStep='pick';visitSelectedService=null;
       sessionStorage.removeItem('oss_activeAppointmentId');persistSession();
     }
+    if(leavingTicket){navigateVisitor('visit');return;}
     showVisitorHub();
   }
 }
@@ -686,9 +709,9 @@ function showActiveWalkInNotice() {
 }
 function showVisitPassInstructions(kind) {
   const text=kind==='walkin'
-    ? 'Download your ticket and save your Visit ID. After leaving, use Check My Visit to view your pass again.'
+    ? 'Download your ticket and keep your Visit ID. To view your pass later, enter your Visit ID in Check My Visit.'
     : 'Save your request reference and use Check My Visit to follow your request. Download your ticket after OSS confirms your appointment.';
-  openModal(kind==='walkin'?'Your Visit Pass':'Appointment request submitted', `<p>${text}</p>`, [{label:'Got it',cls:'btn-primary',action:closeModal}]);
+  openModal(kind==='walkin'?'Visit pass reminder':'Appointment request submitted', `<p>${text}</p>`, [{label:'Got it',cls:'btn-primary',action:closeModal}]);
   document.querySelector('#activeModal .modal')?.classList.add('visit-instructions-modal');
 }
 function navigateVisitor(key) {
@@ -714,16 +737,42 @@ function navigateVisitor(key) {
   portalWasOpen = isOfficeHours();
   if (!portalWasOpen && !visitTrackingAvailable()) { renderClosedScreen(); return; }
   hideClosedScreen();
-  ({ visit: renderVisitScreen, checkvisit: renderCheckVisitScreen, history: renderHistoryScreen, chat: renderChatScreen })[key]();
+  ({ visit: renderVisitScreen, checkvisit: renderCheckVisitScreen, history: renderHistoryScreen, documents: openDocumentsPage, chat: renderChatScreen })[key]();
 }
 function renderVisitorSidebar() {
   const db = loadDB();
   const unread = currentPublicChatId ? (db.chats.find(c => c.id === currentPublicChatId)?.visitorUnread || 0) : 0;
-  const descriptions={visit:'Request an OSS service or transaction.',checkvisit:'View your visit status.',history:'View your previous visits.',chat:'Ask a question or follow up with OSS.'};
+  const descriptions={visit:'Request an OSS service or transaction.',checkvisit:'Track your current visit.',history:'View your previous visits.',documents:'Find requirements, blank forms, and filled-out examples.',chat:'Ask a question or follow up with OSS.'};
   document.getElementById('visitorNavList').innerHTML = VISITOR_NAV.map(n => {
     const badge = n.key === 'chat' ? unread : 0;
-    return `<li class="visitor-nav-${n.key}"><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,16)}</span><span class="visitor-hub-label"><b>${n.key==='chat'?'Need help?':n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}${n.key==='chat'?'<span class="visitor-help-chevron" aria-hidden="true">&#8250;</span>':''}</button></li>`;
+    return `<li class="visitor-nav-${n.key}"><button data-service="${n.key}" class="nav-item ${!visitorHubOpen&&visitorView === n.key ? 'active' : ''}" ${!visitorHubOpen&&visitorView===n.key?'aria-current="page"':''} onclick="navigateVisitor('${n.key}')"><span class="visitor-hub-icon">${icon(n.ic,16)}</span><span class="visitor-hub-label"><b>${n.key==='chat'?'Need help?':n.label}</b><small>${descriptions[n.key]}</small></span>${badge ? `<span class="nav-badge">${badge}</span>` : ''}${n.key==='chat'||n.key==='documents'?'<span class="visitor-help-chevron" aria-hidden="true">&#8250;</span>':''}</button></li>`;
   }).join('');
+}
+
+let documentsServiceKey='';
+const documentsChecklist=new Map();
+function updateDocumentsChecklist(input) {
+  const key=input.dataset.serviceKey,checked=documentsChecklist.get(key)||new Set();
+  if(input.checked)checked.add(input.value);else checked.delete(input.value);
+  documentsChecklist.set(key,checked);
+}
+function documentsChecklistHtml(service) {
+  if(!service.requirements?.length)return '';
+  const checked=documentsChecklist.get(service.key)||new Set();
+  return `<fieldset class="documents-checklist"><legend>Requirements checklist</legend><p class="field-hint">Check the requirements you have prepared. This checklist is for your reference.</p>${service.requirements.map((requirement,index)=>`<label class="documents-checklist-item"><input type="checkbox" data-service-key="${escapeHtml(service.key)}" value="${index}" ${checked.has(String(index))?'checked':''} onchange="updateDocumentsChecklist(this)"><span>${escapeHtml(requirement)}</span></label>`).join('')}</fieldset>`;
+}
+function renderDocumentsPage() {
+  const services=[...(loadDB().services||[])].sort((a,b)=>(a.key==='other')-(b.key==='other')),service=services.find(s=>s.key===documentsServiceKey);
+  const list=`<div class="visit-entry-heading"><h3>Requirements &amp; Forms</h3><p>Select a service to view its requirements, blank forms, and filled-out examples.</p></div><div class="ux-search">${icon('search',18)}<input type="search" placeholder="Search services" aria-label="Search services" oninput="filterDocumentServices(this.value)"></div><div class="documents-service-list" id="documentsServiceList">${services.map(s=>`<button type="button" class="svc-item" data-key="${escapeHtml(s.key)}" data-search="${escapeHtml((s.label+' '+(s.desc||'')).toLowerCase())}" onclick="openDocumentService(this.dataset.key)"><span class="svc-item-ic">${icon(s.icon||'home',18)}</span><span class="svc-item-tx"><b>${escapeHtml(s.label)}</b><small>${escapeHtml(s.desc||'')}</small></span><span class="svc-item-go" aria-hidden="true">${icon('arrowright',16)}</span></button>`).join('')}</div><p id="documentsServiceEmpty" class="field-hint" ${services.length?'hidden':''}>${services.length?'No services match your search.':'No services are available.'}</p>`;
+  const details=service?`<div class="documents-service-heading"><h3>${escapeHtml(service.label)}</h3><p>Requirements and forms for this service.</p></div>${requirementsBoxHtml(service)}${service.templates?.length?`<div class="req-box"><div class="req-title">Forms to download</div>${attachListHtml(service.templates)}</div>`:''}${documentsExamplesListHtml(service)}${!service.requirements?.length&&!service.templates?.length&&!service.examples?.length?'<p class="field-hint">No requirements or forms are listed for this service.</p>':''}`:list;
+  document.getElementById('visitorContent').innerHTML=`<section class="visitor-page-wrap documents-page">${details}</section>`;
+}
+function openDocumentService(key){documentsServiceKey=key;renderDocumentsPage();const button=document.querySelector('#visitorSectionBar button');if(button){const label=key?'Back to all services':'Back to services';button.setAttribute('aria-label',label);button.title=label;}}
+function filterDocumentServices(value){const query=value.trim().toLowerCase(),rows=[...document.querySelectorAll('#documentsServiceList .svc-item')];rows.forEach(row=>row.hidden=!row.dataset.search.includes(query));const empty=document.getElementById('documentsServiceEmpty');if(empty){empty.hidden=rows.some(row=>!row.hidden);empty.textContent=rows.length?'No services match your search.':'No services are available.';}}
+async function openDocumentsPage() {
+  documentsServiceKey='';renderDocumentsPage();
+  try {const result=await SharedAppointments.request('/services');const db=loadDB();db.services=result.services;saveDB(db);if(!visitorHubOpen&&visitorView==='documents')renderDocumentsPage();}
+  catch(e){if(!visitorHubOpen&&visitorView==='documents')toast('Could not refresh documents. Please try again.','err');}
 }
 
 function stepperHtml(n) {
@@ -758,7 +807,7 @@ function renderVisitPicker() {
   document.getElementById('visitorContent').innerHTML = `
     <section class="visit-start-page" aria-label="Start your visit">
     ${stepperHtml(1)}
-    <div class="visit-entry-heading visitor-page-wrap"><h3>Choose a service</h3><p>Select your visitor type, then choose the service you need.</p></div>
+    <div class="visit-entry-heading visitor-page-wrap"><h3>What brings you here?</h3><p>Select your visitor type, then choose one service for your visit.</p></div>
     <div class="ux-filters">
       <div class="ux-field">
         <span class="ux-label" id="vtLbl">I am a</span>
@@ -776,11 +825,11 @@ function renderVisitPicker() {
     </div>
     <div class="ux-search">${icon('search', 18)}<input id="svcSearch" type="search" placeholder="Search services (e.g. good moral, ID, scholarship)" autocomplete="off" aria-label="Search services" oninput="filterServices(this.value)"></div>
     <div class="svc-list" id="svcList">
-      ${db.services.map(s => `
+      ${[...db.services].sort((a,b)=>(a.key==='other')-(b.key==='other')).map(s => `
         <button type="button" class="svc-item" data-q="${escapeHtml((s.label + ' ' + (s.desc || '')).toLowerCase())}" onclick="pickVisitService('${s.key}')">
           <span class="svc-item-ic">${icon(s.icon || 'home', 20)}</span>
           <span class="svc-item-tx"><b>${escapeHtml(s.label)}</b><small>${escapeHtml(s.desc || '')}</small></span>
-
+          <span class="svc-item-go" aria-hidden="true">${icon('arrowright',16)}</span>
         </button>`).join('')}
     </div>
     <div class="cvx-empty" id="svcEmpty" hidden>No service matches your search. Try &ldquo;Other Student Services Documentation&rdquo; for anything not listed.</div>
@@ -819,8 +868,8 @@ function renderVisitChoose() {
       <div class="lbl">${escapeHtml(svc.label)}<small>${escapeHtml(visitorTypeLabel(visitVisitorType, visitGuestClass))} &middot; Selected service</small></div>
       <button class="btn btn-ghost btn-sm change-service-button" onclick="uxGoStep(1)">Change service</button>
     </div>
-    ${serviceNoticeHtml(svc)}${requirementsBoxHtml(svc)}${templatesBoxHtml(svc)}
-    <div class="visit-entry-heading visitor-page-wrap"><h3>How would you like to visit?</h3><p>Review the documents above, then choose an entry method.</p></div>
+    ${serviceNoticeHtml(svc)}
+    <div class="visit-entry-heading visitor-page-wrap"><h3>How would you like to visit?</h3><p>Choose an entry method to continue.</p></div>
     <div class="entry-method-grid">
       <button id="walkInEntryButton" class="svc-card entry-method-card" onclick="startWalkIn()" disabled aria-describedby="walkInEntryStatus">
         <span class="svc-ic">${icon('ticket', 22)}</span><h3>Walk in today</h3>
@@ -897,11 +946,20 @@ function renderVisitWalkinForm() {
       <fieldset class="visitor-form-section"><legend>Contact details</legend><div class="form-row">
       <div class="field" id="fwQContact"><label for="qContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="qContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
       <div class="field" id="fwQEmail"><label for="qEmail">Email address ${uxReq}</label><input id="qEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}" required><div class="field-error"></div></div>
-      </div></fieldset><p class="field-hint" style="margin-bottom:14px;">Fields marked * are required. After you get your number, watch for it under &ldquo;Now calling&rdquo; and proceed to the assigned counter when called.</p>
+      </div></fieldset>${documentsChecklistHtml(svc)}<p class="field-hint" style="margin-bottom:14px;">* Required fields. Watch for your number and go to the assigned counter when called.</p>
       ${visitorTermsHtml('q')}
       <button class="btn btn-gold btn-block" onclick="confirmWalkInPrompt()">${icon('check', 16)} Review details</button>
     </div>`;
   restoreVisitorDraft('q');
+}
+async function checkRequiredFeedback(){
+  const result=await SharedAppointments.request('/feedback-required');
+  if(!result.pending)return false;
+  openModal('Feedback required','<p class="feedback-required-message">Submit feedback after your visit to start another.</p>',[
+    {label:'Close',cls:'btn-ghost',action:closeModal},
+    {label:'View visit history',cls:'btn-primary',action:()=>{closeModal();navigateVisitor('history');}}
+  ]);
+  return true;
 }
 async function confirmWalkInPrompt() {
   if (!requireVisitorTerms('q')) return;
@@ -978,15 +1036,15 @@ function renderVisitScheduleForm() {
         <div class="field" id="fwBkContact"><label for="bkContact">Contact number ${uxReq}</label><div class="ph-phone-input"><span class="ph-phone-prefix" title="Philippines (+63)"><span class="ph-phone-flag" aria-hidden="true"><svg viewBox="0 0 30 20" width="24" height="16"><path fill="#0038a8" d="M0 0h30v10H0z"/><path fill="#ce1126" d="M0 10h30v10H0z"/><path fill="#fff" d="M0 0l17 10L0 20z"/><g fill="#fcd116"><circle cx="5.5" cy="10" r="2.2"/><path d="M5 6h1v8H5zM1.5 9.5h8v1h-8zM2.3 7.3l.7-.7 5.7 5.7-.7.7zM2.3 12.7L8 7l.7.7L3 13.4z"/><circle cx="2.4" cy="3.2" r=".8"/><circle cx="2.4" cy="16.8" r=".8"/><circle cx="13" cy="10" r=".8"/></g></svg></span><span class="sr-only">Philippines country code +63</span></span><input id="bkContact" type="tel" inputmode="tel" autocomplete="tel" maxlength="17" placeholder="+63 917 123 4567" aria-label="Philippine mobile number, country code +63" onfocus="if (!this.value) this.value='+63'" oninput="formatContactInput(this)"></div><div class="field-error"></div></div>
         <div class="field" id="fwBkEmail"><label for="bkEmail">Email address ${uxReq}</label><input id="bkEmail" type="email" autocomplete="email" placeholder="${isStudent ? 'name@iskolarngbayan.pup.edu.ph' : 'juan.delacruz@gmail.com'}"><div class="field-error"></div></div>
       </div>
-      </fieldset><fieldset class="visitor-form-section"><legend>Supporting documents <span class="opt">(optional)</span></legend>
+      </fieldset><fieldset class="visitor-form-section"><legend>Upload requirements <span class="req" aria-hidden="true">*</span></legend>
       <div class="field">
-        ${templatesBoxHtml(svc)}
-        ${reqs.length ? `<ul class="visitor-requirements">${reqs.map(r => `<li>${escapeHtml(r)}</li>`).join('')}</ul>` : ''}
+        ${reqs.length?'<p class="field-hint">Upload a file under the requirement it supports. OSS will review each file.</p><div id="bkRequirementUploads"></div>':`
+        <span class="visit-upload-label">Upload requirements <span aria-hidden="true">*</span></span>
         <label class="dropzone" for="bkFiles" ondragover="event.preventDefault(); this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="uxDropFiles(event)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span><b>Choose files</b> or drag them here</span><small>PDF, JPG or PNG &middot; up to 5 MB each</small>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span><b>Choose files</b> or drag them here</span><small>PDF, JPG or PNG &middot; 5 MB each, 40 MB total</small>
         </label>
-        <input id="bkFiles" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg" onchange="handleScheduleFilesChange(this)">
-        <p class="field-hint">Uploads are optional. Bring the required documents when you visit OSS.</p><div id="bkReadiness"></div><div id="bkAttachPreview"></div>
+        <input id="bkFiles" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg" onchange="handleScheduleFilesChange(this)">`}
+        <div id="bkReadiness"></div><div id="bkAttachPreview"></div>
       </div>
       </fieldset><p class="field-hint" style="margin-bottom:14px;">* Required fields. We will email you when OSS approves or reschedules your request.</p>
       ${visitorTermsHtml('bk')}
@@ -1011,17 +1069,21 @@ async function refreshBookingSlots(){
 }
 function uxDropFiles(e) { e.preventDefault(); e.currentTarget.classList.remove('drag'); addScheduleFiles(e.dataTransfer.files); }
 function handleScheduleFilesChange(inputEl) { const files = Array.from(inputEl.files || []); inputEl.value = ''; return addScheduleFiles(files); }
-async function addScheduleFiles(fileList) {
+function handleRequirementFilesChange(inputEl) { const files=Array.from(inputEl.files||[]),requirement=visitSelectedService?.requirements?.[Number(inputEl.dataset.index)];inputEl.value='';if(requirement)return addScheduleFiles(files,requirement); }
+async function addScheduleFiles(fileList,requirement='') {
   const accepted = [];
   for (const f of Array.from(fileList || [])) {
+    if(scheduleAttachments.length+accepted.length>=60){toast('You can upload up to 60 files.','err');break;}
+    if(requirement && scheduleAttachments.filter(a=>a.requirement===requirement).length+accepted.length>=2){toast('You can upload up to 2 files per requirement.','err');break;}
     const name = f.name.toLowerCase();
-    if (!ALLOWED_ATTACHMENT_TYPES.some(t => f.type && f.type.startsWith(t))) { toast(`"${escapeHtml(f.name)}" is not a PDF or image.`, 'err'); continue; }
+    if (!['application/pdf','image/png','image/jpeg'].includes(f.type)) { toast(`"${escapeHtml(f.name)}" must be a PDF, PNG or JPEG.`, 'err'); continue; }
     if (f.size > UX_MAX_FILE) { toast(`"${escapeHtml(f.name)}" is over 5 MB.`, 'err'); continue; }
-    if (scheduleAttachments.some(a => a.name.toLowerCase() === name) || accepted.some(a => a.name.toLowerCase() === name)) { toast(`"${escapeHtml(f.name)}" is already attached.`, 'err'); continue; }
+    if (scheduleAttachments.reduce((sum,a)=>sum+(a.size||0),0)+accepted.reduce((sum,a)=>sum+a.size,0)+f.size>40*1024*1024) { toast('Files must be no more than 40 MB in total.', 'err'); continue; }
+    if (scheduleAttachments.some(a => a.name.toLowerCase() === name && (a.requirement||'')===requirement) || accepted.some(a => a.name.toLowerCase() === name)) { toast(`"${escapeHtml(f.name)}" is already attached to this requirement.`, 'err'); continue; }
     accepted.push(f);
   }
   if (!accepted.length) return;
-  try { scheduleAttachments = scheduleAttachments.concat(await readFilesAsAttachments(accepted)); }
+  try { scheduleAttachments = scheduleAttachments.concat((await readFilesAsAttachments(accepted)).map(file=>({...file,...(requirement?{requirement}: {})}))); }
   catch (e) { toast('Could not read one of the uploaded files.', 'err'); }
   updateScheduleAttachUI();
 }
@@ -1029,10 +1091,14 @@ function removeScheduleFile(i) { scheduleAttachments.splice(i, 1); updateSchedul
 function updateScheduleAttachUI() {
   const prev = document.getElementById('bkAttachPreview');
   if (!prev) return;
-  prev.innerHTML = scheduleAttachments.length
+  const requirementUploads=document.getElementById('bkRequirementUploads');
+  if(requirementUploads){
+    requirementUploads.innerHTML=(visitSelectedService?.requirements||[]).map((requirement,index)=>{const files=scheduleAttachments.map((file,i)=>({file,i})).filter(item=>item.file.requirement===requirement);return `<div class="appointment-requirement-upload"><div class="appointment-requirement-title"><span class="appointment-requirement-label"><input type="checkbox" ${files.length?'checked':''} disabled aria-label="${escapeHtml(requirement)}: ${files.length?'file added':'no file added'}"><span>${escapeHtml(requirement)}</span></span>${files.length?'<span class="appointment-upload-status">File added</span>':''}</div>${files.map(({file,i})=>`<div class="attach-row">${attachChip(file)}<button type="button" class="attach-x" aria-label="Remove ${escapeHtml(file.name)}" onclick="removeScheduleFile(${i})">${icon('x',14)}</button></div>`).join('')}${files.length<2?`<button type="button" class="appointment-upload-button" data-index="${index}" aria-label="${files.length?'Add another file for':'Choose file for'} ${escapeHtml(requirement)}" onclick="document.getElementById('bkRequirementFile'+this.dataset.index).click()">${icon('paperclip',13)} ${files.length?'Add another file':'Choose file'}</button><input id="bkRequirementFile${index}" type="file" multiple hidden accept="application/pdf,image/png,image/jpeg" data-index="${index}" onchange="handleRequirementFilesChange(this)">`:''}</div>`;}).join('')+'<p class="field-hint">PDF, JPG or PNG. Up to 2 files per requirement, 5 MB each and 40 MB total.</p>';
+  }
+  prev.innerHTML = !requirementUploads&&scheduleAttachments.length
     ? `<div class="attach-list">${scheduleAttachments.map((a, i) => `<div class="attach-row">${attachChip(a)}<button type="button" class="attach-x" aria-label="Remove ${escapeHtml(a.name)}" onclick="removeScheduleFile(${i})">${icon('x', 14)}</button></div>`).join('')}</div>` : '';
   const svc = visitSelectedService, r = document.getElementById('bkReadiness');
-  if (r) r.innerHTML = svc && svc.requirements && svc.requirements.length ? readinessPillHtml(computeReadiness(svc, scheduleAttachments)) : '';
+  if (r) r.innerHTML = '';
 }
 async function confirmSchedulePrompt() {
   if (!requireVisitorTerms('bk')) return;
@@ -1042,6 +1108,7 @@ async function confirmSchedulePrompt() {
   if (!vals) return;
   const office=document.getElementById('bkOffice').value,date=document.getElementById('bkDate').value,time=document.getElementById('bkTime').value;
   if(!office||!date||!time){toast('Choose your date and an available time slot.','err');return;}
+  if(!scheduleAttachments.length){toast('Upload at least one supporting document.','err');document.getElementById('bkRequirementUploads')?.scrollIntoView({block:'center'});return;}
   Object.assign(vals,{office,date,time});
   try { if(!await SharedAppointments.ensureEmail(vals.email,confirmSchedulePrompt)) return; }
   catch(error) { toast(escapeHtml(error.message),'err'); return; }
@@ -1117,7 +1184,6 @@ function appointmentPassHtml(appt) {
         <div class="ticket-v2-main">
           <div class="ticket-v2-top">
             <div class="ticket-v2-header">
-              <div class="ticket-v2-org"><img class="ticket-v2-logo" src="../User/ticket.png" alt=""><div class="ticket-v2-org-text"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div></div>
               <div class="ticket-v2-issued">Requested<br>${fmtDateTime(appt.createdAt)}</div>
             </div>
             <div class="ticket-v2-body">
@@ -1173,21 +1239,37 @@ function timelineStepsHtml(q, appointment = null) {
 function visitProgressHtml(q, appointment = null) {
   const progress=q.pickupProgress;
   if(!progress) return timelineStepsHtml(q,appointment);
-  const labels={Preparing:'Being prepared',Ready:'Ready for pickup',Claimed:'Claimed'};
-  const documentStatus=labels[progress.documentStatus]||'Pending';
+  const isSoftCopy=q.deliveryFormat==='digital', deliveryStatus=q.digitalDeliveryStatus;
+  const formatLabel=isSoftCopy?'Soft copy by email':q.deliveryFormat==='hard'?'Hard copy at OSS':'';
+  const documentStatus=progress.documentStatus==='Preparing'?'Being prepared':progress.documentStatus==='Claimed'?'Claimed':progress.documentStatus==='Ready'?(isSoftCopy?({Queued:'Email queued',Sent:'Sent by email',Failed:'Delivery failed — contact OSS'}[deliveryStatus]||'Ready to email'):'Ready for pickup'):'Pending';
+  const nextStep=progress.documentStatus==='Preparing'?'Your document is being prepared.':progress.documentStatus==='Ready'?(isSoftCopy?(deliveryStatus==='Sent'?'Check your verified email for the document.':deliveryStatus==='Failed'?'Delivery failed — contact OSS.':'OSS will send your soft copy to your verified email.'):q.deliveryFormat==='hard'?'Join the pickup queue when you are ready.':'Choose hard or soft copy in Check My Visit.'):'No document delivery progress recorded.';
+  const deliveryTimeline=()=>{
+    const steps=[
+      {lbl:isSoftCopy?'Soft copy selected':'Hard copy selected',ic:'checkin',ts:q.deliveryFormatUpdatedAt,done:!!q.deliveryFormat},
+      {lbl:'Email queued',ic:'clock',ts:q.digitalDeliveryQueuedAt,done:isSoftCopy&&!!(q.digitalDeliveryQueuedAt||['Queued','Sent','Failed'].includes(deliveryStatus))},
+      {lbl:deliveryStatus==='Failed'?'Delivery failed — contact OSS':'Sent by email',ic:deliveryStatus==='Failed'?'alert':'check',ts:deliveryStatus==='Failed'?q.digitalDeliveryFailedAt:q.digitalDeliverySentAt,failed:isSoftCopy&&deliveryStatus==='Failed',done:isSoftCopy&&deliveryStatus==='Sent'},
+    ].filter((step,index)=>isSoftCopy||index===0);
+    let lastDone=-1;steps.forEach((step,index)=>{if(step.done)lastDone=index;});
+    return '<div class="vjt-v">'+steps.map((step,index)=>'<div class="vjt-v-step '+(step.done?'done':'')+' '+(step.failed?'failed':'')+' '+(lastDone===index&&lastDone<steps.length-1?'current':'')+'"><div class="vjt-v-dotcol"><div class="vjt-v-dot">'+icon(step.done?'check':step.ic,15)+'</div>'+(index<steps.length-1?'<div class="vjt-v-line"></div>':'')+'</div><div class="vjt-v-body"><div class="vjt-v-lbl">'+escapeHtml(step.lbl)+'</div><div class="vjt-v-ts">'+(step.ts?fmtDateTime(step.ts):step.failed?'Failed':step.done?'Completed':'Pending')+'</div></div></div>').join('')+'</div>';
+  };
   return '<section class="pickup-progress-group"><h4>First visit</h4>'+timelineStepsHtml(progress.original,appointment)+'</section>'+
-    '<section class="pickup-progress-group"><h4>Document pickup</h4><p class="pickup-progress-status">'+escapeHtml(documentStatus)+'</p>'+
-    (progress.pickup?timelineStepsHtml(progress.pickup):'<p class="pickup-progress-note">'+(progress.documentStatus==='Preparing'?'Your document is being prepared.':progress.documentStatus==='Ready'?'Join the pickup queue when you are ready.':'No pickup visit recorded.')+'</p>')+'</section>';
+    '<section class="pickup-progress-group"><h4>Document delivery</h4>'+(formatLabel?'<p class="pickup-progress-note">'+escapeHtml(formatLabel)+'</p>':'')+'<p class="pickup-progress-status">'+escapeHtml(documentStatus)+'</p>'+
+    (isSoftCopy?deliveryTimeline()+(progress.documentStatus==='Ready'?'<p class="pickup-progress-note">'+escapeHtml(nextStep)+'</p>':''):progress.pickup?timelineStepsHtml(progress.pickup,appointment):'<p class="pickup-progress-note">'+escapeHtml(nextStep)+'</p>')+'</section>';
 }
 function hasActivePickup(q) {
   return ['Waiting','Called','Serving','Skipped'].includes(q.pickupProgress?.pickup?.status);
 }
 function pickupSummaryHtml(q) {
   const status=q.pickupStatus||q.pickupProgress?.documentStatus;
-  const label={Preparing:'Being prepared',Ready:'Ready for pickup',Claimed:'Claimed'}[status];
+  const label={Preparing:'Being prepared',Ready:q.digitalDeliveryStatus==='Sent'?'Sent by email':q.digitalDeliveryStatus==='Queued'?'Email delivery queued':q.deliveryFormat==='digital'&&q.digitalDeliveryStatus==='Failed'?'Delivery failed — contact OSS':q.deliveryFormat==='digital'?'Ready for digital delivery':'Ready for pickup',Claimed:'Claimed'}[status];
   if(!label)return '';
-  const action=!q.pickupOfVisitId&&q.status==='Completed'&&status==='Ready'?'<button type="button" class="btn btn-ghost btn-sm pickup-summary-action" onclick="joinDocumentPickup()">'+(hasActivePickup(q)?'View pickup queue':'Join pickup queue')+'</button>':'';
-  return '<div class="visit-document-status"><span class="visit-status-caption">Document pickup</span><h4>'+escapeHtml(label)+'</h4>'+action+'</div>';
+  let action='';
+  if(!q.pickupOfVisitId&&q.status==='Completed'&&['Preparing','Ready'].includes(status)&&!['Queued','Sent'].includes(q.digitalDeliveryStatus)){
+    if(hasActivePickup(q)) action='<button type="button" class="btn btn-primary btn-sm pickup-summary-action" onclick="joinDocumentPickup()">View pickup queue</button>';
+    else if(status==='Ready'&&q.deliveryFormat==='hard') {const open=isOfficeHours();action='<button type="button" class="btn btn-primary btn-sm pickup-summary-action" onclick="joinDocumentPickup()" '+(open?'':'disabled aria-describedby="pickupClosedNotice"')+'>Join pickup queue</button><button type="button" class="btn btn-ghost btn-sm pickup-summary-action" onclick="chooseDocumentDelivery()">Change delivery</button>'+(open?'':'<span class="pickup-closed-notice" id="pickupClosedNotice">Pickup queue is available during OSS office hours.</span>');}
+    else action='<button type="button" class="btn btn-primary btn-sm pickup-summary-action" onclick="chooseDocumentDelivery()">'+(q.deliveryFormat?'Change delivery':'Choose delivery')+'</button>';
+  }
+  return '<div class="visit-document-status"><span class="visit-status-caption">Document pickup</span><h4>'+escapeHtml(label)+'</h4>'+(action?'<div class="pickup-summary-actions">'+action+'</div>':'')+'</div>';
 }
 function feedbackSectionHtml(q) {
   if (q.status !== 'Completed' || q.pickupOfVisitId || q.pickupTransactionId) return '';
@@ -1283,10 +1365,10 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
   const download = isDone ? '' : `<button type="button" class="btn btn-ghost ticket-download-action" onclick="downloadVisitorTicket(this)">Download ticket</button>`;
   const pickupStatus=q.pickupStatus||q.pickupProgress?.documentStatus;
   const activePickup=hasActivePickup(q);
-  const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(activePickup?'View your pickup queue and bring a valid ID.':'Join the pickup queue when you are at OSS. Bring a valid ID.'):pickupStatus==='Claimed'?'Your document has been claimed.':q.feedback?'Your visit is complete. Thank you for your feedback.':(q.pickupOfVisitId||q.pickupTransactionId)?'Your pickup visit is complete.':'Your visit is complete. You may share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
+  const nextStep = isDone ? (pickupStatus==='Preparing'?'Wait for OSS to prepare your document.':pickupStatus==='Ready'?(q.deliveryFormat==='digital'?(q.digitalDeliveryStatus==='Sent'?'Check your verified email for your document.':q.digitalDeliveryStatus==='Failed'?'Delivery failed — contact OSS.':'Wait for OSS to send your soft copy to your verified email.'):activePickup?'View your pickup queue and bring a valid ID.':q.deliveryFormat==='hard'?'Join the pickup queue before coming to OSS.':'Choose how to receive your document.'):pickupStatus==='Claimed'?'Your document has been claimed.':q.feedback?'Your visit is complete. Thank you for your feedback.':(q.pickupOfVisitId||q.pickupTransactionId)?'Your pickup visit is complete.':'Your visit is complete. You may share feedback about your service below.') : q.status==='Called' ? 'Proceed to '+(q.assignedAdminName || 'the OSS counter')+' now and show your Visit ID.' : q.status==='Serving' ? 'Your service is in progress. Follow the instructions from OSS staff.' : q.status==='Skipped' ? 'Speak with the OSS front desk to review your missed call.' : q.status==='Cancelled' ? 'Start another visit if you still need assistance.' : q.status==='Unfinished' ? 'Start a new visit. Your previous record remains in visit history.' : 'Stay near OSS and watch for your queue number to be called.';
   const progressOpen=lastTicketRender.id===q.id ? (document.querySelector('.queue-visit-journey')?.open ?? !isDone) : !isDone;
   document.getElementById('visitorContent').innerHTML = `
-    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3>${visitorView==='checkvisit'?'':`<p class="field-hint">${isDone?'Save your Visit ID.': 'Download your ticket and save your Visit ID.'} After leaving this page, use Check My Visit to view your pass again.</p>`}<section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
+    <div class="visitor-page-wrap"><div class="card card-pad queue-record"><h3>Your Visit Pass</h3>${visitorView==='checkvisit'?'':`<p class="field-hint">${isDone?'Keep your Visit ID.':'Download your ticket and keep your Visit ID.'} To view your pass later, enter your Visit ID in Check My Visit.</p>`}<section class="visit-status-summary" aria-label="Current status"><span class="visit-status-caption">${pickupStatus?'Visit status':'Current status'}</span><h4>${escapeHtml(q.status)}</h4>${pickupSummaryHtml(q)}<p><strong>Next step:</strong> ${escapeHtml(nextStep)}</p></section><div class="queue-ticket-wrap">
       ${waitBanner}
       <div class="qt-layout">
         <div class="qt-main ${isDone ? 'qt-main-complete' : ''}">
@@ -1295,7 +1377,6 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
               <div class="ticket-v2-main">
                 <div class="ticket-v2-top">
                   <div class="ticket-v2-header">
-                    <div class="ticket-v2-org"><img class="ticket-v2-logo" src="../User/ticket.png" alt=""><div class="ticket-v2-org-text"><div class="ticket-v2-org-uni">Polytechnic University of the Philippines</div><div class="ticket-v2-org-sub">Santa Maria Campus<br>Office of Student Services</div></div></div>
                     <div class="ticket-v2-issued">Issued<br>${fmtDateTime(q.createdAt)}</div>
                   </div>
                   <div class="ticket-v2-body">
@@ -1346,9 +1427,23 @@ async function renderQueueTicket(queueAlreadyRefreshed = false, background = fal
 }
 function joinDocumentPickup() {
   const queue=loadDB().queues.find(q=>q.id===myActiveQueueId);if(!queue?.visitId)return;
-  openModal('Join pickup queue','<p class="field-hint">Join the walk-in queue when you are at OSS and ready to collect your document. Bring your Visit ID and a valid ID for the identity check.</p>',[
+  if(!hasActivePickup(queue)&&!isOfficeHours()){toast('The pickup queue is available during OSS office hours.','err');return;}
+  openModal('Join pickup queue','<p class="field-hint">Join the walk-in queue before coming to OSS when you are ready to collect your document. Bring your Visit ID and a valid ID for the identity check.</p>',[
     {label:'Cancel',cls:'btn-ghost',action:closeModal},
     {label:'Join pickup queue',cls:'btn-primary',action:async()=>{try{closeModal();const result=await SharedAppointments.visitorRequest('/visits/'+encodeURIComponent(queue.visitId)+'/pickup','POST',{});if(!result)return;if(result.visitToken)sessionStorage.setItem('visit-token:'+result.queue.visitId,result.visitToken);myActiveQueueId=result.queue.id;persistSession();renderQueueTicket();}catch(e){toast(escapeHtml(e.message),'err');}}}
+  ]);
+}
+function selectDeliveryFormat(input){
+  if(input?.checked)document.querySelectorAll('input[name="deliveryFormatChoice"]').forEach(option=>{if(option!==input)option.checked=false;});
+}
+function chooseDocumentDelivery(){
+  const q=loadDB().queues.find(item=>item.id===myActiveQueueId);if(!q?.visitId)return;
+  if(hasActivePickup(q)){joinDocumentPickup();return;}
+  const choice=q.deliveryFormat||'';
+  const options=`<fieldset class="delivery-format-options"><legend>Choose how to receive your document</legend><label class="delivery-format-option"><input type="checkbox" name="deliveryFormatChoice" value="hard" ${choice==='hard'?'checked':''} onchange="selectDeliveryFormat(this)"><span><strong>Hard copy at OSS</strong><small>Pick up your document in person.</small></span></label><label class="delivery-format-option"><input type="checkbox" name="deliveryFormatChoice" value="digital" ${choice==='digital'?'checked':''} onchange="selectDeliveryFormat(this)"><span><strong>Soft copy by email</strong><small>Receive it at your verified email address.</small></span></label></fieldset>`;
+  openModal('Document delivery',options,[
+    {label:'Cancel',cls:'btn-ghost',action:closeModal},
+    {label:'Save',cls:'btn-primary',action:async()=>{const format=document.querySelector('input[name="deliveryFormatChoice"]:checked')?.value;if(!format){toast('Choose a delivery format.','err');return;}try{const result=await SharedAppointments.visitorRequest('/visits/'+encodeURIComponent(q.visitId)+'/delivery','PATCH',{format});if(!result)return;closeModal();await renderQueueTicket();if(format==='hard'&&q.pickupStatus==='Ready'&&isOfficeHours())joinDocumentPickup();else toast(format==='digital'?'OSS will process your soft-copy request.':(q.pickupStatus==='Ready'?'Hard-copy pickup selected. Join the pickup queue during OSS office hours.':'Hard-copy pickup selected.'),'ok');}catch(e){toast(escapeHtml(e.message),'err');}}}
   ]);
 }
 function confirmCancelQueuePrompt() {
@@ -1391,7 +1486,7 @@ document.addEventListener('visibilitychange', refreshActiveVisitorTicket);
 window.addEventListener('pageshow', refreshActiveVisitorTicket);
 
 function renderCheckVisitScreen() {
-  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-K7M29QXA or APT-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my Visit ID or request reference?</summary><p>For a walk-in, find your <b>Visit ID</b> on your <b>Visit Pass</b>. For an appointment, use your <b>request reference</b> while it is pending. Once confirmed, find your <b>Visit ID</b> on your Visit Pass or appointment confirmation email. For document pickup, use the original visit's ID to check its status.</p></details></div>`;
+  document.getElementById('visitorContent').innerHTML=`<div class="card card-pad visitor-page-wrap"><div class="chat-contact-head"><h3>Find your visit</h3><p>Enter your Visit ID or appointment request reference to check your status and document pickup updates.</p></div><div class="field"><label for="cvInput">Visit ID or request reference</label><input id="cvInput" class="upper" placeholder="VIS-123456 or APT-K7M29QXA" autocomplete="off" aria-describedby="visitorLookupError" onkeydown="if(event.key==='Enter')lookupMyVisit()"><div class="field-error" id="visitorLookupError" role="alert" hidden></div></div><button class="btn btn-primary btn-block" onclick="lookupMyVisit()">View Visit Pass</button><details class="visitor-form-help"><summary>Where do I find my Visit ID or request reference?</summary><p>For a walk-in, find your <b>Visit ID</b> on your <b>Visit Pass</b>. For an appointment, use your <b>request reference</b> while it is pending. Once confirmed, find your <b>Visit ID</b> on your Visit Pass or appointment confirmation email. For document pickup, use the original visit's ID to check its status.</p></details></div>`;
 }
 
 async function lookupMyVisit() {
@@ -1452,7 +1547,7 @@ function showPassModalReadonly(apptIn, embedded = false) {
 
   const statusLabel = (bookingConflict||appt.needsRescheduling) ? 'Needs rescheduling' : linked ? linked.status : ({Requested:'Awaiting approval',Booked:'Appointment confirmed','Checked-in':'Checked in',Completed:'Visit completed',Cancelled:'Appointment cancelled','No-show':'Appointment missed',Unfinished:'Visit unfinished'}[appt.status] || appt.status);
   const summary = '<section class="visit-status-summary" aria-label="Current appointment status"><span class="visit-status-caption">Current status</span><h4>'+escapeHtml(statusLabel)+'</h4><p><strong>Next step:</strong> '+note+'</p></section>';
-  const body = `${summary}${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>'+ (appt.needsRescheduling?'The previous requested slot has been released. Wait for OSS to confirm a new time.':'Waiting for OSS confirmation. Your current appointment stays the same for now.') +'</p></div></div>':''}${ticketAvailable?appointmentPassHtml(appt):(appt.visitId||appt.requestReference||appt.code?`<p class="field-hint"><strong>${appt.visitId?'Visit ID':'Request reference'}:</strong> ${escapeHtml(appt.visitId||appt.requestReference||appt.code)}</p>`:'')}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}`;
+  const body = `${summary}${banner}${appt.rescheduleRequested?'<div class="reschedule-pending-note" role="status"><span class="reschedule-note-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><div><strong>Schedule change requested</strong><p>'+ (appt.needsRescheduling?'The previous requested slot has been released. Wait for OSS to confirm a new time.':appt.status==='No-show'?'Your missed appointment is not confirmed again. Wait for OSS to arrange a new time.':'Waiting for OSS confirmation. Your current appointment stays the same for now.') +'</p></div></div>':''}${ticketAvailable?appointmentPassHtml(appt):(appt.visitId||appt.requestReference||appt.code?`<div class="appointment-reference"><span>${appt.visitId?'Visit ID':'Request reference'}</span><strong>${escapeHtml(appt.visitId||appt.requestReference||appt.code)}</strong></div>`:'')}${appointmentJourneyHtml(appt)}${visitExtrasHtml(appt)}${requirementsBlockHtml(db, appt)}`;
   if (embedded) {
     visitorView = 'checkvisit';
     if (typeof setVisitorHubState === 'function') setVisitorHubState(false);
@@ -1498,12 +1593,22 @@ function renderHistoryStep() {
       const appt=db.appointments.find(a=>(a.visitId||a.requestReference||a.code)===r.ref),queue=db.queues.find(q=>q.visitId===r.ref);
       return `<article class="visitor-history-item"><div class="visitor-history-icon" aria-hidden="true">${icon(appt?'calendar':'ticket',18)}</div><div class="visitor-history-detail"><div class="visitor-history-title"><b>${escapeHtml(r.label)}</b>${statusPill(r.status)}</div><div class="visitor-history-meta"><span>${escapeHtml(String(fmtDateTime(r.when)).replace(/&middot;/g,String.fromCharCode(183)))}</span><span class="visitor-history-ref">${escapeHtml(r.ref)}</span><span>${appt?'Appointment':'Walk-in'}</span></div></div><div class="visitor-history-actions">${appt||queue?`<button class="btn btn-ghost btn-sm" onclick="openHistoryVisit('${escapeHtml(r.ref)}')">View visit</button>`:''}</div></article>`;
     }).join('')}</div>`:'<p class="field-hint">No visits were found for this email yet.</p>';
-    body+='<div class="visitor-history-footer"><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different email</button></div>';
+    body+='<div class="visitor-history-footer"><button class="btn btn-ghost btn-sm" onclick="openVisitorSessions()">Manage sessions</button><button class="btn btn-ghost btn-sm" onclick="changeHistoryEmail()">Use a different email</button></div>';
   }
   wrap.innerHTML=`<div class="card card-pad visitor-page-wrap history-page${f.step!=='verified'?' history-code-page':''}">${head}${body}</div>`;
   if(f.step==='email')VisitorTurnstile.mount('historySecurity');
   if(f.step==='code')window.CodeCooldown?.bind(document.querySelector('#visitorContent button[onclick="resendHistoryCode()"]'),'visitor:'+f.email);
   document.getElementById(f.step==='code'?'hsCode':'hsEmail')?.focus();
+}
+async function visitorSessionRequest(path,method='GET') {
+  const response=await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+path,{method,headers:{Accept:'application/json','X-Visitor-Token':sessionStorage.getItem('ossuniserve_visitor_token')||''}});
+  const data=await response.json();if(!response.ok)throw Error(data.message||'Could not manage sessions.');return data;
+}
+async function openVisitorSessions(){
+  try{const data=await visitorSessionRequest('/visitor/sessions');openModal('Active email sessions',data.sessions.length?data.sessions.map(s=>`<div class="kv"><span>${s.current?'This session':'Other session'} · ${escapeHtml(fmtDateTime(s.started))}</span><button class="btn btn-ghost btn-sm" onclick="endVisitorSession('${escapeHtml(s.id)}',${s.current?'true':'false'})">End session</button></div>`).join(''):'<p>No active sessions.</p>',[{label:'Close',cls:'btn-ghost',action:closeModal}]);}catch(error){toast(escapeHtml(error.message),'err');}
+}
+async function endVisitorSession(id,current){
+  try{await visitorSessionRequest('/visitor/sessions/'+encodeURIComponent(id),'DELETE');if(current){changeHistoryEmail();toast('Session ended.','ok');}else{toast('Session ended.','ok');await openVisitorSessions();}}catch(error){toast(escapeHtml(error.message),'err');}
 }
 
 let historyRequestBusy = false;
@@ -1602,7 +1707,7 @@ function renderChatFlowInput(openNow) {
   return `<div class="chx-composer-row">
     ${isMessage ? `<label class="chx-attach" for="cfFiles" title="Attach files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span class="chx-attach-count" id="cfAttachCount"></span></label>
       <input id="cfFiles" type="file" multiple hidden onchange="var n=this.files.length; var b=document.getElementById('cfAttachCount'); b.textContent=n; b.classList.toggle('on', n>0)">` : ''}
-    <textarea id="cfText" rows="1" placeholder="${isMessage ? 'Type your message...' : 'VIS-XXXXXXXX'}" ${openNow ? '' : 'disabled'} ${isMessage ? '' : 'style="text-transform:uppercase"'} onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); submitChatFlowText();}"></textarea>
+    <textarea id="cfText" rows="1" placeholder="${isMessage ? 'Type your message...' : 'VIS-123456'}" ${openNow ? '' : 'disabled'} ${isMessage ? '' : 'style="text-transform:uppercase"'} onkeydown="if(event.key==='Enter' &amp;&amp; !event.shiftKey){event.preventDefault(); submitChatFlowText();}"></textarea>
     <button type="button" class="chx-send" aria-label="Send message" title="Send message" ${openNow ? '' : 'disabled'} onclick="submitChatFlowText()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l16 8-16 8 3-8-3-8zm3 8h13"/></svg></button></div>`;
 }
 function chatOfficeHoursHtml() {

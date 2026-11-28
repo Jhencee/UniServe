@@ -41,8 +41,13 @@ class NotificationController extends Controller
             $count=0;
             DB::table('notification_outbox')->where('visit_id',$data['visitId'])->whereIn('status',['pending','paused'])->where(fn($q)=>$q->where('scheduled_at','!=',$scheduled->utc())->orWhere('recipient','!=',\App\Support\EmailIndex::key($data['email'])))->update(['status'=>'superseded','updated_at'=>now()]);
             foreach ([$data['kind'], 'reminder'] as $kind) {
-                $sendAt = $kind === 'reminder' ? $scheduled->subDay() : CarbonImmutable::now();
-                if ($kind === 'reminder' && $sendAt->isPast()) continue;
+                $now = CarbonImmutable::now();
+                $sendAt = $kind === 'reminder' ? $scheduled->subDay() : $now;
+                if ($kind === 'reminder' && $sendAt <= $now) {
+                    $minutes = (int) $now->diffInMinutes($scheduled);
+                    if ($minutes < 10) continue;
+                    $sendAt = $minutes > 120 ? $scheduled->subHour() : $now->addMinutes(max(1, intdiv($minutes, 2)));
+                }
                 $subject = match($kind){'reminder'=>'Appointment reminder','rescheduled'=>'Appointment rescheduled',default=>'Appointment confirmation'};
                 $body = 'Hi '.$data['name'].",\n\nYour appointment ".($kind==='rescheduled'?'has been rescheduled.':($kind==='reminder'?'is coming up.':'is confirmed.'))."\n\nOffice: ".($data['office']??'Office of Student Services')."\nService: ".$data['service']."\nDate: ".$scheduled->format('l, F j, Y')."\nTime: ".$scheduled->format('g:i A')."\nVisit ID: ".$data['visitId']."\n\nBring your required documents and show your Visit ID at the OSS counter. An Admin will check you in when you arrive.\n\nOffice of Student Services";
                 $body=str_replace("\n\nOffice of Student Services","\n\nArrival guidelines\n".implode("\n",$rules)."\n\nOffice of Student Services",$body);

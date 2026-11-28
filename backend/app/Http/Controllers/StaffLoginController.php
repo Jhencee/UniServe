@@ -111,7 +111,7 @@ class StaffLoginController extends Controller
             return response()->json(['message' => 'This account has been deactivated.'], 403);
         }
 
-        if(!empty($user->mfa_secret)){
+        if($user->role==='SUPER_ADMIN' && !empty($user->mfa_secret)){
             if(!$request->filled('mfaCode'))return response()->json(['mfaRequired'=>true,'message'=>'Enter your authenticator code or a recovery code.'],422);
             if(!\App\Support\StaffMfa::verify($user,(string)$request->input('mfaCode'))){\Illuminate\Support\Facades\RateLimiter::hit($attemptKey,60);return response()->json(['message'=>'Invalid or already used authenticator code.'],422);}
         }

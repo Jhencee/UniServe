@@ -177,7 +177,7 @@
     });
     if(!pendingTask)return '';
     const count=(a.attachments||[]).length;
-    if(count>=5)return '<p class="requirements-note">The maximum of five uploaded files has been reached.</p>';
+    if(count>=60)return '<p class="requirements-note">The maximum of 60 uploaded files has been reached. Contact OSS for help.</p>';
     return '<div class="additional-requirement field"><span class="additional-requirement-label">Submit a missing requirement</span><label class="dropzone" for="additionalRequirement" ondragover="event.preventDefault();this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="dropAdditionalRequirement(event)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 11-8.4 8.4a5.5 5.5 0 0 1-7.8-7.8l8.4-8.4a3.5 3.5 0 0 1 5 5l-8.5 8.5a1.5 1.5 0 0 1-2.1-2.1l7.8-7.8"/></svg><span><b>Choose a file</b> or drag it here</span><small>PDF, JPG or PNG &middot; up to 5 MB</small></label><input id="additionalRequirement" type="file" hidden accept="application/pdf,image/png,image/jpeg" onchange="showAdditionalRequirementFile(this)"><p id="additionalRequirementName" role="status">OSS will review your submission.</p><button type="button" class="btn btn-ghost btn-sm" data-visit-id="'+escapeHtml(a.id)+'" data-task-id="'+escapeHtml(pendingTask.id||'legacy')+'" onclick="submitAdditionalRequirement(this)">Submit requirement</button></div>';
   };
   window.showAdditionalRequirementFile=function(input){
@@ -286,6 +286,13 @@
       if(recordRefreshPromise){try{await recordRefreshPromise;}catch(_){}}
       await records();
     };
+    window.addEventListener('uniserve:changed',event=>{
+      if(event.detail?.resource!=='visits')return;
+      records().then(()=>{
+        if(state_view==='notifications')renderNotifications();
+        else if(state_view==='transactions')renderTxnTable();
+      }).catch(()=>{});
+    });
     const oldLock=lockConfTxn;lockConfTxn=function(id){const hadAccess=confUnlocked.has(id);privateRecords.delete(id);attachmentCache.delete(id);oldLock(id);if(hadAccess){const db=loadDB(),record=db.transactions.find(t=>t.id===id);logActivity(db,currentUser,'Confidential record relocked',{category:'Confidential',target:record?.code||id});saveDB(db);}};
     const originalTransactions=renderTransactions, originalLog=renderVisitorLogbook;
     const originalDashboard=renderDashboard;
@@ -300,8 +307,8 @@
         await loadSharedQueue();
         const db=loadDB(),q=db.queues.find(q=>q.id===id);
         if(q&&typeof queueRequirementState==='function'&&!queueRequirementState(db,q).ready){toast('Check all requirements before completing this visit.','warn');return;}
-        const complete=async(documentPreparation=false)=>{try{cache(await request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Completed',documentPreparation}));sessionStorage.removeItem('uniserve_document_preparation:'+id);closeModal();await records();await renderQueueDashboard();renderSidebar();toast(documentPreparation?'Visit completed. Document added to preparation.':'Visit completed and logged.','ok');}catch(e){toast(escapeHtml(e.message),'err');}};
-        if(q&&!q.pickupTransactionId){const preparation=typeof documentPreparationSelected==='function'&&documentPreparationSelected(id);openModal('Complete service','<p class="field-hint">'+(preparation?'Complete this visit and add the document to pending preparation.':'Complete this visit and save the service record.')+'</p>',[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Complete service',cls:'btn-primary',action:()=>complete(preparation)}]);return;}
+        const complete=async(documentPreparation=false)=>{try{cache(await request('/queue/'+encodeURIComponent(id),'PATCH',{status:'Completed',documentPreparation}));sessionStorage.removeItem('uniserve_document_preparation:'+id);closeModal();await records();await renderQueueDashboard();renderSidebar();toast(documentPreparation?'Visit completed. Document is being prepared for delivery.':'Visit completed and logged.','ok');}catch(e){toast(escapeHtml(e.message),'err');}};
+        if(q&&!q.pickupTransactionId){const preparation=typeof documentPreparationSelected==='function'&&documentPreparationSelected(id);openModal('Complete service','<p class="field-hint">'+(preparation?'Complete this visit and mark the document as being prepared for delivery.':'Complete this visit and save the service record.')+'</p>',[{label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Complete service',cls:'btn-primary',action:()=>complete(preparation)}]);return;}
         await complete();}catch(e){toast(escapeHtml(e.message),'err');}
     };
     const original=renderAppointments;
@@ -315,6 +322,7 @@
       }
       try{cache(await request('/appointments/'+encodeURIComponent(id)+'/check-in','POST',{}));closeModal();await renderAppointments(true);renderSidebar();toast('Checked in.','ok');}catch(e){toast(escapeHtml(e.message),'err');}
     };
+
   } else {
     let appointmentRefreshBusy=false;
     setInterval(async()=>{
@@ -348,12 +356,15 @@
         }else toast(escapeHtml(e.message),'err');
       }
     };
-    const originalLookup=lookupMyVisit;
     lookupMyVisit=async function(){
       const code=normVisitRef(document.getElementById('cvInput').value).replace(/[^A-Z0-9]/g,'').replace(/^(VIS|APT)/,'$1-');
       if(!code){visitorFormError('Enter your Visit ID.','visitorLookupError');return;}
       try{const result=await visitorRequest('/appointments/visit/'+encodeURIComponent(code));if(!result)return;if(result.queue){myActiveQueueId=result.queue.id;persistSession();renderQueueTicket();}else showPassModalReadonly(result.appointment,true);}
-      catch(e){if(e.status===404)await originalLookup();else visitorFormError(escapeHtml(e.message),'visitorLookupError');}
+      catch(e){
+        if(e.status!==404){visitorFormError(escapeHtml(e.message),'visitorLookupError');return;}
+        try{const result=await visitorRequest('/visits/'+encodeURIComponent(code));if(result?.queue){myActiveQueueId=result.queue.id;persistSession();renderQueueTicket();}}
+        catch(error){visitorFormError(error.status===404?'No visit found with that Visit ID.':escapeHtml(error.message),'visitorLookupError');}
+      }
     };
   }
 })();

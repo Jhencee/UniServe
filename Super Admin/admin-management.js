@@ -22,8 +22,8 @@ async function refreshAdmins() {
 async function renderUsers() {
   document.getElementById('content').innerHTML = `<div class="card">
     <div class="card-head"><div><h3>Admin Accounts</h3><div class="desc">Create and manage OSS Admin accounts</div><div class="desc" id="confSummary"></div></div>
-    <button class="btn btn-primary btn-sm" onclick="openUserForm()">${icon('plus', 14)} Add Admin</button></div>
-    <details class="super-permissions-help"><summary>Roles and confidential access</summary><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Head Admin</dt><dd>Manages services, assigns confidential cases, and approves access requests.</dd><dt>Confidential access</dt><dd>Allows eligible confidential work. Completed records still require assignment or approval and a password unlock.</dd></dl></details>
+    <div class="admin-management-header-actions"><button class="btn btn-primary btn-sm" onclick="openUserForm()">${icon('plus', 14)} Add Admin</button></div></div>
+    <details class="super-permissions-help"><summary>Roles and confidential access</summary><dl><dt>Admin</dt><dd>Handles visitor services within assigned permissions.</dd><dt>Super Admin</dt><dd>Grants confidential access and reviews case access requests.</dd><dt>Confidential access</dt><dd>Completed records still require assignment or approval and a password unlock.</dd></dl></details>
     <div id="adminLoadError" class="err-box" hidden></div>
     <div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Confidential Access</th><th>Status</th><th>Action</th></tr></thead><tbody id="userBody"><tr><td colspan="7">Loading accounts...</td></tr></tbody></table></div></div>`;
   try { await refreshAdmins(); }
@@ -39,12 +39,12 @@ function renderUserTable() {
   const users = loadDB().users;
   document.getElementById('userBody').innerHTML = users.map(user => `<tr>
     <td>${escapeHtml(user.fullName)}</td><td>${escapeHtml(user.username)}</td><td>${escapeHtml(user.email || '—')}</td>
-    <td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Head Admin' : 'Admin') : (ROLES[user.role]?.label || 'Admin')}</td><td>${user.role === 'ADMIN' ? (user.confidentialApprover ? 'Approver' : user.confidentialAccess ? 'Authorized' : 'No access') : 'Not applicable'}</td>
+    <td>${user.role === 'ADMIN' ? 'Admin' : (ROLES[user.role]?.label || 'Admin')}</td><td>${user.role === 'ADMIN' ? (user.confidentialAccess ? 'Authorized' : 'No access') : 'Not applicable'}</td>
     <td>${user.active ? 'Active' : 'Disabled'}</td><td class="act-cell super-account-actions">${user.role === 'ADMIN' ? `<button class="icon-btn kebab-btn" title="Account actions" aria-haspopup="true" onclick="toggleKebab(event,'${user.id}')">${icon('dots', 16)}</button>
     <div class="kebab-menu" id="kebab_${user.id}" hidden>
       <button class="kebab-item" onclick="closeKebabs();openEditUserModal('${user.id}')">${icon('edit',14)} Edit Account</button>
       <button class="kebab-item" onclick="closeKebabs();openConfAccessModal('${user.id}')">${icon('lock',14)} Confidential Access</button>
-      <button class="kebab-item" onclick="closeKebabs();openConfApproverModal('${user.id}')">${icon('userc',14)} ${user.confidentialApprover ? 'Remove' : 'Designate'} Head Admin</button>
+      ${user.active&&user.confidentialAccess?`<button class="kebab-item" onclick="closeKebabs();openConfidentialAssignment('${user.id}')">${icon('users',14)} Assign confidential case</button>`:''}
       <button class="kebab-item" onclick="closeKebabs();openResetAdminPassword('${user.id}')">${icon('lock',14)} Reset Password</button>
       <button class="kebab-item" onclick="closeKebabs();toggleUser('${user.id}')">${icon(user.active?'x':'check',14)} ${user.active ? 'Deactivate' : 'Activate'}</button>
       <button class="kebab-item" onclick="closeKebabs();deleteUser('${user.id}')">${icon('trash',14)} Remove</button>
@@ -74,12 +74,38 @@ async function saveAdminAction(id, data, action, remove = false) {
   }
 }
 function accountById(id) { return loadDB().users.find(user => user.id === id && user.role === 'ADMIN'); }
-function openConfApproverModal(id) {
-  const user=accountById(id); if(!user)return;
-  openModal('Head Admin', `<p>${escapeHtml(user.fullName)}</p><p class="field-hint">${user.confidentialApprover ? 'Change this account to Admin. It will no longer manage services, assign cases, or approve access requests.' : 'Designate this account as Head Admin to manage services, assign confidential cases, and approve access requests. This also grants Confidential access; record details still require assignment or approval.'}</p>`,[
-    {label:'Cancel',cls:'btn-ghost',action:closeModal},
-    {label:user.confidentialApprover?'Change to Admin':'Designate Head Admin',cls:'btn-primary',action:()=>saveAdminAction(id,{confidentialApprover:!user.confidentialApprover},`${user.confidentialApprover?'Removed':'Designated'} access approver ${user.username}`)}
-  ]);
+function adminAccountSummary(user,status,statusClass='') {
+  return `<div class="admin-account-summary"><div><span class="admin-account-label">Admin account</span><strong>${escapeHtml(user.fullName)}</strong></div><span class="admin-account-status ${statusClass}">${escapeHtml(status)}</span></div>`;
+}
+async function confidentialRequest(path='',method='GET',data) {
+  const response=await fetch((globalThis.UniServeConfig?.apiBase||'http://127.0.0.1:8000/api')+'/confidential'+path,{method,headers:{Accept:'application/json','Content-Type':'application/json',Authorization:'Bearer '+(loadSession().token||'')},...(data?{body:JSON.stringify(data)}:{})});
+  const result=await response.json();if(!response.ok)throw Error(result.message||'Unable to process confidential access.');return result;
+}
+async function openConfidentialRequests(){
+  try{
+    const data=await confidentialRequest();const requests=data.requests.filter(r=>r.status==='Pending'||(r.status==='Approved'&&r.expires_at&&new Date(r.expires_at.replace(' ','T')+'Z')>new Date()));
+    openModal('Confidential access requests',requests.length?requests.map(r=>`<div class="field"><label><input type="checkbox" class="conf-request-choice" data-status="${escapeHtml(r.status)}" value="${escapeHtml(r.id)}"> ${escapeHtml(r.requester_name)} · ${escapeHtml(r.code)} · ${escapeHtml(r.scope)} · ${escapeHtml(r.status)}</label><p class="field-hint">${escapeHtml(r.reason)}</p></div>`).join('')+'<p class="field-hint">Approved access lasts 60 minutes. Select pending requests to approve or deny, or approved requests to revoke.</p>':'<p>No pending or active requests.</p>',[
+      {label:'Close',cls:'btn-ghost',action:closeModal},...(requests.length?[{label:'Deny selected',cls:'btn-ghost',action:()=>reviewConfidentialRequests('Denied')},{label:'Revoke selected',cls:'btn-ghost',action:()=>reviewConfidentialRequests('Revoked')},{label:'Approve selected',cls:'btn-primary',action:()=>reviewConfidentialRequests('Approved')}]:[])
+    ]);
+  }catch(error){toast(escapeHtml(error.message),'err');}
+}
+async function reviewConfidentialRequests(decision){
+  const selected=Array.from(document.querySelectorAll('.conf-request-choice:checked'));if(!selected.length){toast('Select at least one request.','err');return;}
+  const required=decision==='Revoked'?'Approved':'Pending';if(selected.some(el=>el.dataset.status!==required)){toast(`Select only ${required.toLowerCase()} requests for this action.`,'err');return;}
+  let changed=0;for(const el of selected){try{await confidentialRequest('/requests/'+encodeURIComponent(el.value),'PATCH',{decision,minutes:60});changed++;}catch(error){toast(escapeHtml(error.message),'err');}}
+  toast(`${changed} of ${selected.length} requests ${decision.toLowerCase()}.`,changed===selected.length?'ok':'err');await openConfidentialRequests();
+}
+async function openConfidentialAssignment(adminId=''){
+  try{
+    const data=await confidentialRequest();const admins=loadDB().users.filter(u=>u.role==='ADMIN'&&u.active&&u.confidentialAccess),target=adminId?admins.find(u=>String(u.id)===String(adminId)):null;
+    if(!data.cases.length||(!adminId&&!admins.length)){toast('An existing confidential case and an authorized active Admin are required.','err');return;}
+    if(adminId&&!target){toast('This Admin must be active and authorized for confidential access before a case can be assigned.','err');return;}
+    const assignedAdmin=target?`<p class="field-hint">Assigning a case to <strong>${escapeHtml(target.fullName)}</strong>.</p>`:'';
+    const adminSelector=target?'':`<div class="field"><label for="confAdminSelect">Admin</label><select id="confAdminSelect">${admins.map(a=>`<option value="${escapeHtml(a.id)}">${escapeHtml(a.fullName)}</option>`).join('')}</select></div>`;
+    openModal('Assign confidential case',`${assignedAdmin}<div class="field"><label for="confCaseSelect">Case</label><select id="confCaseSelect">${data.cases.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.code)}</option>`).join('')}</select></div>${adminSelector}`,[
+      {label:'Cancel',cls:'btn-ghost',action:closeModal},{label:'Assign',cls:'btn-primary',action:async()=>{try{await confidentialRequest('/cases/'+encodeURIComponent(document.getElementById('confCaseSelect').value),'PATCH',{adminId:target?.id||document.getElementById('confAdminSelect').value});closeModal();toast('Case assigned.','ok');}catch(error){toast(escapeHtml(error.message),'err');}}}
+    ]);
+  }catch(error){toast(escapeHtml(error.message),'err');}
 }
 function openUserForm() { openAdminForm(null); }
 function openEditUserModal(id) {
@@ -122,9 +148,9 @@ function openAdminForm(user) {
 }
 function openConfAccessModal(id) {
   const user = accountById(id); if (!user) return;
-  openModal('Handle confidential visits', `<p>${escapeHtml(user.fullName)}: ${user.confidentialAccess ? 'Authorized' : 'No access'}</p>
+  openModal('Handle confidential visits', `<div class="conf-access-form">${adminAccountSummary(user,user.confidentialAccess?'Authorized':'No access',user.confidentialAccess?'is-positive':'')}
     ${user.confidentialAccess ? '' : reasonSelectHtml('mCaReason',['Assigned to confidential cases','Covering for another authorized Admin','Official case review','Authorized audit or compliance'],200)}
-    <div class="field"><label>Super Admin Password</label><input id="mCaPass" type="password" autocomplete="current-password"></div>`, [
+    <div class="field"><label for="mCaPass">Confirm with Super Admin password</label><input id="mCaPass" type="password" autocomplete="current-password"><p class="field-hint">Required to change this Admin’s confidential access.</p></div></div>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: user.confidentialAccess ? 'Remove Access' : 'Grant Access', cls: 'btn-primary', action: () => applyConfAccess(id, !user.confidentialAccess) }
   ]);
@@ -145,21 +171,21 @@ async function applyConfAccess(id, on) {
 }
 function toggleUser(id) {
   const user = accountById(id); if (!user) return;
-  openModal(user.active ? 'Deactivate Admin Account' : 'Activate Admin Account', `<p>${escapeHtml(user.fullName)} (${escapeHtml(user.username)})</p><p>${user.active ? 'This account will no longer be able to sign in or use existing sessions.' : 'This account will be allowed to sign in again.'}</p>`, [
+  openModal(user.active ? 'Deactivate Admin Account' : 'Activate Admin Account', `${adminAccountSummary(user,user.active?'Active':'Disabled',user.active?'is-positive':'')}<p class="admin-action-copy">${user.active ? 'This account will no longer be able to sign in or use existing sessions.' : 'This account will be allowed to sign in again.'}</p>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: user.active ? 'Deactivate' : 'Activate', cls: user.active ? 'btn-danger-o' : 'btn-primary', action: () => saveAdminAction(id, { active: !user.active }, `${user.active ? 'Deactivated' : 'Activated'} account ${user.username}`) }
   ]);
 }
 function deleteUser(id) {
   const user = accountById(id); if (!user) return;
-  openModal('Remove Admin Account', `<p>Remove ${escapeHtml(user.fullName)} (${escapeHtml(user.username)})? This account will no longer be able to sign in.</p>`, [
+  openModal('Remove Admin Account', `${adminAccountSummary(user,user.active?'Active':'Disabled',user.active?'is-positive':'')}<p class="admin-action-copy">This account will no longer be able to sign in.</p>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: 'Remove Account', cls: 'btn-danger-o', action: () => saveAdminAction(id, undefined, `Removed Admin account ${user.username}`, true) }
   ]);
 }
 function openResetAdminPassword(id) {
   const user = accountById(id); if (!user) return;
-  openModal('Reset Admin Password', `<p>${escapeHtml(user.fullName)}</p><div class="field"><label>New Temporary Password</label><div class="account-password-input"><input id="mResetPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mResetPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mResetPass',this)">${profilePasswordEye(true)}</button></div><div class="field-hint" id="mResetPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div>`, [
+  openModal('Reset Admin Password', `${adminAccountSummary(user,user.active?'Active':'Disabled',user.active?'is-positive':'')}<div class="field"><label>New Temporary Password</label><div class="account-password-input"><input id="mResetPass" type="password" autocomplete="new-password" minlength="12" maxlength="72" aria-describedby="mResetPassHint"><button type="button" class="account-pass-toggle" aria-label="Show password" aria-pressed="false" onclick="toggleAccountPassword('mResetPass',this)">${profilePasswordEye(true)}</button></div><div class="field-hint" id="mResetPassHint">At least 12 characters with uppercase and lowercase letters, a number, and a special character.</div></div>`, [
     { label: 'Cancel', cls: 'btn-ghost', action: closeModal },
     { label: 'Reset Password', cls: 'btn-primary', action: () => saveAdminAction(id, { password: document.getElementById('mResetPass').value }, `Reset password for ${user.username}`) }
   ]);

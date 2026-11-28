@@ -39,7 +39,7 @@ class AdminManagementController extends Controller
             'password' => [$creating ? 'required' : 'sometimes', 'required', ...\App\Support\AccountPassword::rules()],
             'active' => ['sometimes', 'boolean'],
             'confidentialAccess' => ['sometimes', 'boolean'],
-            'confidentialApprover' => ['sometimes', 'boolean'],
+            'confidentialApprover' => ['prohibited'],
         ]);
         $values = [];
         foreach (['fullName' => 'full_name', 'username' => 'username', 'email' => 'email', 'active' => 'is_active', 'confidentialAccess' => 'confidential_access'] as $key => $column) {
@@ -49,10 +49,6 @@ class AdminManagementController extends Controller
         }
         if (isset($data['password'])) {
             $values['password_hash'] = Hash::make($data['password']);
-        }
-        if (array_key_exists('confidentialApprover', $data)) {
-            $values['confidential_approver'] = $data['confidentialApprover'];
-            if ($data['confidentialApprover']) $values['confidential_access'] = true;
         }
         if (($data['confidentialAccess'] ?? null) === false) $values['confidential_approver'] = false;
         if ($id && (($data['confidentialAccess'] ?? null) === false || ($data['active'] ?? null) === false)) {
@@ -75,6 +71,6 @@ class AdminManagementController extends Controller
         return ['id' => $user->id, 'username' => $user->username, 'fullName' => $user->full_name,
             'email' => $user->email, 'role' => $user->role, 'active' => (bool) $user->is_active,
             'confidentialAccess' => (bool) $user->confidential_access,
-            'confidentialApprover' => (bool) ($user->confidential_approver ?? false)];
+            'confidentialApprover' => false];
     }
 }

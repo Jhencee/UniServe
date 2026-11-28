@@ -3109,3 +3109,7 @@ body :is(.landing-nav, #publicDisplay .pd-top) .brandline :is(#crestSlotA, #cres
  body .landing-nav .brandline .name small { display:block; font-size:.7rem; line-height:1.15; }
  body .landing-nav .brand-campus, body .landing-nav .brand-separator { display:none; }
 }
+
+/* Center the Type and Estimated wait labels over their corresponding values. */
+.qd-next li.qd-head > span:nth-child(3), .qd-next li > .qd-tag { justify-self:center; text-align:center; }
+.qd-next li.qd-eta { text-align:center; }

@@ -15,15 +15,22 @@
 @if($greeting)<p style="margin:0 0 10px;font-size:14px;line-height:1.6">{{ $greeting['salutation'] }} <strong>{{ $greeting['name'] }}</strong>,</p>@endif
 @if($body !== '')<div style="font-size:14px;line-height:1.6">{!! nl2br(e($body)) !!}</div>@endif
 @if($code)<div style="margin:18px 0 12px;padding:10px 0;text-align:center;font-size:28px;font-weight:bold;letter-spacing:6px;color:#800000">{{ $code }}</div><p style="font-size:13px;color:#667085">{{ $codeNotice ?? 'This code expires in five minutes. Never share it with anyone.' }}</p>@endif
-@if($details)<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0">@foreach($details as $label=>$value)<tr><td style="padding:4px 14px 4px 0;font-size:14px;color:#667085;vertical-align:top;width:72px">{{ $label }}</td><td style="padding:4px 0;font-size:14px;font-weight:bold;color:#243040;overflow-wrap:anywhere">{{ $value }}</td></tr>@endforeach</table>@endif
+@if($details)<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:12px 0">@foreach($details as $label=>$value)@if($label !== 'Request reference')<tr><td style="padding:4px 14px 4px 0;font-size:14px;color:#667085;vertical-align:top;width:72px">{{ $label }}</td><td style="padding:4px 0;font-size:14px;font-weight:bold;color:#243040;overflow-wrap:anywhere">{{ $value }}</td></tr>@endif @endforeach</table>@endif
+@if(isset($details['Request reference']))<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0;border:1px solid #e4e7ec;border-left:3px solid #800000;background:#f9f7f7"><tr><td style="padding:12px 14px"><div style="font-size:12px;color:#667085">Request reference</div><div style="margin-top:4px;font-size:17px;font-weight:bold;letter-spacing:.4px;color:#800000;overflow-wrap:anywhere">{{ $details['Request reference'] }}</div></td></tr></table>@endif
 @if($pickup ?? false)
-<h2 style="margin:20px 0 10px;font-size:15px;color:#600000">How to claim your document</h2>
+<h2 style="margin:20px 0 10px;font-size:15px;color:#600000">{{ ($pickupHard ?? false)?'Collect your hard copy':'Choose how to receive your document' }}</h2>
 <ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.6;color:#243040">
-<li style="padding:0 0 8px">Go to OSS during <strong>office hours</strong>.</li>
-<li style="padding:0 0 8px">Open <strong>Check My Visit</strong> and join the pickup queue.</li>
-<li style="padding:0 0 8px">Show your <strong>Visit ID</strong> and a <strong>valid ID</strong> to OSS staff.</li>
+@if($pickupHard ?? false)
+<li style="padding:0 0 8px">Open <strong>Check My Visit</strong> and enter your <strong>Visit ID</strong>.</li>
+<li style="padding:0 0 8px">Join the pickup queue before coming to OSS.</li>
+<li style="padding:0 0 8px">Bring your <strong>Visit ID</strong> and a <strong>valid ID</strong>.</li>
+@else
+<li style="padding:0 0 8px">Open <strong>Check My Visit</strong> and enter your <strong>Visit ID</strong>.</li>
+<li style="padding:0 0 8px">Choose <strong>Hard copy</strong> to collect it at OSS, or <strong>Soft copy</strong> to receive it by email.</li>
+<li style="padding:0 0 8px">For a hard copy, join the pickup queue before coming to OSS and bring your <strong>Visit ID</strong> and a <strong>valid ID</strong>. For a soft copy, OSS will email it to your verified address after processing.</li>
+@endif
 </ol>
-<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#667085">Walk-in intake is subject to office hours and availability.</p>
+@unless($pickupHard ?? false)<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#667085">Check My Visit will show your next step after you choose.</p>@endunless
 <p style="margin:16px 0 0;font-size:14px;color:#243040">Office of Student Services</p>
 @endif
 @if($closing)<div style="font-size:14px;line-height:1.6">{!! nl2br(e($closing)) !!}</div>@endif

@@ -14,8 +14,7 @@ class ConfidentialAccessController extends Controller {
             ->orderByDesc('r.updated_at')->get(['r.id','r.case_id','r.scope','r.expires_at','c.code'])]);
     }
     public function notifications(Request $r) {
-        $u=StaffAuth::user($r,'ADMIN');
-        abort_unless($u->confidential_approver??false,403,'Head Admin access required.');
+        $u=StaffAuth::user($r,'SUPER_ADMIN');
         $query=DB::table('confidential_requests as r')->join('staff_users as u','u.id','=','r.requester_id')->join('confidential_cases as c','c.id','=','r.case_id')
             ->where('r.status','Pending')->where('r.requester_id','!=',$u->id)->where('u.is_active',true);
         return response()->json(['requests'=>$query->orderByDesc('r.created_at')->get(['r.id','r.scope','r.created_at','u.full_name as requester_name','c.code'])]);
@@ -23,7 +22,8 @@ class ConfidentialAccessController extends Controller {
     private function permitted(object $u, string $id, string $scope): bool {
         $case=DB::table('confidential_cases')->where('id',$id)->first();
         if (!$case) return false;
-        if ($u->confidential_approver || ($scope==='view' && $case->assigned_admin_id===$u->id)) return true;
+        if (!($u->confidential_access ?? false)) return false;
+        if ($scope==='view' && $case->assigned_admin_id===$u->id) return true;
         $q=DB::table('confidential_requests')->where('case_id',$id)->where('requester_id',$u->id)->where('status','Approved')->where('expires_at','>',now());
         if ($scope==='print') $q->where('scope','print');
         return $q->exists();
@@ -36,7 +36,7 @@ class ConfidentialAccessController extends Controller {
     }
     public function history(Request $r,string $id) {
         $u=$this->actor($r,true);
-        abort_unless($u->confidential_approver || $this->permitted($u,$id,'view'),403);
+        abort_unless($this->permitted($u,$id,'view'),403);
         $code=DB::table('confidential_cases')->where('id',$id)->value('code');
         return response()->json(['events'=>DB::table('system_audit')->where('category','Confidential')->whereIn('target',array_filter([$id,$code]))->orderByDesc('created_at')->limit(100)->get(['actor_name','action','created_at'])]);
     }
@@ -46,11 +46,13 @@ class ConfidentialAccessController extends Controller {
         return $u;
     }
     public function index(Request $r) {
-        $u=$this->actor($r,true);
+        $u=StaffAuth::user($r);
+        abort_unless(in_array($u->role,['ADMIN','SUPER_ADMIN'],true),403);
+        $approver=$u->role==='SUPER_ADMIN';
         $q=DB::table('confidential_requests as r')->join('staff_users as u','u.id','=','r.requester_id')->join('confidential_cases as c','c.id','=','r.case_id');
-        if (!$u->confidential_approver) $q->where('r.requester_id',$u->id);
-        return response()->json(['approver'=>(bool)$u->confidential_approver,'requests'=>$q->select('r.*','u.full_name as requester_name','c.code')->orderByDesc('r.created_at')->limit(200)->get(),
-            'cases'=>DB::table('confidential_cases')->when(!$u->confidential_approver,fn($q)=>$q->where('assigned_admin_id',$u->id))->get(['id','code','assigned_admin_id']),
+        if (!$approver) $q->where('r.requester_id',$u->id);
+        return response()->json(['approver'=>$approver,'requests'=>$q->select('r.*','u.full_name as requester_name','c.code')->orderByDesc('r.created_at')->limit(200)->get(),
+            'cases'=>DB::table('confidential_cases')->when(!$approver,fn($q)=>$q->where('assigned_admin_id',$u->id))->get(['id','code','assigned_admin_id']),
             'admins'=>DB::table('staff_users')->where('role','ADMIN')->where('is_active',true)->get(['id','full_name'])]);
     }
     public function register(Request $r) {
@@ -61,9 +63,9 @@ class ConfidentialAccessController extends Controller {
         return response()->json(['saved'=>true]);
     }
     public function assign(Request $r,string $id) {
-        $u=$this->actor($r); abort_unless($u->confidential_approver,403,'Approver permission required.');
+        $u=StaffAuth::user($r,'SUPER_ADMIN');
         $d=$r->validate(['adminId'=>'required|string']);
-        abort_unless(DB::table('staff_users')->where('id',$d['adminId'])->where('role','ADMIN')->where('is_active',true)->exists(),422,'Select an active Admin.');
+        abort_unless(DB::table('staff_users')->where('id',$d['adminId'])->where('role','ADMIN')->where('is_active',true)->where('confidential_access',true)->exists(),422,'Select an active Admin with confidential access.');
         abort_unless(DB::table('confidential_cases')->where('id',$id)->exists(),404);
         DB::table('confidential_cases')->where('id',$id)->update(['assigned_admin_id'=>$d['adminId'],'updated_at'=>now()]);
         DB::table('confidential_requests')->where('case_id',$id)->where('status','Approved')->update(['status'=>'Revoked','updated_at'=>now()]);
@@ -89,18 +91,19 @@ class ConfidentialAccessController extends Controller {
         return response()->json(['id'=>$id],201);
     }
     public function review(Request $r,string $id) {
-        $u=$this->actor($r); abort_unless($u->confidential_approver,403,'Approver permission required.');
+        $u=StaffAuth::user($r,'SUPER_ADMIN');
         $d=$r->validate(['scope'=>'sometimes|in:view,print','decision'=>'required|in:Approved,Denied,Revoked','minutes'=>'required|integer|min:5|max:120','note'=>'sometimes|nullable|string|max:500']);
         DB::transaction(function()use($u,$d,$id){
             $row=DB::table('confidential_requests')->where('id',$id)->lockForUpdate()->first(); abort_unless($row,404);
+            if($d['decision']==='Approved') abort_unless(DB::table('staff_users')->where('id',$row->requester_id)->where('role','ADMIN')->where('is_active',true)->where('confidential_access',true)->exists(),422,'Grant confidential access to this active Admin before approving the request.');
             abort_if($row->requester_id===$u->id,403,'Another approver must review your request.');
             abort_unless(in_array($row->status,['Pending','Approved','Denied','Revoked','Expired']),409,'This request cannot be reviewed.');
             abort_if($d['decision']==='Revoked'&&$row->status!=='Approved',422,'Only approved access can be revoked.');
             if($row->status!=='Pending')SystemAudit::record($u,'Confidential','Access decision changed',$row->case_id,[['field'=>'Decision','from'=>$row->status,'to'=>$d['decision']]]);
             \Illuminate\Support\Facades\Cache::forget('conf-unlock:'.$row->requester_id.':'.$row->case_id.':view');
             \Illuminate\Support\Facades\Cache::forget('conf-unlock:'.$row->requester_id.':'.$row->case_id.':print');
-            DB::table('confidential_requests')->where('id',$id)->update(['status'=>$d['decision'],'scope'=>$d['scope']??$row->scope,'reviewer_id'=>$u->id,'decision_note'=>$d['note']??('Access '.strtolower($d['decision']).' by Head Admin.'),'expires_at'=>$d['decision']==='Approved'?now()->addMinutes($d['minutes']):null,'updated_at'=>now()]);
-            if($d['decision']==='Approved')DB::table('confidential_requests')->where('case_id',$row->case_id)->where('requester_id',$row->requester_id)->where('id','!=',$id)->whereIn('status',['Pending','Approved'])->update(['status'=>'Revoked','decision_note'=>'Replaced by a newer Head Admin decision.','updated_at'=>now()]);
+            DB::table('confidential_requests')->where('id',$id)->update(['status'=>$d['decision'],'scope'=>$d['scope']??$row->scope,'reviewer_id'=>$u->id,'decision_note'=>$d['note']??('Access '.strtolower($d['decision']).' by Super Admin.'),'expires_at'=>$d['decision']==='Approved'?now()->addMinutes($d['minutes']):null,'updated_at'=>now()]);
+            if($d['decision']==='Approved')DB::table('confidential_requests')->where('case_id',$row->case_id)->where('requester_id',$row->requester_id)->where('id','!=',$id)->whereIn('status',['Pending','Approved'])->update(['status'=>'Revoked','decision_note'=>'Replaced by a newer Super Admin decision.','updated_at'=>now()]);
             SystemAudit::record($u,'Confidential','Confidential access '.strtolower($d['decision']),$row->case_id,[['field'=>'Requested by','from'=>'','to'=>DB::table('staff_users')->where('id',$row->requester_id)->value('full_name')],['field'=>'Access','from'=>'','to'=>$d['scope']??$row->scope],['field'=>'Approval duration','from'=>'','to'=>$d['decision']==='Approved'?$d['minutes'].' minutes':'Not applicable']]);
         });
         return response()->json(['saved'=>true]);
@@ -117,17 +120,13 @@ class ConfidentialAccessController extends Controller {
             return response()->json(['expiresAt'=>$expiry->toIso8601String()]);
         }
         if (str_starts_with($id,'rpt:') || str_starts_with($id,'svc:')) {
-            abort_unless($u->confidential_approver,403,'Only the Head Admin can print combined confidential reports.');
-            abort_unless($d['scope']==='print',422,'Print scope required.');
-            \Illuminate\Support\Facades\Cache::put('report-print:'.$u->id.':'.$id,true,now()->addMinutes(5));
-            SystemAudit::record($u,'Confidential','Unlocked confidential report with password',$id);
-            return response()->json(['expiresAt'=>now()->addMinutes(5)->toIso8601String()]);
+            abort(403,'Combined confidential reports are unavailable. Request access to individual records.');
         }
         $case=DB::table('confidential_cases')->where('id',$id)->first(); abort_unless($case,404);
         $grant=DB::table('confidential_requests')->where('case_id',$id)->where('requester_id',$u->id)->where('status','Approved')->where('expires_at','>',now());
         if ($d['scope']==='print') $grant->where('scope','print');
         $grant=$grant->orderByDesc('expires_at')->first();
-        abort_unless($u->confidential_approver || ($d['scope']==='view' && $case->assigned_admin_id===$u->id) || $grant,403,'Request approval for this record first.');
+        abort_unless(($u->confidential_access??false) && (($d['scope']==='view' && $case->assigned_admin_id===$u->id) || $grant),403,'Request approval for this record first.');
         $expiry=now()->addMinutes(5); if ($grant && $grant->expires_at<$expiry->toDateTimeString()) $expiry=\Carbon\Carbon::parse($grant->expires_at);
         SystemAudit::record($u,'Confidential','Unlocked '.$d['scope'].' access: '.$d['reason'],$id);
         \Illuminate\Support\Facades\Cache::put('conf-unlock:'.$u->id.':'.$id.':'.$d['scope'],true,$expiry);

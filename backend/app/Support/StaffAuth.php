@@ -48,7 +48,7 @@ class StaffAuth
         return ['id' => $user->id, 'username' => $user->username, 'email' => $user->email,
             'fullName' => $user->full_name, 'role' => $user->role, 'active' => (bool) $user->is_active,
             'confidentialAccess' => (bool) $user->confidential_access,
-            'confidentialApprover' => (bool) ($user->confidential_approver ?? false),
+            'confidentialApprover' => false,
             'requiresPasswordChange'=>self::needsPasswordChange($user)];
     }
 }

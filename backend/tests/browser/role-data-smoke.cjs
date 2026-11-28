@@ -53,7 +53,7 @@ async function page(){
    await p.run("navigate('dashboard')");await pause(600);
    if(role==='SUPER_ADMIN'){
     assert.equal(await p.run('loadDB().feedbackSummary.responses'),2);
-    assert.ok(await p.run("document.getElementById('content').textContent.includes('System overview')"));
+     assert.ok(await p.run("document.getElementById('content').textContent.includes('Current overview')"));
     assert.ok(await p.run("document.getElementById('content').textContent.includes('Active staff accounts')"));
     assert.ok(await p.run("document.getElementById('content').textContent.includes('Sign-ins and blocked access')"));
     assert.equal(await p.run("document.getElementById('content').textContent.includes('Recent Comments')"),false);
@@ -69,20 +69,12 @@ async function page(){
     assert.equal(outputRequests.length,0);
    }else{
     assert.ok(await p.run("document.getElementById('activeModal').textContent.includes('Print redacted copy')"));
-    assert.equal(await p.run("document.getElementById('activeModal').textContent.includes('Unlock and print')"),role==='HEAD_ADMIN');
+    assert.equal(await p.run("document.getElementById('activeModal').textContent.includes('Unlock and print')"),false);
     await p.run("[...document.querySelectorAll('#activeModal button')].find(b=>b.textContent.trim()==='Print redacted copy').click()");await pause(250);
     assert.equal(outputRequests[0].includeConf,false);
     assert.equal(await p.run('window.fixturePrinted.length'),1);
-    if(role==='HEAD_ADMIN'){
-     await p.run('printReport()');await pause(100);
-     await p.run("[...document.querySelectorAll('#activeModal button')].find(b=>b.textContent.trim()==='Unlock and print').click()");await pause(150);
-     assert.equal(await p.run('window.fixturePrinted.length'),1);
-     await p.run("document.getElementById('confPassword').value='fixture-password'; [...document.querySelectorAll('#activeModal button')].find(b=>b.textContent.trim()==='Unlock').click()");await pause(300);
-     assert.equal(outputRequests[1].includeConf,true);
-     assert.equal(await p.run('window.fixturePrinted.length'),2);
-    }
    }
-   checks.push(role+' Reports print flow respects role and redacted/unlocked choices');
+   checks.push(role+' Reports print flow preserves redacted output');
    await p.screenshot('role-data-'+role.toLowerCase()+'-desktop');
    await p.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});await pause(300);
    assert.ok(await p.run('document.documentElement.scrollWidth<=innerWidth+1'),role+' mobile overflow');

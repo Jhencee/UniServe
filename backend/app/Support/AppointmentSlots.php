@@ -8,7 +8,7 @@ class AppointmentSlots
 {
     public static function offices(): array
     {
-        return VisitFlow::settings()['appointmentOffices'] ?? ['Office of Student Services'];
+        return ['Office of Student Services'];
     }
 
     public static function slots(string $date, string $office, ?string $except = null): array
@@ -23,11 +23,8 @@ class AppointmentSlots
         $query = DB::table('shared_appointments')->where('date', $date)->whereIn('status', ['Requested', 'Booked', 'Checked-in']);
         if ($except) $query->where('id', '!=', $except);
         foreach ($query->get() as $row) {
-            $payload = json_decode(Crypt::decryptString($row->payload), true);
-            if (($payload['office'] ?? 'Office of Student Services') === $office) {
-                $counts[$row->time] ??= ['pending' => 0, 'confirmed' => 0];
-                $counts[$row->time][$row->status === 'Requested' ? 'pending' : 'confirmed']++;
-            }
+            $counts[$row->time] ??= ['pending' => 0, 'confirmed' => 0];
+            $counts[$row->time][$row->status === 'Requested' ? 'pending' : 'confirmed']++;
         }
         $capacity = 1;
         $slots = [];

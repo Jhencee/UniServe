@@ -5,7 +5,7 @@
   function paint(){
     const badge=document.getElementById('queueWaitingBadge');
     if(badge){badge.textContent=String(count);badge.hidden=count===0;badge.setAttribute('aria-label',count+' visitors ready to call');}
-    document.querySelectorAll('.queue-sound-toggle').forEach(button=>{button.textContent='Queue sound: '+(enabled?'On':'Off');button.setAttribute('aria-pressed',String(enabled));});
+    document.querySelectorAll('.queue-sound-toggle').forEach(button=>{const label='Queue sound: '+(enabled?'on':'off');button.setAttribute('aria-pressed',String(enabled));button.setAttribute('aria-label',label);button.setAttribute('title',label);});
   }
   async function unlock(){
     const Audio=window.AudioContext||window.webkitAudioContext;

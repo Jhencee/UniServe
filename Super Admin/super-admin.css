@@ -2714,10 +2714,12 @@ html[data-theme="dark"] .profile-avatar {
   display: none;
 }
 
-@page {
+@page report-portrait {
   size: 8.5in 13in portrait;
   margin: 14mm 14mm 6mm;
 }
+
+.report-portrait { page: report-portrait; }
 
 @media print {
   html,
@@ -3368,6 +3370,18 @@ table.report-diff-table tbody tr:last-child td { border-bottom:1px solid var(--b
 .super-permissions-help dl { display:grid; grid-template-columns:150px minmax(0,1fr); gap:10px 20px; margin:16px 0 0; line-height:1.6; }
 .super-permissions-help dt { color:var(--text); font-weight:500; }
 .super-permissions-help dd { margin:0; }
+.admin-management-header-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
+.admin-management-header-actions .btn-ghost { background:var(--surface); }
+@media(max-width:760px) { .admin-management-header-actions { width:100%; justify-content:flex-start; } }
+.admin-account-summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; margin-bottom:18px; border:1px solid var(--border); border-radius:var(--radius-sm); background:var(--surface-2); }
+.admin-account-summary > div { display:grid; gap:4px; min-width:0; }
+.admin-account-label { color:var(--text-soft); font-size:.72rem; }
+.admin-account-summary strong { color:var(--text); font-size:.9rem; font-weight:600; overflow-wrap:anywhere; }
+.admin-account-status { flex-shrink:0; padding:5px 10px; border-radius:999px; background:var(--surface); color:var(--text-soft); font-size:.72rem; font-weight:600; }
+.admin-account-status.is-positive { background:var(--ok-bg); color:var(--ok); }
+.admin-action-copy { margin:0; color:var(--text-soft); font-size:.84rem; line-height:1.5; }
+.conf-access-form .field:last-child { margin-bottom:0; }
+.admin-account-summary + p { margin-top:0; }
 .super-account-actions { white-space:nowrap; }
 .super-account-actions > .btn { margin-right:8px; }
 .settings-block.has-unsaved-settings > h4::after { content:'Unsaved'; margin-left:10px; color:var(--accent-strong); font-size:.66rem; font-weight:400; }

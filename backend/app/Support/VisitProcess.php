@@ -2,7 +2,7 @@
 namespace App\Support;
 
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\{DB, Crypt};
+use Illuminate\Support\Facades\{DB, Crypt, Schema};
 
 class VisitProcess
 {
@@ -26,6 +26,37 @@ class VisitProcess
             "Hi ".$a['name'].",\n\n".$message."\nOpen My Visit for the latest details and next steps.\nReference: ".$row->visit_id."\n\nOffice of Student Services"
         ) + ['visit_id'=>$row->visit_id, 'scheduled_at'=>now(), 'send_at'=>now(), 'kind'=>$kind,
             'dedup_key'=>hash('sha256', $kind.'|'.$row->id.'|'.$row->revision), 'actor_id'=>'system', 'created_at'=>now(), 'updated_at'=>now()]);
+    }
+
+    public static function followUpReminderKey(string $appointmentId, string $taskId, string $dueDate): string
+    {
+        return hash('sha256', 'follow-up-reminder|'.$appointmentId.'|'.$taskId.'|'.$dueDate);
+    }
+
+    public static function queueFollowUpReminders(): int
+    {
+        if (!Schema::hasTable('shared_appointments') || !Schema::hasTable('notification_outbox')) return 0;
+        $now = CarbonImmutable::now('Asia/Manila');
+        if ($now->hour < 9) return 0;
+        $due = $now->addDay()->toDateString();
+        $count = 0;
+        DB::table('shared_appointments')->where('status','!=','Cancelled')->orderBy('id')->chunk(100, function ($rows) use ($due, &$count) {
+            foreach ($rows as $row) {
+                $appointment = json_decode(Crypt::decryptString($row->payload), true);
+                if (empty($appointment['email'])) continue;
+                $tasks = $appointment['followUpTasks'] ?? (empty($appointment['followUpTask']) ? [] : [$appointment['followUpTask']+['id'=>'legacy']]);
+                foreach ($tasks as $task) {
+                    if (!empty($task['completed']) || ($task['dueDate']??null)!==$due) continue;
+                    $taskId = (string)($task['id']??'legacy');
+                    $message = "Hello,\n\nYou have an incomplete follow-up action due tomorrow (".$due."). Open Check My Visit or Visit History in UniServe to see the action and its details.\n\nReference: ".$row->visit_id."\n\nOffice of Student Services";
+                    $count += DB::table('notification_outbox')->insertOrIgnore(PrivateNotification::fields($appointment['email'], 'Follow-up action reminder', $message) + [
+                        'visit_id'=>$row->visit_id, 'scheduled_at'=>now(), 'send_at'=>now(), 'kind'=>'follow-up-reminder',
+                        'dedup_key'=>self::followUpReminderKey($row->id,$taskId,$due), 'actor_id'=>'system', 'created_at'=>now(), 'updated_at'=>now()
+                    ]);
+                }
+            }
+        });
+        return $count;
     }
 
     public static function expireRequests(): int
